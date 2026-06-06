@@ -1,0 +1,24 @@
+cat > .github/workflows/ci.yml << 'EOF'
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  placeholder:
+    name: Repo structure check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify structure
+        run: |
+          echo "Wiser repo structure OK"
+          ls -la
+EOF
+
+git add .github/workflows/ci.yml
+git commit -m "ci: add initial workflow placeholder"
+git push
