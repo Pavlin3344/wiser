@@ -1,0 +1,79 @@
+services:
+  postgres:
+    image: pgrouting/pgrouting:16-3.5-4.0
+    container_name: wiser-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wiser
+      POSTGRES_USER: wiser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wiser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  timescale:
+    image: timescale/timescaledb-ha:pg16
+    container_name: wiser-timescale
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wiser_timeseries
+      POSTGRES_USER: wiser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - timescale_data:/home/postgres/pgdata/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wiser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: wiser-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: wiser-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  timescale_data:
+  minio_data:
+  rabbitmq_data:
