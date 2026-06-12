@@ -43,8 +43,10 @@ jobs:
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/infra/docker/alertmanager:/etc/alertmanager:ro \
+            --entrypoint amtool \
             prom/alertmanager:latest \
-            amtool check-config /etc/alertmanager/alertmanager.yml
+            check-config /etc/alertmanager/alertmanager.yml
+
 
   validate-sql:
     name: Validate SQL schemas
