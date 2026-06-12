@@ -1,0 +1,69 @@
+groups:
+  - name: infrastructure
+    rules:
+
+      # CPU над 80% за повече от 2 минути
+      - alert: HighCPULoad
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 80
+        for: 2m
+        labels:
+          severity: warning
+          environment: Development
+        annotations:
+          summary: "High CPU load on {{ $labels.instance }}"
+          description: "CPU load is {{ $value | printf \"%.1f\" }}% — above 80% for 2 minutes"
+
+      # CPU над 80% за повече от 5 минути — критично
+      - alert: CriticalCPULoad
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 80
+        for: 2m
+        labels:
+          severity: critical
+          environment: Development
+        annotations:
+          summary: "Critical CPU load on {{ $labels.instance }}"
+          description: "CPU load is {{ $value | printf \"%.1f\" }}% — above 80% for 5 minutes"
+
+      # RAM над 85%
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 2m
+        labels:
+          severity: warning
+          environment: Development
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage is {{ $value | printf \"%.1f\" }}% — above 85%"
+
+      # Disk над 80%
+      - alert: HighDiskUsage
+        expr: (1 - (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"})) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          environment: Development
+        annotations:
+          summary: "High disk usage on {{ $labels.instance }}"
+          description: "Disk usage is {{ $value | printf \"%.1f\" }}% — above 80%"
+
+      # Контейнер е down
+      - alert: ContainerDown
+        expr: absent(container_last_seen) or time() - container_last_seen{container_label_com_docker_compose_service!=""} > 60
+        for: 1m
+        labels:
+          severity: critical
+          environment: Development
+        annotations:
+          summary: "Container down: {{ $labels.name }}"
+          description: "Container {{ $labels.name }} has been down for more than 1 minute"
+
+      # PostgreSQL не отговаря
+      - alert: PostgreSQLDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          environment: Development
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL exporter cannot connect to the database"
