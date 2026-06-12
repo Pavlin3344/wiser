@@ -1,4 +1,3 @@
-cat > .github/workflows/ci.yml << 'EOF'
 name: CI
 
 on:
@@ -8,17 +7,79 @@ on:
     branches: [main]
 
 jobs:
-  placeholder:
-    name: Repo structure check
+  validate-infra:
+    name: Validate infrastructure configs
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Verify structure
-        run: |
-          echo "Wiser repo structure OK"
-          ls -la
-EOF
 
-git add .github/workflows/ci.yml
-git commit -m "ci: add initial workflow placeholder"
-git push
+      - name: Install docker-compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+
+      - name: Validate docker-compose.yml
+        run: |
+          docker-compose -f infra/docker/docker-compose.yml config --quiet
+          echo "docker-compose.yml is valid"
+
+      - name: Validate Prometheus config
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/infra/docker/prometheus:/etc/prometheus:ro \
+            prom/prometheus:latest \
+            promtool check config /etc/prometheus/prometheus.yml
+
+      - name: Validate Prometheus rules
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/infra/docker/prometheus:/etc/prometheus:ro \
+            prom/prometheus:latest \
+            promtool check rules /etc/prometheus/rules/infrastructure.yml
+
+      - name: Validate Alertmanager config
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/infra/docker/alertmanager:/etc/alertmanager:ro \
+            prom/alertmanager:latest \
+            amtool check-config /etc/alertmanager/alertmanager.yml
+
+  validate-sql:
+    name: Validate SQL schemas
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check SQL files exist and are non-empty
+        run: |
+          test -s db/postgres/migrations/001_init.sql || (echo "PostgreSQL schema is empty!" && exit 1)
+          test -s db/timescale/hypertables/001_init.sql || (echo "TimescaleDB schema is empty!" && exit 1)
+          echo "SQL files OK"
+
+      - name: Basic SQL syntax check
+        run: |
+          grep -l "CREATE TABLE" db/postgres/migrations/001_init.sql || (echo "No CREATE TABLE found" && exit 1)
+          grep -l "create_hypertable" db/timescale/hypertables/001_init.sql || (echo "No hypertable found" && exit 1)
+          echo "SQL syntax check OK"
+
+  security-scan:
+    name: Security scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for hardcoded secrets
+        run: |
+          if grep -r "password\s*=\s*['\"][^${\''\"]\+" --include="*.yml" --include="*.yaml" --include="*.sql" .; then
+            echo "Possible hardcoded passwords found!"
+            exit 1
+          fi
+          echo "No hardcoded secrets found"
+
+      - name: Ensure .env is not tracked
+        run: |
+          if git ls-files | grep -q "^\.env$"; then
+            echo ".env file is tracked by git!"
+            exit 1
+          fi
+          echo ".env is not tracked - OK"
