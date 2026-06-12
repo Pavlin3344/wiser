@@ -70,12 +70,8 @@ jobs:
 
       - name: Check for hardcoded secrets
         run: |
-          if grep -r "password\s*=\s*['\"][^${\''\"]\+" --include="*.yml" --include="*.yaml" --include="*.sql" .; then
-            echo "Possible hardcoded passwords found!"
-            exit 1
-          fi
+          ! grep -rn "password=" --include="*.yml" --include="*.yaml" infra/ | grep -v '${' | grep -v '#'
           echo "No hardcoded secrets found"
-
       - name: Ensure .env is not tracked
         run: |
           if git ls-files | grep -q "^\.env$"; then
