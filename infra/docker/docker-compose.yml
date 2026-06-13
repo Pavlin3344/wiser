@@ -1,4 +1,4 @@
-\services:
+services:
   postgres:
     image: pgrouting/pgrouting:16-3.5-4.0
     container_name: wiser-postgres
