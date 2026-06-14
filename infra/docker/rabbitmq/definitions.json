@@ -1,0 +1,57 @@
+{
+  "vhosts": [{ "name": "wiser" }],
+  "exchanges": [
+    { "name": "weather.exchange",    "vhost": "wiser", "type": "direct", "durable": true },
+    { "name": "satellite.exchange",  "vhost": "wiser", "type": "direct", "durable": true },
+    { "name": "fire.exchange",       "vhost": "wiser", "type": "direct", "durable": true },
+    { "name": "evacuation.exchange", "vhost": "wiser", "type": "direct", "durable": true },
+    { "name": "analysis.exchange",   "vhost": "wiser", "type": "direct", "durable": true },
+    { "name": "dlx.exchange",        "vhost": "wiser", "type": "direct", "durable": true }
+  ],
+  "queues": [
+    {
+      "name": "weather.ingest", "vhost": "wiser", "durable": true,
+      "arguments": { "x-dead-letter-exchange": "dlx.exchange", "x-dead-letter-routing-key": "weather.dlq" }
+    },
+    {
+      "name": "satellite.ingest", "vhost": "wiser", "durable": true,
+      "arguments": { "x-dead-letter-exchange": "dlx.exchange", "x-dead-letter-routing-key": "satellite.dlq" }
+    },
+    {
+      "name": "fire.detections", "vhost": "wiser", "durable": true,
+      "arguments": { "x-dead-letter-exchange": "dlx.exchange", "x-dead-letter-routing-key": "fire.detections.dlq" }
+    },
+    {
+      "name": "fire.alerts", "vhost": "wiser", "durable": true,
+      "arguments": { "x-dead-letter-exchange": "dlx.exchange", "x-dead-letter-routing-key": "fire.alerts.dlq" }
+    },
+    {
+      "name": "evacuation.routes", "vhost": "wiser", "durable": true,
+      "arguments": { "x-dead-letter-exchange": "dlx.exchange", "x-dead-letter-routing-key": "evacuation.dlq" }
+    },
+    {
+      "name": "analysis.tasks", "vhost": "wiser", "durable": true,
+      "arguments": { "x-dead-letter-exchange": "dlx.exchange", "x-dead-letter-routing-key": "analysis.dlq" }
+    },
+    { "name": "weather.dlq",         "vhost": "wiser", "durable": true, "arguments": {} },
+    { "name": "satellite.dlq",       "vhost": "wiser", "durable": true, "arguments": {} },
+    { "name": "fire.detections.dlq", "vhost": "wiser", "durable": true, "arguments": {} },
+    { "name": "fire.alerts.dlq",     "vhost": "wiser", "durable": true, "arguments": {} },
+    { "name": "evacuation.dlq",      "vhost": "wiser", "durable": true, "arguments": {} },
+    { "name": "analysis.dlq",        "vhost": "wiser", "durable": true, "arguments": {} }
+  ],
+  "bindings": [
+    { "source": "weather.exchange",    "vhost": "wiser", "destination": "weather.ingest",   "destination_type": "queue", "routing_key": "weather.ingest" },
+    { "source": "satellite.exchange",  "vhost": "wiser", "destination": "satellite.ingest", "destination_type": "queue", "routing_key": "satellite.ingest" },
+    { "source": "fire.exchange",       "vhost": "wiser", "destination": "fire.detections",  "destination_type": "queue", "routing_key": "fire.detections" },
+    { "source": "fire.exchange",       "vhost": "wiser", "destination": "fire.alerts",      "destination_type": "queue", "routing_key": "fire.alerts" },
+    { "source": "evacuation.exchange", "vhost": "wiser", "destination": "evacuation.routes","destination_type": "queue", "routing_key": "evacuation.routes" },
+    { "source": "analysis.exchange",   "vhost": "wiser", "destination": "analysis.tasks",   "destination_type": "queue", "routing_key": "analysis.tasks" },
+    { "source": "dlx.exchange", "vhost": "wiser", "destination": "weather.dlq",         "destination_type": "queue", "routing_key": "weather.dlq" },
+    { "source": "dlx.exchange", "vhost": "wiser", "destination": "satellite.dlq",       "destination_type": "queue", "routing_key": "satellite.dlq" },
+    { "source": "dlx.exchange", "vhost": "wiser", "destination": "fire.detections.dlq", "destination_type": "queue", "routing_key": "fire.detections.dlq" },
+    { "source": "dlx.exchange", "vhost": "wiser", "destination": "fire.alerts.dlq",     "destination_type": "queue", "routing_key": "fire.alerts.dlq" },
+    { "source": "dlx.exchange", "vhost": "wiser", "destination": "evacuation.dlq",      "destination_type": "queue", "routing_key": "evacuation.dlq" },
+    { "source": "dlx.exchange", "vhost": "wiser", "destination": "analysis.dlq",        "destination_type": "queue", "routing_key": "analysis.dlq" }
+  ]
+}
