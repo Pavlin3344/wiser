@@ -58,4 +58,3 @@ CREATE TABLE IF NOT EXISTS alerts (
 );
 CREATE INDEX ON alerts (fire_id);
 CREATE INDEX ON alerts (sent_at DESC);
-EOF
