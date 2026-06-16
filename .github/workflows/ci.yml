@@ -83,3 +83,25 @@ jobs:
             exit 1
           fi
           echo ".env is not tracked - OK"
+
+
+  deploy:
+    name: Deploy to Hetzner
+    needs: [validate-infra, validate-sql, security-scan]
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Pull latest changes
+        working-directory: /home/pavlin/wiser-repo
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Apply changes
+        working-directory: /home/pavlin/wiser-repo/infra/docker
+        run: |
+          docker compose up -d --remove-orphans
+          echo "Deployment complete"
+
+      - name: Show running containers
+        run: docker ps --format "table {{.Names}}\t{{.Status}}"
