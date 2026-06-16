@@ -1,0 +1,12 @@
+.env
+**/.env
+*.swp
+*.swo
+
+# Environment files
+.env
+**/.env
+
+# Vim swap files
+*.swp
+*.swo
