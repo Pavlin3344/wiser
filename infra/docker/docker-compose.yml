@@ -242,6 +242,7 @@ services:
     container_name: wiser-filebeat
     restart: unless-stopped
     user: root
+    command: ["--strict.perms=false"]
     volumes:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
