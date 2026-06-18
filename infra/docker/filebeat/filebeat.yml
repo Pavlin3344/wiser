@@ -5,10 +5,6 @@ filebeat.inputs:
     processors:
       - add_docker_metadata:
           host: "unix:///var/run/docker.sock"
-      - decode_json_fields:
-          fields: ["message"]
-          target: ""
-          overwrite_keys: true
 
 output.logstash:
   hosts: ["logstash:5044"]
