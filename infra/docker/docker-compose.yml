@@ -13,7 +13,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ../../db/postgres/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wiser"]
+      test: ["CMD-SHELL", "pg_isready -U wiser -d wiser"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -32,7 +32,7 @@ services:
       - timescale_data:/home/postgres/pgdata/data
       - ../../db/timescale/hypertables:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U wiser"]
+      test: ["CMD-SHELL", "pg_isready -U wiser -d wiser_timeseries"]
       interval: 10s
       timeout: 5s
       retries: 5
