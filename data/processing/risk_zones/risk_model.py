@@ -4,21 +4,23 @@ risk_class = clamp( fwi_class + ndvi_корекция + fuel_корекция , 
 град / вода / nonfuel → насила risk_class = 1.
 """
 
-# FirEUrisk fuel кодове (виж презентацията, стр. 7)
-_NEEDLELEAF_MIXED = {1211, 1212, 1221, 1222, 1301, 1302}
-_CROPLAND = {41, 42}
-_NONFUEL = {7, 61, 62}  # nonfuel + урбанизирано (вода ~ липсва код / None)
+# NFFL fire behavior модели (Anderson 1982) — EFFIS European Fuel Map.
+# 0 = негоримо (вода/град/гола почва); 1-10 = горивни модели.
+_NFFL_HIGH = {3, 4, 10}   # висока трева, чапарал, timber + understory (ladder fuels)
+_NFFL_LOW = {1, 9}        # къса трева, hardwood litter (ниско разпространение)
 
 
-def fuel_correction(fuel_type):
-    """Връща корекцията, или None ако зоната е nonfuel (→ насила клас 1)."""
-    if fuel_type is None or fuel_type in _NONFUEL:
+def fuel_correction(fuel_code):
+    """Корекция по NFFL код. None → насила клас 1 (негоримо)."""
+    if fuel_code == 0:        # негоримо
         return None
-    if fuel_type in _NEEDLELEAF_MIXED:
+    if fuel_code is None:     # няма fuel данни за точката → без корекция
+        return 0
+    if fuel_code in _NFFL_HIGH:
         return 1
-    if fuel_type in _CROPLAND:
+    if fuel_code in _NFFL_LOW:
         return -1
-    return 0  # широколистни, храсти, треви, wet/peat
+    return 0                  # умерени модели (2, 5, 6, 7, 8)
 
 
 def ndvi_correction(ndvi_mean):
