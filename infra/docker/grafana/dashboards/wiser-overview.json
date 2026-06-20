@@ -5,7 +5,7 @@
     "name": "wiser-overview",
     "namespace": "default",
     "uid": "5b9f6fe8-b3f1-4f3e-9cf2-826bc724b36d",
-    "resourceVersion": "1781895528957000",
+    "resourceVersion": "1781895876317015",
     "generation": 9,
     "creationTimestamp": "2026-06-19T17:45:07Z",
     "labels": {
@@ -13,16 +13,15 @@
     },
     "annotations": {
       "grafana.app/createdBy": "access-policy:service",
-      "grafana.app/folder": "",
       "grafana.app/managedBy": "classic-file-provisioning",
       "grafana.app/managerAllowsEdits": "true",
       "grafana.app/managerId": "wiser-dashboards",
-      "grafana.app/saved-from-ui": "Grafana v13.0.2 (3fcdbc5a)",
-      "grafana.app/sourceChecksum": "379511aaaa7792c1ed0b17c74c4730fd",
+      "grafana.app/sourceChecksum": "70265ec47f0dd15cdaae3a7a0e618d43",
       "grafana.app/sourcePath": "/var/lib/grafana/dashboards/wiser-overview.json",
-      "grafana.app/sourceTimestamp": "1781815801000",
+      "grafana.app/sourceTimestamp": "1781895860000",
       "grafana.app/updatedBy": "user:bfpmgu2sbqsxsd",
-      "grafana.app/updatedTimestamp": "2026-06-19T18:58:48Z"
+      "grafana.app/updatedTimestamp": "2026-06-19T18:58:48Z",
+      "grafana.app/folder": ""
     }
   },
   "spec": {
@@ -1303,3 +1302,4 @@
     "variables": []
   }
 }
+
