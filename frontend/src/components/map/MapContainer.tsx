@@ -30,21 +30,17 @@ const mockFireData = {
 };
 
 export function MapContainer({
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  basemap,
+  basemap: _basemap,
   mapView,
   showFires,
 }: MapContainerProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
 
-  const currentStyleUrl = useRef<string>("");
-
   useEffect(() => {
     if (map.current) return;
 
     const initialStyle = "https://demotiles.maplibre.org/style.json";
-    currentStyleUrl.current = initialStyle;
 
     map.current = new maplibregl.Map({
       container: mapContainer.current!,
