@@ -1,0 +1,4 @@
+boto3==1.34.131
+rasterio==1.4.3
+numpy==2.1.3
+python-dotenv==1.0.1
