@@ -108,11 +108,7 @@ export function MapContainer({
       });
 
       if (mapInstance.getLayer("fire-points")) {
-        mapInstance.setLayoutProperty(
-          "fire-points",
-          "visibility",
-          showFires ? "visible" : "none",
-        );
+        mapInstance.setLayoutProperty("fire-points", "visibility", showFires ? "visible" : "none");
       }
     };
 
@@ -123,5 +119,10 @@ export function MapContainer({
     }
   }, [mapView, showFires]);
 
-  return <div ref={mapContainer} className="h-full w-full" />;
+  return (
+    <div
+      ref={mapContainer}
+      className="h-full w-full"
+    />
+  );
 }
