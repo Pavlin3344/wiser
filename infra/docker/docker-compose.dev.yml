@@ -1,0 +1,107 @@
+# ================================================================
+# Локален dev стек — само data услугите за Фаза 1.
+# Всички портове на 127.0.0.1 (без Tailscale IP-та на сървъра).
+# Употреба (от onboarding.md):
+#   docker compose -f infra/docker/docker-compose.dev.yml up -d
+# ================================================================
+services:
+  postgres:
+    image: pgrouting/pgrouting:16-3.5-4.0
+    container_name: wiser-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wiser
+      POSTGRES_USER: wiser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../db/postgres/migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wiser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  timescale:
+    image: timescale/timescaledb-ha:pg16
+    container_name: wiser-timescale
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: wiser_timeseries
+      POSTGRES_USER: wiser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - timescale_data:/home/postgres/pgdata/data
+      - ../../db/timescale/hypertables:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wiser"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: wiser-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc:latest
+    container_name: wiser-minio-init
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set wiser http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
+      mc mb wiser/satellite-imagery --ignore-existing;
+      mc mb wiser/processed-products --ignore-existing;
+      echo 'MinIO buckets ready.';
+      "
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: wiser-rabbitmq
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: wiser
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+      - "127.0.0.1:15692:15692"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      # Локален dev: user с локалния хеш + права (вместо споделения definitions.json със сървърния хеш)
+      - ./rabbitmq/definitions.dev.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  timescale_data:
+  minio_data:
+  rabbitmq_data:
