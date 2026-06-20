@@ -1,8 +1,8 @@
 function App() {
   return (
     <div>
-      <p className="text-5xl text-sky-500">Dashboard</p>
-      <p className="text-xl text-red-700">Wildfire Project</p>
+      <h1>Dashboard</h1>
+      <p>Wildfire Project</p>
     </div>
   );
 }
