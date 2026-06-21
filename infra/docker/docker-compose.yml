@@ -184,10 +184,13 @@ services:
       - "8080:8080"
     environment:
       - DATABASE_URL=mongodb://alerta-mongo:27017/monitoring
+      - WORKERS=4
+      - TIMEOUT=30
     volumes:
       - ./alerta/alerta.conf:/app/alerta.conf:ro
     depends_on:
-      - alerta-mongo
+      alerta-mongo:
+        condition: service_healthy
 
   alerta-mongo:
     image: mongo:6
@@ -195,6 +198,12 @@ services:
     restart: unless-stopped
     volumes:
       - alerta_mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
