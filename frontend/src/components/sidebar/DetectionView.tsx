@@ -13,7 +13,7 @@ export function DetectionView() {
       <SidebarGroup>
         <SidebarGroupLabel>Sensor Network</SidebarGroupLabel>
         <div className='px-4 py-2 space-y-4'>
-          <div className='flex items-center justify-between border-b border-border/50 pb-3'>
+          <div className='flex items-center justify-between border-b border-border/10 pb-3'>
             <div className='flex flex-col gap-1'>
               <Label className='text-xs font-semibold flex items-center gap-1.5'>
                 <Satellite className='size-3.5 text-primary' /> VIIRS (Suomi NPP)
@@ -23,7 +23,7 @@ export function DetectionView() {
             <Switch defaultChecked className='data-[state=checked]:bg-destructive' />
           </div>
 
-          <div className='flex items-center justify-between border-b border-border/50 pb-3'>
+          <div className='flex items-center justify-between border-b border-border/10 pb-3'>
             <div className='flex flex-col gap-1'>
               <Label className='text-xs font-semibold flex items-center gap-1.5'>
                 <Satellite className='size-3.5 text-primary' /> MODIS (Aqua/Terra)
@@ -70,10 +70,10 @@ export function DetectionView() {
         </div>
       </SidebarGroup>
 
-      <SidebarGroup className='mt-4 border-t border-border/50 pt-4'>
+      <SidebarGroup className='mt-4 border-t border-border/10 pt-4'>
         <SidebarGroupLabel>Live Telemetry</SidebarGroupLabel>
         <div className='px-4 py-2 space-y-3'>
-          <div className='bg-background/50 border border-border/50 rounded-lg p-3 space-y-2'>
+          <div className='bg-background/50 border border-border/10 rounded-xl p-3 space-y-2'>
             <div className='flex items-center justify-between'>
               <span className='text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1'>
                 <Activity className='size-3' /> Latest Scan
