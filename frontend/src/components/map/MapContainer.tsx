@@ -178,6 +178,29 @@ export function MapContainer({ basemap, mapView, showFires }: MapContainerProps)
           .setHTML(popupHtml)
           .addTo(mapInstance)
       })
+
+      mapInstance.on("mousemove", (e) => {
+        const coordsEl = document.getElementById("ui-coords")
+        if (coordsEl) {
+          coordsEl.innerText = `${e.lngLat.lat.toFixed(4)}° N, ${e.lngLat.lng.toFixed(4)}° E`
+        }
+
+        const elevEl = document.getElementById("ui-elevation")
+        if (elevEl) {
+          const elevation = mapInstance.queryTerrainElevation(e.lngLat)
+          elevEl.innerText = elevation ? `${Math.round(elevation)}m ASL` : "0m ASL"
+        }
+      })
+
+      mapInstance.on("zoom", () => {
+        const zoomEl = document.getElementById("ui-zoom")
+        if (zoomEl) {
+          zoomEl.innerText = `ZOOM: ${mapInstance.getZoom().toFixed(1)}`
+        }
+      })
+
+      const zoomEl = document.getElementById("ui-zoom")
+      if (zoomEl) zoomEl.innerText = `ZOOM: ${mapInstance.getZoom().toFixed(1)}`
     })
 
     const resizeObserver = new ResizeObserver(() => {
