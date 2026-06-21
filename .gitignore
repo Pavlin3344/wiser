@@ -10,3 +10,8 @@
 # Vim swap files
 *.swp
 *.swo
+
+# Python
+.venv/
+__pycache__/
+*.pyc
