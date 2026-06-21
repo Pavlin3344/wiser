@@ -8,7 +8,7 @@ export function LiveToggle() {
   const { showFires, setShowFires } = useMapStore()
 
   return (
-    <div className='absolute bottom-2 right-2 z-10 pointer-events-auto flex flex-col items-end gap-2 w-56'>
+    <div className='absolute bottom-8 right-2 z-10 pointer-events-auto flex flex-col items-end gap-2 w-56'>
       <div className='bg-background/70 backdrop-blur-md shadow-sm rounded-2xl p-3 flex items-center justify-between w-full'>
         <div className='flex flex-col gap-1'>
           <Label className='text-sm font-semibold flex items-center gap-1.5 cursor-pointer' onClick={() => setShowFires(!showFires)}>

@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/label"
 
 export function MapLegend() {
   return (
-    <div className='absolute bottom-18 right-2 z-10 pointer-events-auto'>
+    <div className='absolute bottom-24 right-2 z-10 pointer-events-auto'>
       <div className='bg-background/70 backdrop-blur-md shadow-sm rounded-2xl p-3 flex flex-col gap-2 w-full'>
         <Label className='text-[10px] uppercase tracking-wider text-muted-foreground font-bold'>Map Legend</Label>
         <div className='flex flex-col gap-1.5'>
