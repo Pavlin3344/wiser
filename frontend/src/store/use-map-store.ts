@@ -32,7 +32,7 @@ export const useMapStore = create<MapState>((set) => ({
   showFires: false,
   setShowFires: (show) => set({ showFires: show }),
 
-  showTerrain: true,
+  showTerrain: false,
   setShowTerrain: (show) => set({ showTerrain: show }),
 
   dateRange: { from: new Date(), to: new Date() },
