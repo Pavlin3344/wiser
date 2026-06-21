@@ -15,6 +15,7 @@ import { AnalysisView } from "@/components/sidebar/AnalysisView"
 import { AlertsView } from "@/components/sidebar/AlertsView"
 import { FiltersView } from "@/components/sidebar/FiltersView"
 import { DetectionView } from "@/components/sidebar/DetectionView"
+import { BottomStatusBar } from "@/components/overlays/BottomStatusBar"
 
 function App() {
   const [isOpen, setIsOpen] = React.useState(true)
@@ -86,6 +87,7 @@ function App() {
           <MapControls />
           <MapLegend />
           <LiveToggle />
+          <BottomStatusBar />
         </SidebarInset>
       </TooltipProvider>
     </SidebarProvider>
