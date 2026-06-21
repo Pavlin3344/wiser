@@ -217,7 +217,7 @@ export function MapContainer({ basemap, mapView, showFires }: MapContainerProps)
     if (!map.current) return
     const mapInstance = map.current
 
-    const applyUpdates = () => {
+    const applyProjection = () => {
       mapInstance.stop()
 
       mapInstance.setProjection({
@@ -230,18 +230,31 @@ export function MapContainer({ basemap, mapView, showFires }: MapContainerProps)
         zoom: mapView === "3d" ? 2 : 7,
         duration: 1500,
       })
+    }
 
+    if (mapInstance.isStyleLoaded()) {
+      applyProjection()
+    } else {
+      mapInstance.once("style.load", applyProjection)
+    }
+  }, [mapView])
+
+  useEffect(() => {
+    if (!map.current) return
+    const mapInstance = map.current
+
+    const applyVisibility = () => {
       if (mapInstance.getLayer("fire-points")) {
         mapInstance.setLayoutProperty("fire-points", "visibility", showFires ? "visible" : "none")
       }
     }
 
     if (mapInstance.isStyleLoaded()) {
-      applyUpdates()
+      applyVisibility()
     } else {
-      mapInstance.once("style.load", applyUpdates)
+      mapInstance.once("style.load", applyVisibility)
     }
-  }, [mapView, showFires])
+  }, [showFires])
 
   return <div ref={mapContainer} className='h-full w-full' />
 }
