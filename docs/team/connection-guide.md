@@ -13,6 +13,42 @@ Setup на Tailscale: виж `docs/team/onboarding.md`.
 
 ---
 
+## Фаза 1 — статус на интеграцията (Data Engineer ↔ Backend)
+
+> Кратко: Data Engineer частта е **готова и тествана локално** срещу mock-ове.
+> Сега е ред на Backend да пусне реалните producer-и, за да паднат mock-овете.
+> Пълният договор: [`shared/schemas/message-contracts.md`](../../shared/schemas/message-contracts.md).
+
+### ✅ Какво е готово (Data Engineer)
+
+| Компонент | Чете | Пише |
+|---|---|---|
+| FWI worker | `weather.ingest` | TimescaleDB `fire_weather_index` |
+| NDVI worker | `satellite.ingest` | MinIO `processed-products/ndvi/` |
+| Fuel карта (EFFIS NFFL, само BG) | — | MinIO `processed-products/fuel/bg_fuel.tif` |
+| Risk zones job | FWI + NDVI + fuel | PostGIS `zones` |
+| Локален dev стек | `docker-compose.dev.yml` | — |
+
+Worker-ите работят срещу **mock publisher-и**, които заместват още-неготовите ти producer-и.
+Като пуснеш реалните — mock-овете просто спират, worker-ите не се пипат.
+
+### 🔲 Какво трябва да направиш сега (Backend / Ицо)
+
+1. **EFFIS/ECMWF downloader** → публикувай в `weather.ingest` по контракта (готов FWI, batch с масив точки). Отпушва FWI worker-а.
+2. **Sentinel-2 fetcher** → качи GeoTIFF (канали `B04`+`B08`) в MinIO `satellite-imagery`, публикувай `satellite.ingest`. Отпушва NDVI worker-а.
+3. **OSM importer** → напълни `critical_infrastructure` + `roads`.
+4. **`zones` миграция** → `db/postgres/migrations/001_zones.sql`. Схемата е готова — копни я от `message-contracts.md` (раздел 6) или `data/processing/risk_zones/dev_schema.sql`. Аз ползвам локална dev таблица дотогава.
+5. **REST endpoint** `GET /zones/risk` → сервира `zones` на frontend-а.
+
+### ⚠️ Какво липсва / да се реши
+
+- **4-те отворени точки** от договора (най-долу в `message-contracts.md`) — потвърди ги.
+- **SSH достъп за мен** — Pavlin да добави ключа ми, за тунел към сървъра (дотогава работя локално).
+- **Fuel = NFFL, не FirEUrisk** — EFFIS свалят NFFL кодовете (1–10); риск моделът е по тях.
+- ⚠️ EFFIS data сървърът има **изтекъл SSL сертификат** — свалянето на fuel картата иска изключена cert проверка.
+
+---
+
 ## PostgreSQL (PostGIS + pgRouting)
 
 Основна релационна база с пространствени разширения. Тук живеят `critical_infrastructure`, `roads`, `active_fires`, `alerts`.
@@ -54,7 +90,23 @@ Time-series база за метеорологични и качествени �
 | Password | същата като PostgreSQL |
 
 **Connection string:**
-amqp://wiser:<PASSWORD>@100.116.156.92:5672/wiser
+`postgresql://wiser:<PASSWORD>@100.116.156.92:5433/wiser_timeseries`
+
+---
+
+## RabbitMQ
+
+Message bus за pipeline-ите. vhost: `wiser`.
+
+| Параметър | Стойност |
+|-----------|----------|
+| Host | `100.116.156.92` |
+| Port | `5672` (AMQP) · `15672` (management UI) |
+| User | `wiser` |
+| Password | пита Pavlin (в `.env`) |
+
+**Connection string:** `amqp://wiser:<PASSWORD>@100.116.156.92:5672/wiser`
+
 ### Exchanges и Queues
 
 Всяка фаза има отделен exchange. Всяка опашка има DLQ (dead letter queue) за съобщения които са failed след retry.
