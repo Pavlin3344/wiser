@@ -161,17 +161,20 @@ export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapCo
         const textColor = intensity === "critical" ? "text-destructive" : intensity === "high" ? "text-orange-500" : "text-amber-500"
 
         const popupHtml = `
-          <div class="font-sans max-w-55">
+          <div class="font-sans max-w-56 p-4 rounded-2xl bg-background/60 backdrop-blur-xl shadow-lg border-white/10 border-t-white/20 border-l-white/20">
             <div class="flex items-center justify-between mb-1.5">
               <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">${date}</div>
-              <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded-sm">EFFIS</div>
+              <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-background/20 backdrop-blur-sm px-1.5 py-0.5 rounded-xl border border-border/10">EFFIS</div>
             </div>
+            
             <div class="font-bold text-sm mb-2 text-foreground leading-tight">${title}</div>
+
             <div class="flex items-center gap-2 mb-3">
-              <div class="w-2.5 h-2.5 rounded-full ${dotColor} border border-white/20 shadow-sm"></div>
+              <div class="w-2.5 h-2.5 rounded-full ${dotColor} border border-white/10 border-t-white/20 border-l-white/20 shadow-sm"></div>
               <span class="text-xs font-bold capitalize ${textColor}">${intensity} Risk</span>
             </div>
-            <div class="text-xs text-muted-foreground border-t border-border/50 pt-2">
+
+            <div class="text-xs text-muted-foreground border-t border-white/10 pt-2 mt-1">
               <div class="flex justify-between gap-4 mb-1">
                 <span class="font-semibold text-foreground/70">Lat:</span>
                 <span class="font-mono text-foreground">${coordinates[1].toFixed(4)}°</span>
@@ -338,24 +341,30 @@ export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapCo
   }, [showTerrain])
 
   return (
-    <div className='relative h-full w-full'>
-      <div ref={mapContainer} className='h-full w-full' />
-      <div className='absolute left-2 bottom-8 z-10 flex flex-col gap-2'>
-        <div className='flex flex-col shadow-lg rounded-xl overflow-hidden border border-border/30 backdrop-blur-md'>
-          <button onClick={() => map.current?.zoomIn()} className='size-8 flex items-center justify-center bg-background/70 text-foreground hover:bg-muted/80 transition-colors border-b border-border/30 cursor-pointer' title='Zoom In'>
-            <Plus className='size-3' />
-          </button>
+    <div className='absolute inset-0 z-0'>
+      <div className='relative h-full w-full'>
+        <div ref={mapContainer} className='h-full w-full' />
+        <div className='absolute right-2 bottom-12 z-10 flex flex-col gap-2'>
+          <div className='relative flex flex-col shadow-lg rounded-full overflow-hidden border border-white/10 border-t-white/20 border-l-white/20 backdrop-blur-xl bg-background/60'>
+            <div className='absolute inset-0 bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
 
-          <button onClick={() => map.current?.zoomOut()} className='size-8 flex items-center justify-center bg-background/70 text-foreground hover:bg-muted/80 transition-colors cursor-pointer' title='Zoom Out'>
-            <Minus className='size-3' />
+            <button onClick={() => map.current?.zoomIn()} className='size-9 flex items-center justify-center bg-background/20 text-foreground hover:bg-muted/80 border-b border-white/10 transition-colors cursor-pointer z-10' title='Zoom In'>
+              <Plus className='size-3' />
+            </button>
+
+            <button onClick={() => map.current?.zoomOut()} className='size-9 flex items-center justify-center bg-background/20 text-foreground hover:bg-muted/80 transition-colors cursor-pointer z-10' title='Zoom Out'>
+              <Minus className='size-3' />
+            </button>
+          </div>
+
+          <button onClick={() => map.current?.resetNorthPitch()} className='relative size-9 flex items-center justify-center bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20 rounded-2xl text-foreground hover:bg-muted/80 transition-colors cursor-pointer' title='Reset North'>
+            <div className='absolute inset-0 rounded-full bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
+
+            <div id='ui-compass-icon' className='transition-transform duration-75'>
+              <Navigation className='size-3 text-primary fill-primary/20' />
+            </div>
           </button>
         </div>
-
-        <button onClick={() => map.current?.resetNorthPitch()} className='size-8 flex items-center justify-center rounded-full shadow-lg border border-border/30 backdrop-blur-md bg-background/70 text-foreground hover:bg-muted/80 transition-colors cursor-pointer' title='Reset North'>
-          <div id='ui-compass-icon' className='transition-transform duration-75'>
-            <Navigation className='size-3 text-primary fill-primary/20' />
-          </div>
-        </button>
       </div>
     </div>
   )

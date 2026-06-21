@@ -29,13 +29,13 @@ export function FiltersView() {
                 <SelectValue placeholder='Select region' />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value='all' className='text-xs cursor-pointer focus:bg-destructive/15 focus:text-destructive'>
+                <SelectItem value='all' className='text-xs cursor-pointer focus:bg-destructive/50 focus:text-destructive'>
                   All Regions
                 </SelectItem>
-                <SelectItem value='north' className='text-xs cursor-pointer focus:bg-destructive/15 focus:text-destructive'>
+                <SelectItem value='north' className='text-xs cursor-pointer focus:bg-destructive/50 focus:text-destructive'>
                   Northern Sector
                 </SelectItem>
-                <SelectItem value='south' className='text-xs cursor-pointer focus:bg-destructive/15 focus:text-destructive'>
+                <SelectItem value='south' className='text-xs cursor-pointer focus:bg-destructive/50 focus:text-destructive'>
                   Southern Sector
                 </SelectItem>
               </SelectContent>
@@ -49,16 +49,16 @@ export function FiltersView() {
                 <SelectValue placeholder='Select severity' />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value='all' className='text-xs cursor-pointer focus:bg-destructive/15 focus:text-destructive'>
+                <SelectItem value='all' className='text-xs cursor-pointer focus:bg-destructive/50 focus:text-destructive'>
                   All Risk Levels
                 </SelectItem>
-                <SelectItem value='high' className='text-xs cursor-pointer focus:bg-destructive/15 focus:text-destructive'>
+                <SelectItem value='high' className='text-xs cursor-pointer focus:bg-destructive/50 focus:text-destructive'>
                   High / Critical
                 </SelectItem>
-                <SelectItem value='moderate' className='text-xs cursor-pointer focus:bg-destructive/15 focus:text-destructive'>
+                <SelectItem value='moderate' className='text-xs cursor-pointer focus:bg-destructive/50 focus:text-destructive'>
                   Moderate
                 </SelectItem>
-                <SelectItem value='low' className='text-xs cursor-pointer focus:bg-destructive/15 focus:text-destructive'>
+                <SelectItem value='low' className='text-xs cursor-pointer focus:bg-destructive/50 focus:text-destructive'>
                   Low
                 </SelectItem>
               </SelectContent>
@@ -96,12 +96,12 @@ export function FiltersView() {
         </div>
       </SidebarGroup>
 
-      <SidebarGroup className='mt-4 border-t border-border/50 pt-4'>
+      <SidebarGroup className='mt-4 border-t border-border/10 pt-4'>
         <SidebarGroupLabel>Timeline & Forecast</SidebarGroupLabel>
         <div className='px-4 py-2 space-y-3'>
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant='outline' className='w-full justify-start text-left font-normal h-9 px-3 text-xs'>
+              <Button variant='outline' className='w-full justify-start text-left font-normal h-9 px-3 text-xs border border-border/10'>
                 <CalendarIcon className='mr-2 h-4 w-4 shrink-0' />
                 <span className='truncate'>{dateRange?.from ? (dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d, yyyy")}` : format(dateRange.from, "MMM d, yyyy")) : "Pick a date"}</span>
               </Button>
@@ -111,7 +111,7 @@ export function FiltersView() {
             </PopoverContent>
           </Popover>
           <div className='flex gap-2'>
-            <Button variant='outline' size='sm' className='w-full text-xs h-8'>
+            <Button variant='outline' size='sm' className='w-full text-xs h-8 border border-border/10'>
               Today
             </Button>
           </div>
