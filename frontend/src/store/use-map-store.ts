@@ -12,6 +12,10 @@ interface MapState {
 
   showFires: boolean
   setShowFires: (show: boolean) => void
+
+  showTerrain: boolean
+  setShowTerrain: (show: boolean) => void
+
   dateRange: DateRange | undefined
   setDateRange: (range: DateRange | undefined) => void
 }
@@ -27,6 +31,10 @@ export const useMapStore = create<MapState>((set) => ({
 
   showFires: false,
   setShowFires: (show) => set({ showFires: show }),
+
+  showTerrain: true,
+  setShowTerrain: (show) => set({ showTerrain: show }),
+
   dateRange: { from: new Date(), to: new Date() },
   setDateRange: (range) => set({ dateRange: range }),
 }))

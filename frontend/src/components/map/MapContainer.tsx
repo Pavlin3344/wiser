@@ -7,6 +7,7 @@ interface MapContainerProps {
   basemap: "topographic" | "satellite"
   mapView: "2d" | "3d"
   showFires: boolean
+  showTerrain: boolean
 }
 
 const mockFireData: FeatureCollection = {
@@ -49,7 +50,7 @@ const satelliteStyle: StyleSpecification = {
   ],
 }
 
-export function MapContainer({ basemap, mapView, showFires }: MapContainerProps) {
+export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapContainerProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
 
@@ -111,8 +112,6 @@ export function MapContainer({ basemap, mapView, showFires }: MapContainerProps)
       tileSize: 256,
       maxzoom: 14,
     })
-
-    mapInstance.setTerrain({ source: "3d-terrain", exaggeration: 1.5 })
   }
 
   useEffect(() => {
@@ -162,7 +161,7 @@ export function MapContainer({ basemap, mapView, showFires }: MapContainerProps)
         const textColor = intensity === "critical" ? "text-destructive" : intensity === "high" ? "text-orange-500" : "text-amber-500"
 
         const popupHtml = `
-          <div class="font-sans max-w-[220px]">
+          <div class="font-sans max-w-55">
             <div class="flex items-center justify-between mb-1.5">
               <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">${date}</div>
               <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-muted px-1.5 py-0.5 rounded-sm">EFFIS</div>
@@ -249,8 +248,13 @@ export function MapContainer({ basemap, mapView, showFires }: MapContainerProps)
 
     mapInstance.once("styledata", () => {
       injectFireData(mapInstance)
-
       injectTerrainData(mapInstance)
+
+      if (showTerrain) {
+        mapInstance.setTerrain({ source: "3d-terrain", exaggeration: 1.5 })
+      } else {
+        mapInstance.setTerrain(null)
+      }
 
       mapInstance.setProjection({
         type: mapView === "3d" ? "globe" : "mercator",
@@ -305,6 +309,26 @@ export function MapContainer({ basemap, mapView, showFires }: MapContainerProps)
       mapInstance.once("style.load", applyVisibility)
     }
   }, [showFires])
+
+  useEffect(() => {
+    if (!map.current) return
+    const mapInstance = map.current
+
+    const applyTerrain = () => {
+      if (showTerrain) {
+        injectTerrainData(mapInstance)
+        mapInstance.setTerrain({ source: "3d-terrain", exaggeration: 1.5 })
+      } else {
+        mapInstance.setTerrain(null)
+      }
+    }
+
+    if (mapInstance.isStyleLoaded()) {
+      applyTerrain()
+    } else {
+      mapInstance.once("style.load", applyTerrain)
+    }
+  }, [showTerrain])
 
   return <div ref={mapContainer} className='h-full w-full' />
 }

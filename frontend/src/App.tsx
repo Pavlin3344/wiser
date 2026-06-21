@@ -16,10 +16,11 @@ import { AlertsView } from "@/components/sidebar/AlertsView"
 import { FiltersView } from "@/components/sidebar/FiltersView"
 import { DetectionView } from "@/components/sidebar/DetectionView"
 import { BottomStatusBar } from "@/components/overlays/BottomStatusBar"
+import { TerrainToggle } from "@/components/overlays/TerrainToggle"
 
 function App() {
   const [isOpen, setIsOpen] = React.useState(true)
-  const { activeSidebarTab, setActiveSidebarTab, mapView, basemap, showFires } = useMapStore()
+  const { activeSidebarTab, setActiveSidebarTab, mapView, basemap, showFires, showTerrain } = useMapStore()
 
   const renderSidebarContent = () => {
     switch (activeSidebarTab) {
@@ -80,13 +81,14 @@ function App() {
 
         <SidebarInset className='relative p-0 overflow-hidden bg-muted/20'>
           <div className='absolute inset-0 z-0'>
-            <MapContainer basemap={basemap} mapView={mapView} showFires={showFires} />
+            <MapContainer basemap={basemap} mapView={mapView} showFires={showFires} showTerrain={showTerrain} />
           </div>
 
           <TopStats />
           <MapControls />
           <MapLegend />
           <LiveToggle />
+          <TerrainToggle />
           <BottomStatusBar />
         </SidebarInset>
       </TooltipProvider>
