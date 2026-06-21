@@ -101,6 +101,20 @@ export function MapContainer({ basemap, mapView, showFires }: MapContainerProps)
     })
   }
 
+  const injectTerrainData = (mapInstance: maplibregl.Map) => {
+    if (mapInstance.getSource("3d-terrain")) return
+
+    mapInstance.addSource("3d-terrain", {
+      type: "raster-dem",
+      tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+      encoding: "terrarium",
+      tileSize: 256,
+      maxzoom: 14,
+    })
+
+    mapInstance.setTerrain({ source: "3d-terrain", exaggeration: 1.5 })
+  }
+
   useEffect(() => {
     if (map.current) return
 
@@ -117,6 +131,8 @@ export function MapContainer({ basemap, mapView, showFires }: MapContainerProps)
     map.current.on("load", () => {
       const mapInstance = map.current!
       injectFireData(mapInstance)
+
+      injectTerrainData(mapInstance)
 
       fetchLiveFireData(mapInstance)
 
@@ -179,27 +195,36 @@ export function MapContainer({ basemap, mapView, showFires }: MapContainerProps)
           .addTo(mapInstance)
       })
 
-      mapInstance.on("mousemove", (e) => {
-        const coordsEl = document.getElementById("ui-coords")
-        if (coordsEl) {
-          coordsEl.innerText = `${e.lngLat.lat.toFixed(4)}° N, ${e.lngLat.lng.toFixed(4)}° E`
-        }
+      const coordsEl = document.getElementById("ui-coords")
+      const elevEl = document.getElementById("ui-elevation")
+      const zoomEl = document.getElementById("ui-zoom")
 
-        const elevEl = document.getElementById("ui-elevation")
-        if (elevEl) {
-          const elevation = mapInstance.queryTerrainElevation(e.lngLat)
-          elevEl.innerText = elevation ? `${Math.round(elevation)}m ASL` : "0m ASL"
-        }
+      let isUpdating = false
+
+      mapInstance.on("mousemove", (e) => {
+        if (isUpdating) return
+        isUpdating = true
+
+        requestAnimationFrame(() => {
+          if (coordsEl) {
+            coordsEl.innerText = `${e.lngLat.lat.toFixed(4)}° N, ${e.lngLat.lng.toFixed(4)}° E`
+          }
+
+          if (elevEl) {
+            const elevation = mapInstance.queryTerrainElevation(e.lngLat)
+            elevEl.innerText = elevation ? `${Math.round(elevation)}m ASL` : "0m ASL"
+          }
+
+          isUpdating = false
+        })
       })
 
       mapInstance.on("zoom", () => {
-        const zoomEl = document.getElementById("ui-zoom")
         if (zoomEl) {
           zoomEl.innerText = `ZOOM: ${mapInstance.getZoom().toFixed(1)}`
         }
       })
 
-      const zoomEl = document.getElementById("ui-zoom")
       if (zoomEl) zoomEl.innerText = `ZOOM: ${mapInstance.getZoom().toFixed(1)}`
     })
 
@@ -224,6 +249,8 @@ export function MapContainer({ basemap, mapView, showFires }: MapContainerProps)
 
     mapInstance.once("styledata", () => {
       injectFireData(mapInstance)
+
+      injectTerrainData(mapInstance)
 
       mapInstance.setProjection({
         type: mapView === "3d" ? "globe" : "mercator",
