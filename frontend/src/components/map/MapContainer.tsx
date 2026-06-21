@@ -3,6 +3,8 @@ import maplibregl, { type StyleSpecification } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
 import type { FeatureCollection, Point } from "geojson"
 
+import { Minus, Plus, Navigation } from "lucide-react"
+
 interface MapContainerProps {
   basemap: "topographic" | "satellite"
   mapView: "2d" | "3d"
@@ -125,8 +127,6 @@ export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapCo
       attributionControl: false,
     })
 
-    map.current.addControl(new maplibregl.NavigationControl(), "bottom-left")
-
     map.current.on("load", () => {
       const mapInstance = map.current!
       injectFireData(mapInstance)
@@ -225,6 +225,13 @@ export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapCo
       })
 
       if (zoomEl) zoomEl.innerText = `ZOOM: ${mapInstance.getZoom().toFixed(1)}`
+
+      mapInstance.on("rotate", () => {
+        const compassEl = document.getElementById("ui-compass-icon")
+        if (compassEl) {
+          compassEl.style.transform = `rotate(${-mapInstance.getBearing()}deg)`
+        }
+      })
     })
 
     const resizeObserver = new ResizeObserver(() => {
@@ -330,5 +337,26 @@ export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapCo
     }
   }, [showTerrain])
 
-  return <div ref={mapContainer} className='h-full w-full' />
+  return (
+    <div className='relative h-full w-full'>
+      <div ref={mapContainer} className='h-full w-full' />
+      <div className='absolute left-2 bottom-8 z-10 flex flex-col gap-2'>
+        <div className='flex flex-col shadow-lg rounded-xl overflow-hidden border border-border/30 backdrop-blur-md'>
+          <button onClick={() => map.current?.zoomIn()} className='size-8 flex items-center justify-center bg-background/70 text-foreground hover:bg-muted/80 transition-colors border-b border-border/30' title='Zoom In'>
+            <Plus className='size-3' />
+          </button>
+
+          <button onClick={() => map.current?.zoomOut()} className='size-8 flex items-center justify-center bg-background/70 text-foreground hover:bg-muted/80 transition-colors' title='Zoom Out'>
+            <Minus className='size-3' />
+          </button>
+        </div>
+
+        <button onClick={() => map.current?.resetNorthPitch()} className='size-8 flex items-center justify-center rounded-full shadow-lg border border-border/30 backdrop-blur-md bg-background/70 text-foreground hover:bg-muted/80 transition-colors' title='Reset North'>
+          <div id='ui-compass-icon' className='transition-transform duration-75'>
+            <Navigation className='size-3 text-primary fill-primary/20' />
+          </div>
+        </button>
+      </div>
+    </div>
+  )
 }

@@ -13,10 +13,10 @@ export function MapControls() {
           <Label className='text-[10px] uppercase tracking-wider text-muted-foreground px-1'>Camera View</Label>
           <Tabs value={mapView} onValueChange={(v) => setMapView(v as "2d" | "3d")} className='w-full'>
             <TabsList className='grid w-full grid-cols-2 h-8'>
-              <TabsTrigger value='2d' className='text-xs data-[state=active]:text-destructive font-semibold'>
+              <TabsTrigger value='2d' className='text-xs data-[state=active]:text-destructive font-semibold cursor-pointer'>
                 Flat
               </TabsTrigger>
-              <TabsTrigger value='3d' className='text-xs data-[state=active]:text-destructive font-semibold'>
+              <TabsTrigger value='3d' className='text-xs data-[state=active]:text-destructive font-semibold cursor-pointer'>
                 Globe
               </TabsTrigger>
             </TabsList>
@@ -27,10 +27,10 @@ export function MapControls() {
           <Label className='text-[10px] uppercase tracking-wider text-muted-foreground px-1'>Base Map</Label>
           <Tabs value={basemap} onValueChange={(v) => setBasemap(v as "topographic" | "satellite")} className='w-full'>
             <TabsList className='grid w-full grid-cols-2 h-8'>
-              <TabsTrigger value='topographic' className='text-xs data-[state=active]:text-destructive font-semibold'>
+              <TabsTrigger value='topographic' className='text-xs data-[state=active]:text-destructive font-semibold cursor-pointer'>
                 Terrain
               </TabsTrigger>
-              <TabsTrigger value='satellite' className='text-xs data-[state=active]:text-destructive font-semibold'>
+              <TabsTrigger value='satellite' className='text-xs data-[state=active]:text-destructive font-semibold cursor-pointer'>
                 Satellite
               </TabsTrigger>
             </TabsList>
