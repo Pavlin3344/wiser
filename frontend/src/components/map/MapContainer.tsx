@@ -120,7 +120,6 @@ export function MapContainer({ basemap, mapView, showFires }: MapContainerProps)
         mapInstance.setLayoutProperty("fire-points", "visibility", showFires ? "visible" : "none")
       }
     })
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [basemap])
 
