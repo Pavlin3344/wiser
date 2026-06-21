@@ -14,10 +14,10 @@ export function MapControls() {
           <Tabs value={mapView} onValueChange={(v) => setMapView(v as "2d" | "3d")} className='w-full'>
             <TabsList className='grid w-full grid-cols-2 h-8'>
               <TabsTrigger value='2d' className='text-xs data-[state=active]:text-destructive font-semibold'>
-                2D
+                Flat
               </TabsTrigger>
               <TabsTrigger value='3d' className='text-xs data-[state=active]:text-destructive font-semibold'>
-                3D Globe
+                Globe
               </TabsTrigger>
             </TabsList>
           </Tabs>
