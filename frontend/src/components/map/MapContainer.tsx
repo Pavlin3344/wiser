@@ -116,6 +116,10 @@ export function MapContainer({ basemap, mapView, showFires }: MapContainerProps)
     mapInstance.once("styledata", () => {
       injectFireData(mapInstance)
 
+      mapInstance.setProjection({
+        type: mapView === "3d" ? "globe" : "mercator",
+      })
+
       if (mapInstance.getLayer("fire-points")) {
         mapInstance.setLayoutProperty("fire-points", "visibility", showFires ? "visible" : "none")
       }
