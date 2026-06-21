@@ -342,16 +342,16 @@ export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapCo
       <div ref={mapContainer} className='h-full w-full' />
       <div className='absolute left-2 bottom-8 z-10 flex flex-col gap-2'>
         <div className='flex flex-col shadow-lg rounded-xl overflow-hidden border border-border/30 backdrop-blur-md'>
-          <button onClick={() => map.current?.zoomIn()} className='size-8 flex items-center justify-center bg-background/70 text-foreground hover:bg-muted/80 transition-colors border-b border-border/30' title='Zoom In'>
+          <button onClick={() => map.current?.zoomIn()} className='size-8 flex items-center justify-center bg-background/70 text-foreground hover:bg-muted/80 transition-colors border-b border-border/30 cursor-pointer' title='Zoom In'>
             <Plus className='size-3' />
           </button>
 
-          <button onClick={() => map.current?.zoomOut()} className='size-8 flex items-center justify-center bg-background/70 text-foreground hover:bg-muted/80 transition-colors' title='Zoom Out'>
+          <button onClick={() => map.current?.zoomOut()} className='size-8 flex items-center justify-center bg-background/70 text-foreground hover:bg-muted/80 transition-colors cursor-pointer' title='Zoom Out'>
             <Minus className='size-3' />
           </button>
         </div>
 
-        <button onClick={() => map.current?.resetNorthPitch()} className='size-8 flex items-center justify-center rounded-full shadow-lg border border-border/30 backdrop-blur-md bg-background/70 text-foreground hover:bg-muted/80 transition-colors' title='Reset North'>
+        <button onClick={() => map.current?.resetNorthPitch()} className='size-8 flex items-center justify-center rounded-full shadow-lg border border-border/30 backdrop-blur-md bg-background/70 text-foreground hover:bg-muted/80 transition-colors cursor-pointer' title='Reset North'>
           <div id='ui-compass-icon' className='transition-transform duration-75'>
             <Navigation className='size-3 text-primary fill-primary/20' />
           </div>

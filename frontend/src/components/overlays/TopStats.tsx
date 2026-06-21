@@ -8,7 +8,7 @@ export function TopStats() {
     <div className='absolute top-2 left-2 z-10 flex items-center gap-2 pointer-events-none'>
       {!open && (
         <div className='pointer-events-auto'>
-          <SidebarTrigger className='bg-background/70 backdrop-blur-md border shadow-sm hover:bg-background h-10 w-10 rounded-xl' />
+          <SidebarTrigger className='bg-background/70 backdrop-blur-md border shadow-sm hover:bg-background h-10 w-10 rounded-xl cursor-pointer' />
         </div>
       )}
 
