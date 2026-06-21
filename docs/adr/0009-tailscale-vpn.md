@@ -30,6 +30,7 @@ UFW firewall правило: `sudo ufw allow in on tailscale0` — позвол�
 ## Consequences
 
 **Positive:**
+
 - Нулева конфигурация — инсталация за 5 минути на всяко устройство
 - Всеки член на екипа достига сервизите директно в браузъра
 - Не излага нищо публично
@@ -37,10 +38,12 @@ UFW firewall правило: `sudo ufw allow in on tailscale0` — позвол�
 - Работи на Windows, Mac, Linux, iOS, Android
 
 **Negative:**
+
 - Зависимост от Tailscale като external service
 - При Azure migration трябва да се инсталира отново на новия сървър (5 минути)
 - Admin трябва ръчно да одобрява нови устройства
 
 **Neutral / things to watch:**
+
 - При production (след Azure migration) да се обмисли дали observability UI-тата трябва да са достъпни само за екипа или за клиента също — ако за клиента, Nginx + Basic Auth е по-подходящо
 - Tailscale free tier е достатъчен за 5 члена на екипа + 1 сървър

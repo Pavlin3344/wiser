@@ -34,14 +34,17 @@ Phase 1 на Wiser изисква Fire Weather Index (FWI) данни за из�
 ## Consequences
 
 **Positive:**
+
 - Лицензно чисто — EFFIS е публично достъпно
 - Лесна интеграция — числови стойности директно в TimescaleDB
 - Точни данни от ECMWF
 - Без infrastructure overhead за ML модел
 
 **Negative:**
+
 - Зависим сме от EFFIS API uptime
 - EFFIS обновява данните 1× дневно — не можем да получим по-чести данни
 
 **Neutral / things to watch:**
+
 - В случай че EFFIS data е недостатъчно за специфични български условия, може да се добави корекционен слой (fine-tuning) върху EFFIS стойностите, без да заменя моделът
