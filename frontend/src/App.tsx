@@ -3,14 +3,11 @@ import React from "react"
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar"
 import { TooltipProvider } from "@/components/ui/tooltip"
 
-import { MapContainer } from "@/components/map/MapContainer"
-import { MapLegend } from "@/components/overlays/MapLegend"
-import { LiveToggle } from "@/components/overlays/LiveToggle"
-import { MapControls } from "@/components/overlays/MapControls"
-import { TopStats } from "@/components/overlays/TopStats"
-import { BottomStatusBar } from "@/components/overlays/BottomStatusBar"
-import { TerrainToggle } from "@/components/overlays/TerrainToggle"
 import { AppSidebar } from "@/components/sidebar/AppSidebar"
+import { MapContainer } from "@/components/map/MapContainer"
+import { TopBar } from "@/components/overlays/TopBar"
+import { SecondaryBar } from "@/components/overlays/SecondaryBar"
+import { BottomStatusBar } from "@/components/overlays/BottomStatusBar"
 
 import { useMapStore } from "@/store/use-map-store"
 
@@ -23,16 +20,11 @@ function App() {
       <TooltipProvider>
         <AppSidebar />
 
-        <SidebarInset className='relative p-0 overflow-hidden bg-muted/20'>
-          <div className='absolute inset-0 z-0'>
-            <MapContainer basemap={basemap} mapView={mapView} showFires={showFires} showTerrain={showTerrain} />
-          </div>
+        <SidebarInset className='absolute inset-0 p-0 overflow-hidden'>
+          <MapContainer basemap={basemap} mapView={mapView} showFires={showFires} showTerrain={showTerrain} />
 
-          <TopStats />
-          <MapControls />
-          <MapLegend />
-          <LiveToggle />
-          <TerrainToggle />
+          <TopBar />
+          <SecondaryBar />
           <BottomStatusBar />
         </SidebarInset>
       </TooltipProvider>
