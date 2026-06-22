@@ -5,12 +5,7 @@ import type { FeatureCollection, Point } from "geojson"
 
 import { Minus, Plus, Navigation } from "lucide-react"
 
-interface MapContainerProps {
-  basemap: "topographic" | "satellite"
-  mapView: "2d" | "3d"
-  showFires: boolean
-  showTerrain: boolean
-}
+import { satelliteStyle, generateGlassPopupHTML } from "@/lib/map-config"
 
 const mockFireData: FeatureCollection = {
   type: "FeatureCollection",
@@ -33,26 +28,15 @@ const mockFireData: FeatureCollection = {
   ],
 }
 
-const satelliteStyle: StyleSpecification = {
-  version: 8,
-  sources: {
-    "esri-satellite": {
-      type: "raster",
-      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-      tileSize: 256,
-      attribution: "&copy; Esri",
-    },
-  },
-  layers: [
-    {
-      id: "satellite",
-      type: "raster",
-      source: "esri-satellite",
-    },
-  ],
+interface MapContainerProps {
+  basemap: "topographic" | "satellite"
+  mapView: "2d" | "3d"
+  showFires: boolean
+  showTerrain: boolean
+  showLabels: boolean
 }
 
-export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapContainerProps) {
+export function MapContainer({ basemap, mapView, showFires, showTerrain, showLabels }: MapContainerProps) {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
 
@@ -160,32 +144,7 @@ export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapCo
         const dotColor = intensity === "critical" ? "bg-destructive" : intensity === "high" ? "bg-orange-500" : "bg-amber-400"
         const textColor = intensity === "critical" ? "text-destructive" : intensity === "high" ? "text-orange-500" : "text-amber-500"
 
-        const popupHtml = `
-          <div class="font-sans max-w-56 p-4 rounded-2xl bg-background/60 backdrop-blur-xl shadow-lg border-white/10 border-t-white/20 border-l-white/20">
-            <div class="flex items-center justify-between mb-1.5">
-              <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">${date}</div>
-              <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-background/20 backdrop-blur-sm px-1.5 py-0.5 rounded-xl border border-border/10">EFFIS</div>
-            </div>
-            
-            <div class="font-bold text-sm mb-2 text-foreground leading-tight">${title}</div>
-
-            <div class="flex items-center gap-2 mb-3">
-              <div class="w-2.5 h-2.5 rounded-full ${dotColor} border border-white/10 border-t-white/20 border-l-white/20 shadow-sm"></div>
-              <span class="text-xs font-bold capitalize ${textColor}">${intensity} Risk</span>
-            </div>
-
-            <div class="text-xs text-muted-foreground border-t border-white/10 pt-2 mt-1">
-              <div class="flex justify-between gap-4 mb-1">
-                <span class="font-semibold text-foreground/70">Lat:</span>
-                <span class="font-mono text-foreground">${coordinates[1].toFixed(4)}°</span>
-              </div>
-              <div class="flex justify-between gap-4">
-                <span class="font-semibold text-foreground/70">Lon:</span>
-                <span class="font-mono text-foreground">${coordinates[0].toFixed(4)}°</span>
-              </div>
-            </div>
-          </div>
-        `
+        const html = generateGlassPopupHTML(date, title, intensity, coordinates, dotColor, textColor)
 
         new maplibregl.Popup({
           closeButton: false,
@@ -193,7 +152,7 @@ export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapCo
           offset: 10,
         })
           .setLngLat(coordinates as [number, number])
-          .setHTML(popupHtml)
+          .setHTML(html)
           .addTo(mapInstance)
       })
 
