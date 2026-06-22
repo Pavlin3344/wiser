@@ -4,44 +4,18 @@ import "maplibre-gl/dist/maplibre-gl.css"
 import type { FeatureCollection, Point } from "geojson"
 
 import { MapNavigation } from "@/components/map/MapNavigation"
-
 import { satelliteStyle, generateGlassPopupHTML } from "@/lib/map-config"
+import { mockFireData } from "@/mocks/fire-data"
+import { useMapStore } from "@/store/use-map-store"
 
 const DEFAULT_STYLE = "https://demotiles.maplibre.org/style.json"
 
-const mockFireData: FeatureCollection = {
-  type: "FeatureCollection",
-  features: [
-    {
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [25.5, 42.0] },
-      properties: { intensity: "high", title: "EFFIS Anomaly Alpha", date: new Date().toISOString() },
-    },
-    {
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [25.2, 42.1] },
-      properties: { intensity: "moderate", title: "EFFIS Anomaly Beta", date: new Date().toISOString() },
-    },
-    {
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [25.8, 41.8] },
-      properties: { intensity: "critical", title: "EFFIS Anomaly Gamma", date: new Date().toISOString() },
-    },
-  ],
-}
-
-interface MapContainerProps {
-  basemap: "topographic" | "satellite"
-  mapView: "2d" | "3d"
-  showFires: boolean
-  showTerrain: boolean
-  showLabels: boolean
-}
-
-export function MapContainer({ basemap, mapView, showFires, showTerrain, showLabels }: MapContainerProps) {
+export function MapContainer() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
   const fireData = useRef<FeatureCollection>(mockFireData)
+
+  const { basemap, mapView, showFires, showTerrain, showLabels } = useMapStore()
 
   const syncMapLayers = (mapInstance: maplibregl.Map) => {
     if (!mapInstance.getSource("3d-terrain")) {
@@ -93,6 +67,9 @@ export function MapContainer({ basemap, mapView, showFires, showTerrain, showLab
       center: [25.5, 42.0],
       zoom: 7,
       attributionControl: false,
+      canvasContextAttributes: {
+        antialias: true,
+      },
     })
 
     const mapInstance = map.current
