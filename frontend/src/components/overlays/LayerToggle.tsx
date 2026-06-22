@@ -9,7 +9,7 @@ export function LayerToggle() {
   if (basemap !== "satellite") return null
 
   return (
-    <div className='pointer-events-auto flex flex-col items-end gap-2 w-52 mt-2'>
+    <div className='pointer-events-auto flex flex-col items-end gap-2 w-52'>
       <div
         className='
         relative bg-background/60 backdrop-blur-xl shadow-lg rounded-2xl 

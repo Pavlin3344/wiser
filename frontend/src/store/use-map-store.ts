@@ -1,4 +1,5 @@
 import { create } from "zustand"
+import { persist } from "zustand/middleware"
 import type { DateRange } from "react-day-picker"
 
 interface MapState {
@@ -23,25 +24,40 @@ interface MapState {
   setDateRange: (range: DateRange | undefined) => void
 }
 
-export const useMapStore = create<MapState>((set) => ({
-  activeSidebarTab: "risk",
-  setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
+export const useMapStore = create<MapState>()(
+  persist(
+    (set) => ({
+      activeSidebarTab: "risk",
+      setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
 
-  mapView: "2d",
-  setMapView: (view) => set({ mapView: view }),
+      mapView: "2d",
+      setMapView: (view) => set({ mapView: view }),
 
-  basemap: "topographic",
-  setBasemap: (map) => set({ basemap: map }),
+      basemap: "topographic",
+      setBasemap: (map) => set({ basemap: map }),
 
-  showFires: false,
-  setShowFires: (show) => set({ showFires: show }),
+      showFires: false,
+      setShowFires: (show) => set({ showFires: show }),
 
-  showTerrain: false,
-  setShowTerrain: (show) => set({ showTerrain: show }),
+      showTerrain: false,
+      setShowTerrain: (show) => set({ showTerrain: show }),
 
-  showLabels: false,
-  setShowLabels: (show) => set({ showLabels: show }),
+      showLabels: false,
+      setShowLabels: (show) => set({ showLabels: show }),
 
-  dateRange: { from: new Date(), to: new Date() },
-  setDateRange: (range) => set({ dateRange: range }),
-}))
+      dateRange: { from: new Date(), to: new Date() },
+      setDateRange: (range) => set({ dateRange: range }),
+    }),
+    {
+      name: "wiser-system-storage",
+      partialize: (state) => ({
+        activeSidebarTab: state.activeSidebarTab,
+        mapView: state.mapView,
+        basemap: state.basemap,
+        showFires: state.showFires,
+        showTerrain: state.showTerrain,
+        showLabels: state.showLabels,
+      }),
+    },
+  ),
+)
