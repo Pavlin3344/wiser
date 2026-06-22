@@ -61,11 +61,15 @@ export function MapContainer() {
   useEffect(() => {
     if (map.current) return
 
+    const savedCamera = useMapStore.getState().camera
+
     map.current = new maplibregl.Map({
       container: mapContainer.current!,
-      style: "https://demotiles.maplibre.org/style.json",
-      center: [25.5, 42.0],
-      zoom: 7,
+      style: "DEFAULT_STYLE",
+      center: [savedCamera.lng, savedCamera.lat],
+      zoom: savedCamera.zoom,
+      pitch: savedCamera.pitch,
+      bearing: savedCamera.bearing,
       attributionControl: false,
       canvasContextAttributes: {
         antialias: true,
@@ -150,6 +154,16 @@ export function MapContainer() {
       mapInstance.on("rotate", () => {
         const compassEl = document.getElementById("ui-compass-icon")
         if (compassEl) compassEl.style.transform = `rotate(${-mapInstance.getBearing()}deg)`
+      })
+    })
+
+    mapInstance.on("moveend", () => {
+      useMapStore.getState().setCamera({
+        lng: mapInstance.getCenter().lng,
+        lat: mapInstance.getCenter().lat,
+        zoom: mapInstance.getZoom(),
+        pitch: mapInstance.getPitch(),
+        bearing: mapInstance.getBearing(),
       })
     })
 
