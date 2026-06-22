@@ -9,11 +9,8 @@ import { TopBar } from "@/components/overlays/TopBar"
 import { SecondaryBar } from "@/components/overlays/SecondaryBar"
 import { BottomStatusBar } from "@/components/overlays/BottomStatusBar"
 
-import { useMapStore } from "@/store/use-map-store"
-
 function App() {
   const [isOpen, setIsOpen] = React.useState(true)
-  const { mapView, basemap, showFires, showTerrain } = useMapStore()
 
   return (
     <SidebarProvider open={isOpen} onOpenChange={setIsOpen}>
@@ -21,7 +18,7 @@ function App() {
         <AppSidebar />
 
         <SidebarInset className='absolute inset-0 p-0 overflow-hidden'>
-          <MapContainer basemap={basemap} mapView={mapView} showFires={showFires} showTerrain={showTerrain} />
+          <MapContainer />
 
           <TopBar />
           <SecondaryBar />
