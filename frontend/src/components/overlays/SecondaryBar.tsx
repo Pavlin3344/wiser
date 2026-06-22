@@ -2,6 +2,7 @@ import { MapLegend } from "@/components/overlays/MapLegend"
 import { LiveToggle } from "@/components/overlays/LiveToggle"
 import { MapControls } from "@/components/overlays/MapControls"
 import { TerrainToggle } from "@/components/overlays/TerrainToggle"
+import { LayerToggle } from "@/components/overlays/LayerToggle"
 
 export function SecondaryBar() {
   return (
@@ -10,6 +11,7 @@ export function SecondaryBar() {
       <LiveToggle />
       <MapLegend />
       <TerrainToggle />
+      <LayerToggle />
     </div>
   )
 }

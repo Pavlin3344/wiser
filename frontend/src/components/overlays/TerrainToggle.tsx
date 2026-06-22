@@ -2,7 +2,9 @@ import { Mountain } from "lucide-react"
 import { useMapStore } from "@/store/use-map-store"
 
 export function TerrainToggle() {
-  const { showTerrain, setShowTerrain } = useMapStore()
+  const { showTerrain, setShowTerrain, basemap } = useMapStore()
+
+  if (basemap !== "satellite") return null
 
   return (
     <button
