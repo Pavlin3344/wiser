@@ -3,137 +3,94 @@ import maplibregl, { type StyleSpecification } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
 import type { FeatureCollection, Point } from "geojson"
 
-import { Minus, Plus, Navigation } from "lucide-react"
+import { MapNavigation } from "@/components/map/MapNavigation"
+import { satelliteStyle, generateGlassPopupHTML } from "@/lib/map-config"
+import { mockFireData } from "@/mocks/fire-data"
+import { useMapStore } from "@/store/use-map-store"
 
-interface MapContainerProps {
-  basemap: "topographic" | "satellite"
-  mapView: "2d" | "3d"
-  showFires: boolean
-  showTerrain: boolean
-}
+const DEFAULT_STYLE = "https://demotiles.maplibre.org/style.json"
 
-const mockFireData: FeatureCollection = {
-  type: "FeatureCollection",
-  features: [
-    {
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [25.5, 42.0] },
-      properties: { intensity: "high", title: "EFFIS Anomaly Alpha", date: new Date().toISOString() },
-    },
-    {
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [25.2, 42.1] },
-      properties: { intensity: "moderate", title: "EFFIS Anomaly Beta", date: new Date().toISOString() },
-    },
-    {
-      type: "Feature",
-      geometry: { type: "Point", coordinates: [25.8, 41.8] },
-      properties: { intensity: "critical", title: "EFFIS Anomaly Gamma", date: new Date().toISOString() },
-    },
-  ],
-}
-
-const satelliteStyle: StyleSpecification = {
-  version: 8,
-  sources: {
-    "esri-satellite": {
-      type: "raster",
-      tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-      tileSize: 256,
-      attribution: "&copy; Esri",
-    },
-  },
-  layers: [
-    {
-      id: "satellite",
-      type: "raster",
-      source: "esri-satellite",
-    },
-  ],
-}
-
-export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapContainerProps) {
+export function MapContainer() {
   const mapContainer = useRef<HTMLDivElement>(null)
   const map = useRef<maplibregl.Map | null>(null)
-
   const fireData = useRef<FeatureCollection>(mockFireData)
 
-  const fetchLiveFireData = async (mapInstance: maplibregl.Map) => {
-    try {
-      const response = await fetch("/api/v1/fires/active")
+  const { basemap, mapView, showFires, showTerrain, showLabels } = useMapStore()
 
-      if (response.ok) {
-        const data: FeatureCollection = await response.json()
-        fireData.current = data
-
-        const source = mapInstance.getSource("active-fires") as maplibregl.GeoJSONSource
-        if (source) {
-          source.setData(fireData.current)
-        }
-      } else {
-        console.warn("Wiser Backend not reachable yet. Using fallback EFFIS mock data.")
-      }
-    } catch (error) {
-      console.warn("Backend API pending. Using fallback EFFIS mock data.")
-      console.warn("[Error]: " + error)
+  const syncMapLayers = (mapInstance: maplibregl.Map) => {
+    if (!mapInstance.getSource("3d-terrain")) {
+      mapInstance.addSource("3d-terrain", {
+        type: "raster-dem",
+        tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+        encoding: "terrarium",
+        tileSize: 256,
+        maxzoom: 14,
+      })
     }
-  }
+    mapInstance.setTerrain(showTerrain ? { source: "3d-terrain", exaggeration: 1.5 } : null)
 
-  const injectFireData = (mapInstance: maplibregl.Map) => {
-    if (mapInstance.getSource("active-fires")) return
+    if (!mapInstance.getSource("active-fires")) {
+      mapInstance.addSource("active-fires", { type: "geojson", data: fireData.current })
+    } else {
+      ;(mapInstance.getSource("active-fires") as maplibregl.GeoJSONSource).setData(fireData.current)
+    }
 
-    mapInstance.addSource("active-fires", {
-      type: "geojson",
-      data: fireData.current,
-    })
+    if (!mapInstance.getLayer("fire-points")) {
+      mapInstance.addLayer({
+        id: "fire-points",
+        type: "circle",
+        source: "active-fires",
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 4, 10, 12],
+          "circle-color": "#ef4444",
+          "circle-opacity": 0.8,
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff",
+        },
+      })
+    }
+    mapInstance.setLayoutProperty("fire-points", "visibility", showFires ? "visible" : "none")
 
-    mapInstance.addLayer({
-      id: "fire-points",
-      type: "circle",
-      source: "active-fires",
-      paint: {
-        "circle-radius": ["interpolate", ["linear"], ["zoom"], 5, 4, 10, 12],
-        "circle-color": "#ef4444",
-        "circle-opacity": 0.8,
-        "circle-stroke-width": 2,
-        "circle-stroke-color": "#ffffff",
-      },
-      layout: {
-        visibility: showFires ? "visible" : "none",
-      },
-    })
-  }
-
-  const injectTerrainData = (mapInstance: maplibregl.Map) => {
-    if (mapInstance.getSource("3d-terrain")) return
-
-    mapInstance.addSource("3d-terrain", {
-      type: "raster-dem",
-      tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
-      encoding: "terrarium",
-      tileSize: 256,
-      maxzoom: 14,
-    })
+    const labelVisibility = showLabels ? "visible" : "none"
+    if (mapInstance.getLayer("country-borders")) {
+      mapInstance.setLayoutProperty("country-borders", "visibility", labelVisibility)
+      mapInstance.setLayoutProperty("place-labels", "visibility", labelVisibility)
+    }
   }
 
   useEffect(() => {
     if (map.current) return
 
+    const savedCamera = useMapStore.getState().camera
+
     map.current = new maplibregl.Map({
       container: mapContainer.current!,
-      style: "https://demotiles.maplibre.org/style.json",
-      center: [25.5, 42.0],
-      zoom: 7,
+      style: "DEFAULT_STYLE",
+      center: [savedCamera.lng, savedCamera.lat],
+      zoom: savedCamera.zoom,
+      pitch: savedCamera.pitch,
+      bearing: savedCamera.bearing,
       attributionControl: false,
+      canvasContextAttributes: {
+        antialias: true,
+      },
     })
 
+    const mapInstance = map.current
+
     map.current.on("load", () => {
-      const mapInstance = map.current!
-      injectFireData(mapInstance)
+      syncMapLayers(mapInstance)
 
-      injectTerrainData(mapInstance)
-
-      fetchLiveFireData(mapInstance)
+      fetch("/api/v1/fires/active")
+        .then((res) => (res.ok ? res.json() : Promise.reject("Wiser Backend not reachable yet. Using fallback EFFIS mock data.")))
+        .then((data) => {
+          fireData.current = data
+          syncMapLayers(mapInstance)
+        })
+        .catch((err) => {
+          console.warn("Backend API pending. Using fallback EFFIS mock data.")
+          console.warn("[Error]: " + err)
+        })
 
       mapInstance.on("mouseenter", "fire-points", () => {
         mapInstance.getCanvas().style.cursor = "pointer"
@@ -160,46 +117,13 @@ export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapCo
         const dotColor = intensity === "critical" ? "bg-destructive" : intensity === "high" ? "bg-orange-500" : "bg-amber-400"
         const textColor = intensity === "critical" ? "text-destructive" : intensity === "high" ? "text-orange-500" : "text-amber-500"
 
-        const popupHtml = `
-          <div class="font-sans max-w-56 p-4 rounded-2xl bg-background/60 backdrop-blur-xl shadow-lg border-white/10 border-t-white/20 border-l-white/20">
-            <div class="flex items-center justify-between mb-1.5">
-              <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">${date}</div>
-              <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-background/20 backdrop-blur-sm px-1.5 py-0.5 rounded-xl border border-border/10">EFFIS</div>
-            </div>
-            
-            <div class="font-bold text-sm mb-2 text-foreground leading-tight">${title}</div>
+        const html = generateGlassPopupHTML(date, title, intensity, coordinates, dotColor, textColor)
 
-            <div class="flex items-center gap-2 mb-3">
-              <div class="w-2.5 h-2.5 rounded-full ${dotColor} border border-white/10 border-t-white/20 border-l-white/20 shadow-sm"></div>
-              <span class="text-xs font-bold capitalize ${textColor}">${intensity} Risk</span>
-            </div>
-
-            <div class="text-xs text-muted-foreground border-t border-white/10 pt-2 mt-1">
-              <div class="flex justify-between gap-4 mb-1">
-                <span class="font-semibold text-foreground/70">Lat:</span>
-                <span class="font-mono text-foreground">${coordinates[1].toFixed(4)}°</span>
-              </div>
-              <div class="flex justify-between gap-4">
-                <span class="font-semibold text-foreground/70">Lon:</span>
-                <span class="font-mono text-foreground">${coordinates[0].toFixed(4)}°</span>
-              </div>
-            </div>
-          </div>
-        `
-
-        new maplibregl.Popup({
-          closeButton: false,
-          className: "glass-popup",
-          offset: 10,
-        })
+        new maplibregl.Popup({ closeButton: false, className: "glass-popup", offset: 10 })
           .setLngLat(coordinates as [number, number])
-          .setHTML(popupHtml)
+          .setHTML(html)
           .addTo(mapInstance)
       })
-
-      const coordsEl = document.getElementById("ui-coords")
-      const elevEl = document.getElementById("ui-elevation")
-      const zoomEl = document.getElementById("ui-zoom")
 
       let isUpdating = false
 
@@ -208,9 +132,10 @@ export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapCo
         isUpdating = true
 
         requestAnimationFrame(() => {
-          if (coordsEl) {
-            coordsEl.innerText = `${e.lngLat.lat.toFixed(4)}° N, ${e.lngLat.lng.toFixed(4)}° E`
-          }
+          const coordsEl = document.getElementById("ui-coords")
+          const elevEl = document.getElementById("ui-elevation")
+
+          if (coordsEl) coordsEl.innerText = `${e.lngLat.lat.toFixed(4)}° N, ${e.lngLat.lng.toFixed(4)}° E`
 
           if (elevEl) {
             const elevation = mapInstance.queryTerrainElevation(e.lngLat)
@@ -222,29 +147,30 @@ export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapCo
       })
 
       mapInstance.on("zoom", () => {
-        if (zoomEl) {
-          zoomEl.innerText = `ZOOM: ${mapInstance.getZoom().toFixed(1)}`
-        }
+        const zoomEl = document.getElementById("ui-zoom")
+        if (zoomEl) zoomEl.innerText = `ZOOM: ${mapInstance.getZoom().toFixed(1)}`
       })
-
-      if (zoomEl) zoomEl.innerText = `ZOOM: ${mapInstance.getZoom().toFixed(1)}`
 
       mapInstance.on("rotate", () => {
         const compassEl = document.getElementById("ui-compass-icon")
-        if (compassEl) {
-          compassEl.style.transform = `rotate(${-mapInstance.getBearing()}deg)`
-        }
+        if (compassEl) compassEl.style.transform = `rotate(${-mapInstance.getBearing()}deg)`
+      })
+    })
+
+    mapInstance.on("moveend", () => {
+      useMapStore.getState().setCamera({
+        lng: mapInstance.getCenter().lng,
+        lat: mapInstance.getCenter().lat,
+        zoom: mapInstance.getZoom(),
+        pitch: mapInstance.getPitch(),
+        bearing: mapInstance.getBearing(),
       })
     })
 
     const resizeObserver = new ResizeObserver(() => {
       map.current?.resize()
     })
-
-    if (mapContainer.current) {
-      resizeObserver.observe(mapContainer.current)
-    }
-
+    resizeObserver.observe(mapContainer.current!)
     return () => resizeObserver.disconnect()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -252,119 +178,44 @@ export function MapContainer({ basemap, mapView, showFires, showTerrain }: MapCo
   useEffect(() => {
     if (!map.current) return
     const mapInstance = map.current
-    const targetStyle: string | StyleSpecification = basemap === "satellite" ? satelliteStyle : "https://demotiles.maplibre.org/style.json"
+    const targetStyle: string | StyleSpecification = basemap === "satellite" ? satelliteStyle : DEFAULT_STYLE
 
     mapInstance.setStyle(targetStyle)
 
     mapInstance.once("styledata", () => {
-      injectFireData(mapInstance)
-      injectTerrainData(mapInstance)
-
-      if (showTerrain) {
-        mapInstance.setTerrain({ source: "3d-terrain", exaggeration: 1.5 })
-      } else {
-        mapInstance.setTerrain(null)
-      }
-
-      mapInstance.setProjection({
-        type: mapView === "3d" ? "globe" : "mercator",
-      })
-
-      if (mapInstance.getLayer("fire-points")) {
-        mapInstance.setLayoutProperty("fire-points", "visibility", showFires ? "visible" : "none")
-      }
+      syncMapLayers(mapInstance)
+      mapInstance.setProjection({ type: mapView === "3d" ? "globe" : "mercator" })
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [basemap])
 
   useEffect(() => {
-    if (!map.current) return
+    if (!map.current || !map.current.isStyleLoaded()) return
     const mapInstance = map.current
 
-    const applyProjection = () => {
-      mapInstance.stop()
-
-      mapInstance.setProjection({
-        type: mapView === "3d" ? "globe" : "mercator",
-      })
-
-      mapInstance.flyTo({
-        pitch: 0,
-        bearing: 0,
-        zoom: mapView === "3d" ? 2 : 7,
-        duration: 1500,
-      })
-    }
-
-    if (mapInstance.isStyleLoaded()) {
-      applyProjection()
-    } else {
-      mapInstance.once("style.load", applyProjection)
-    }
+    mapInstance.stop()
+    mapInstance.setProjection({
+      type: mapView === "3d" ? "globe" : "mercator",
+    })
+    mapInstance.flyTo({
+      pitch: 0,
+      bearing: 0,
+      zoom: mapView === "3d" ? 2 : 7,
+      duration: 1500,
+    })
   }, [mapView])
 
   useEffect(() => {
-    if (!map.current) return
-    const mapInstance = map.current
-
-    const applyVisibility = () => {
-      if (mapInstance.getLayer("fire-points")) {
-        mapInstance.setLayoutProperty("fire-points", "visibility", showFires ? "visible" : "none")
-      }
-    }
-
-    if (mapInstance.isStyleLoaded()) {
-      applyVisibility()
-    } else {
-      mapInstance.once("style.load", applyVisibility)
-    }
-  }, [showFires])
-
-  useEffect(() => {
-    if (!map.current) return
-    const mapInstance = map.current
-
-    const applyTerrain = () => {
-      if (showTerrain) {
-        injectTerrainData(mapInstance)
-        mapInstance.setTerrain({ source: "3d-terrain", exaggeration: 1.5 })
-      } else {
-        mapInstance.setTerrain(null)
-      }
-    }
-
-    if (mapInstance.isStyleLoaded()) {
-      applyTerrain()
-    } else {
-      mapInstance.once("style.load", applyTerrain)
-    }
-  }, [showTerrain])
+    if (!map.current || !map.current.isStyleLoaded()) return
+    syncMapLayers(map.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showFires, showTerrain, showLabels])
 
   return (
     <div className='absolute inset-0 z-0'>
       <div className='relative h-full w-full'>
         <div ref={mapContainer} className='h-full w-full' />
-        <div className='absolute right-2 bottom-12 z-10 flex flex-col gap-2'>
-          <div className='relative flex flex-col shadow-lg rounded-full overflow-hidden border border-white/10 border-t-white/20 border-l-white/20 backdrop-blur-xl bg-background/60'>
-            <div className='absolute inset-0 bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
-
-            <button onClick={() => map.current?.zoomIn()} className='size-9 flex items-center justify-center bg-background/20 text-foreground hover:bg-muted/80 border-b border-white/10 transition-colors cursor-pointer z-10' title='Zoom In'>
-              <Plus className='size-3' />
-            </button>
-
-            <button onClick={() => map.current?.zoomOut()} className='size-9 flex items-center justify-center bg-background/20 text-foreground hover:bg-muted/80 transition-colors cursor-pointer z-10' title='Zoom Out'>
-              <Minus className='size-3' />
-            </button>
-          </div>
-
-          <button onClick={() => map.current?.resetNorthPitch()} className='relative size-9 flex items-center justify-center bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20 rounded-2xl text-foreground hover:bg-muted/80 transition-colors cursor-pointer' title='Reset North'>
-            <div className='absolute inset-0 rounded-full bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
-
-            <div id='ui-compass-icon' className='transition-transform duration-75'>
-              <Navigation className='size-3 text-primary fill-primary/20' />
-            </div>
-          </button>
-        </div>
+        <MapNavigation mapRef={map} />
       </div>
     </div>
   )

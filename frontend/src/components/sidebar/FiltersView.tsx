@@ -1,3 +1,4 @@
+import type { DateRange } from "react-day-picker"
 import { subMonths } from "date-fns/subMonths"
 import { format } from "date-fns/format"
 
@@ -14,8 +15,25 @@ import { Calendar } from "@/components/ui/calendar"
 import { useMapStore } from "@/store/use-map-store"
 
 export function FiltersView() {
-  const { dateRange, setDateRange } = useMapStore()
+  const { dateRange, setDateRange, region, setRegion, riskLevel, setRiskLevel, showThermal, setShowThermal, showSmoke, setShowSmoke, showWind, setShowWind, showEvac, setShowEvac } = useMapStore()
   const minDate = subMonths(new Date(), 3)
+
+  const uiDateObj = {
+    from: dateRange.from ? new Date(dateRange.from) : undefined,
+    to: dateRange.to ? new Date(dateRange.to) : undefined,
+  }
+
+  const handleSelect = (newRange: DateRange | undefined) => {
+    setDateRange({
+      from: newRange?.from?.toISOString(),
+      to: newRange?.to?.toISOString(),
+    })
+  }
+
+  const setToday = () => {
+    const today = new Date().toISOString()
+    setDateRange({ from: today, to: today })
+  }
 
   return (
     <>
@@ -24,7 +42,7 @@ export function FiltersView() {
         <div className='px-4 py-2 space-y-4'>
           <div className='space-y-1.5'>
             <Label className='text-xs text-muted-foreground'>Region</Label>
-            <Select defaultValue='all'>
+            <Select value={region} onValueChange={setRegion}>
               <SelectTrigger className='h-8 text-xs'>
                 <SelectValue placeholder='Select region' />
               </SelectTrigger>
@@ -44,7 +62,7 @@ export function FiltersView() {
 
           <div className='space-y-1.5'>
             <Label className='text-xs text-muted-foreground'>Risk Level</Label>
-            <Select defaultValue='all'>
+            <Select value={riskLevel} onValueChange={setRiskLevel}>
               <SelectTrigger className='h-8 text-xs'>
                 <SelectValue placeholder='Select severity' />
               </SelectTrigger>
@@ -68,26 +86,26 @@ export function FiltersView() {
           <div className='space-y-3 pt-2'>
             <Label className='text-xs text-muted-foreground'>Indicators</Label>
             <div className='flex items-center space-x-2'>
-              <Checkbox id='chk-thermal' defaultChecked />
+              <Checkbox id='chk-thermal' checked={showThermal} onCheckedChange={(c) => setShowThermal(c as boolean)} />
               <Label htmlFor='chk-thermal' className='text-xs font-medium cursor-pointer'>
                 Thermal Anomalies
               </Label>
             </div>
             <div className='flex items-center space-x-2'>
-              <Checkbox id='chk-smoke' defaultChecked />
+              <Checkbox id='chk-smoke' checked={showSmoke} onCheckedChange={(c) => setShowSmoke(c as boolean)} />
               <Label htmlFor='chk-smoke' className='text-xs font-medium cursor-pointer'>
                 Smoke Plumes
               </Label>
             </div>
             <div className='flex items-center space-x-2'>
-              <Checkbox id='chk-wind' />
+              <Checkbox id='chk-wind' checked={showWind} onCheckedChange={(c) => setShowWind(c as boolean)} />
               <Label htmlFor='chk-wind' className='text-xs font-medium cursor-pointer'>
                 Wind Vectors
               </Label>
             </div>
 
             <div className='flex items-center space-x-2'>
-              <Checkbox id='chk-evac' />
+              <Checkbox id='chk-evac' checked={showEvac} onCheckedChange={(c) => setShowEvac(c as boolean)} />
               <Label htmlFor='chk-evac' className='text-xs font-medium cursor-pointer'>
                 Evacuation Routes
               </Label>
@@ -103,15 +121,15 @@ export function FiltersView() {
             <PopoverTrigger asChild>
               <Button variant='outline' className='w-full justify-start text-left font-normal h-9 px-3 text-xs border border-border/10'>
                 <CalendarIcon className='mr-2 h-4 w-4 shrink-0' />
-                <span className='truncate'>{dateRange?.from ? (dateRange.to ? `${format(dateRange.from, "MMM d")} - ${format(dateRange.to, "MMM d, yyyy")}` : format(dateRange.from, "MMM d, yyyy")) : "Pick a date"}</span>
+                <span className='truncate'>{uiDateObj?.from ? (uiDateObj.to ? `${format(uiDateObj.from, "MMM d")} - ${format(uiDateObj.to, "MMM d, yyyy")}` : format(uiDateObj.from, "MMM d, yyyy")) : "Pick a date"}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className='w-auto p-0' align='start'>
-              <Calendar mode='range' selected={dateRange} onSelect={setDateRange} disabled={(d) => d > new Date() || d < minDate} />
+              <Calendar mode='range' selected={uiDateObj} onSelect={handleSelect} disabled={(d) => d > new Date() || d < minDate} />
             </PopoverContent>
           </Popover>
           <div className='flex gap-2'>
-            <Button variant='outline' size='sm' className='w-full text-xs h-8 border border-border/10'>
+            <Button variant='outline' size='sm' onClick={setToday} className='w-full text-xs h-8 border border-border/10'>
               Today
             </Button>
           </div>
