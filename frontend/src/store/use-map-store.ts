@@ -1,40 +1,88 @@
 import { create } from "zustand"
-import type { DateRange } from "react-day-picker"
+import { persist } from "zustand/middleware"
+
+interface SerializedDateRange {
+  from: string | undefined
+  to: string | undefined
+}
 
 interface MapState {
+  sidebarOpen: boolean
+  setSidebarOpen: (open: boolean) => void
   activeSidebarTab: "risk" | "detection" | "analysis" | "alerts"
   setActiveSidebarTab: (tab: "risk" | "detection" | "analysis" | "alerts") => void
+
+  camera: { lng: number; lat: number; zoom: number; pitch: number; bearing: number }
+  setCamera: (camera: { lng: number; lat: number; zoom: number; pitch: number; bearing: number }) => void
 
   mapView: "2d" | "3d"
   setMapView: (view: "2d" | "3d") => void
   basemap: "topographic" | "satellite"
   setBasemap: (map: "topographic" | "satellite") => void
-
   showFires: boolean
   setShowFires: (show: boolean) => void
-
   showTerrain: boolean
   setShowTerrain: (show: boolean) => void
+  showLabels: boolean
+  setShowLabels: (show: boolean) => void
 
-  dateRange: DateRange | undefined
-  setDateRange: (range: DateRange | undefined) => void
+  region: string
+  setRegion: (region: string) => void
+  riskLevel: string
+  setRiskLevel: (level: string) => void
+  showThermal: boolean
+  setShowThermal: (show: boolean) => void
+  showSmoke: boolean
+  setShowSmoke: (show: boolean) => void
+  showWind: boolean
+  setShowWind: (show: boolean) => void
+  showEvac: boolean
+  setShowEvac: (show: boolean) => void
+
+  dateRange: SerializedDateRange
+  setDateRange: (range: SerializedDateRange) => void
 }
 
-export const useMapStore = create<MapState>((set) => ({
-  activeSidebarTab: "risk",
-  setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
+export const useMapStore = create<MapState>()(
+  persist(
+    (set) => ({
+      sidebarOpen: true,
+      setSidebarOpen: (open) => set({ sidebarOpen: open }),
+      activeSidebarTab: "risk",
+      setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
 
-  mapView: "2d",
-  setMapView: (view) => set({ mapView: view }),
-  basemap: "topographic",
-  setBasemap: (map) => set({ basemap: map }),
+      camera: { lng: 25.5, lat: 42.0, zoom: 7, pitch: 0, bearing: 0 },
+      setCamera: (camera) => set({ camera }),
 
-  showFires: false,
-  setShowFires: (show) => set({ showFires: show }),
+      mapView: "2d",
+      setMapView: (view) => set({ mapView: view }),
+      basemap: "topographic",
+      setBasemap: (map) => set({ basemap: map }),
+      showFires: false,
+      setShowFires: (show) => set({ showFires: show }),
+      showTerrain: false,
+      setShowTerrain: (show) => set({ showTerrain: show }),
+      showLabels: false,
+      setShowLabels: (show) => set({ showLabels: show }),
 
-  showTerrain: false,
-  setShowTerrain: (show) => set({ showTerrain: show }),
+      region: "all",
+      setRegion: (region) => set({ region }),
+      riskLevel: "all",
+      setRiskLevel: (level) => set({ riskLevel: level }),
+      showThermal: true,
+      setShowThermal: (show) => set({ showThermal: show }),
+      showSmoke: true,
+      setShowSmoke: (show) => set({ showSmoke: show }),
+      showWind: false,
+      setShowWind: (show) => set({ showWind: show }),
+      showEvac: false,
+      setShowEvac: (show) => set({ showEvac: show }),
 
-  dateRange: { from: new Date(), to: new Date() },
-  setDateRange: (range) => set({ dateRange: range }),
-}))
+      dateRange: { from: new Date().toISOString(), to: new Date().toISOString() },
+      setDateRange: (range) => set({ dateRange: range }),
+    }),
+    {
+      name: "wiser-system-storage",
+    },
+  ),
+)
