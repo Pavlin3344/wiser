@@ -16,6 +16,9 @@ interface MapState {
   showTerrain: boolean
   setShowTerrain: (show: boolean) => void
 
+  showLabels: boolean
+  setShowLabels: (show: boolean) => void
+
   dateRange: DateRange | undefined
   setDateRange: (range: DateRange | undefined) => void
 }
@@ -26,6 +29,7 @@ export const useMapStore = create<MapState>((set) => ({
 
   mapView: "2d",
   setMapView: (view) => set({ mapView: view }),
+
   basemap: "topographic",
   setBasemap: (map) => set({ basemap: map }),
 
@@ -34,6 +38,9 @@ export const useMapStore = create<MapState>((set) => ({
 
   showTerrain: false,
   setShowTerrain: (show) => set({ showTerrain: show }),
+
+  showLabels: false,
+  setShowLabels: (show) => set({ showLabels: show }),
 
   dateRange: { from: new Date(), to: new Date() },
   setDateRange: (range) => set({ dateRange: range }),
