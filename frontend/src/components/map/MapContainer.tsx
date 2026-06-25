@@ -5,7 +5,7 @@ import type { FeatureCollection, Point } from "geojson"
 
 import { MapNavigation } from "@/components/map/MapNavigation"
 import { generateDynamicRiskGrid } from "@/lib/grid-generator"
-import { satelliteStyle, generateGlassPopupHTML } from "@/lib/map-config"
+import { satelliteStyle, generateGlassPopupHTML, generateSectorPopupHTML } from "@/lib/map-config"
 import { mockFireData } from "@/mocks/fire-data"
 import { mockEvacuationRoutes } from "@/mocks/evacuation-data"
 import { mockWindVectors } from "@/mocks/wind-data"
@@ -42,7 +42,7 @@ export function MapContainer() {
         source: "risk-zones",
         paint: {
           "fill-color": ["match", ["get", "level"], "high", "#ef4444", "moderate", "#f59e0b", "low", "#22c55e", "#ffffff"],
-          "fill-opacity": 0.15,
+          "fill-opacity": 0.2,
           "fill-outline-color": ["match", ["get", "level"], "high", "#ef4444", "moderate", "#f59e0b", "low", "#22c55e", "#ffffff"],
         },
       })
@@ -178,6 +178,39 @@ export function MapContainer() {
 
         new maplibregl.Popup({ closeButton: false, className: "glass-popup", offset: 10 })
           .setLngLat(coordinates as [number, number])
+          .setHTML(html)
+          .addTo(mapInstance)
+      })
+
+      mapInstance.on("mouseenter", "risk-zones-fill", () => {
+        mapInstance.getCanvas().style.cursor = "crosshair"
+      })
+
+      mapInstance.on("mouseleave", "risk-zones-fill", () => {
+        mapInstance.getCanvas().style.cursor = ""
+      })
+
+      mapInstance.on("click", "risk-zones-fill", (e) => {
+        if (!e.features || !e.features[0]) return
+
+        const props = e.features[0].properties
+        const level = props.level || "unknown"
+        const sectorId = props.sectorId || "SEC-UNKNOWN"
+        const temp = props.temp || "--"
+        const humidity = props.humidity || "--"
+
+        const dotColor = level === "high" ? "bg-destructive" : level === "moderate" ? "bg-orange-500" : "bg-emerald-500"
+        const textColor = level === "high" ? "text-destructive" : level === "moderate" ? "text-orange-500" : "text-emerald-500"
+
+        const html = generateSectorPopupHTML(sectorId, level, temp, humidity, dotColor, textColor)
+
+        new maplibregl.Popup({
+          closeButton: false,
+          className: "glass-popup",
+          offset: 0,
+          maxWidth: "300px",
+        })
+          .setLngLat(e.lngLat)
           .setHTML(html)
           .addTo(mapInstance)
       })
