@@ -4,8 +4,11 @@ import "maplibre-gl/dist/maplibre-gl.css"
 import type { FeatureCollection, Point } from "geojson"
 
 import { MapNavigation } from "@/components/map/MapNavigation"
+import { generateDynamicRiskGrid } from "@/lib/grid-generator"
 import { satelliteStyle, generateGlassPopupHTML } from "@/lib/map-config"
 import { mockFireData } from "@/mocks/fire-data"
+import { mockEvacuationRoutes } from "@/mocks/evacuation-data"
+import { mockWindVectors } from "@/mocks/wind-data"
 import { useMapStore } from "@/store/use-map-store"
 
 const DEFAULT_STYLE = "https://demotiles.maplibre.org/style.json"
@@ -15,7 +18,7 @@ export function MapContainer() {
   const map = useRef<maplibregl.Map | null>(null)
   const fireData = useRef<FeatureCollection>(mockFireData)
 
-  const { basemap, mapView, showFires, showTerrain, showLabels } = useMapStore()
+  const { basemap, mapView, showFires, showTerrain, showLabels, showEvac, showWind, riskLevel } = useMapStore()
 
   const syncMapLayers = (mapInstance: maplibregl.Map) => {
     if (!mapInstance.getSource("3d-terrain")) {
@@ -28,6 +31,60 @@ export function MapContainer() {
       })
     }
     mapInstance.setTerrain(showTerrain ? { source: "3d-terrain", exaggeration: 1.5 } : null)
+
+    const riskData = generateDynamicRiskGrid(mapInstance.getBounds(), mapInstance.getZoom(), riskLevel)
+
+    if (!mapInstance.getSource("risk-zones")) {
+      mapInstance.addSource("risk-zones", { type: "geojson", data: riskData as any })
+      mapInstance.addLayer({
+        id: "risk-zones-fill",
+        type: "fill",
+        source: "risk-zones",
+        paint: {
+          "fill-color": ["match", ["get", "level"], "high", "#ef4444", "moderate", "#f59e0b", "low", "#22c55e", "#ffffff"],
+          "fill-opacity": 0.15,
+          "fill-outline-color": ["match", ["get", "level"], "high", "#ef4444", "moderate", "#f59e0b", "low", "#22c55e", "#ffffff"],
+        },
+      })
+    } else {
+      ;(mapInstance.getSource("risk-zones") as maplibregl.GeoJSONSource).setData(riskData as any)
+    }
+
+    if (!mapInstance.getSource("evac-routes")) {
+      mapInstance.addSource("evac-routes", { type: "geojson", data: mockEvacuationRoutes as any })
+      mapInstance.addLayer({
+        id: "evac-routes-line",
+        type: "line",
+        source: "evac-routes",
+        paint: {
+          "line-color": "#3b82f6",
+          "line-width": 3,
+          "line-dasharray": [2, 2],
+        },
+      })
+    }
+    mapInstance.setLayoutProperty("evac-routes-line", "visibility", showEvac ? "visible" : "none")
+
+    if (!mapInstance.getSource("wind-vectors")) {
+      mapInstance.addSource("wind-vectors", { type: "geojson", data: mockWindVectors as any })
+      mapInstance.addLayer({
+        id: "wind-vectors-symbol",
+        type: "symbol",
+        source: "wind-vectors",
+        layout: {
+          "text-field": "↑",
+          "text-rotate": ["get", "direction"],
+          "text-size": 20,
+          "text-allow-overlap": true,
+        },
+        paint: {
+          "text-color": "#38bdf8",
+          "text-halo-color": "#000000",
+          "text-halo-width": 1,
+        },
+      })
+    }
+    mapInstance.setLayoutProperty("wind-vectors-symbol", "visibility", showWind ? "visible" : "none")
 
     if (!mapInstance.getSource("active-fires")) {
       mapInstance.addSource("active-fires", { type: "geojson", data: fireData.current })
@@ -165,6 +222,8 @@ export function MapContainer() {
         pitch: mapInstance.getPitch(),
         bearing: mapInstance.getBearing(),
       })
+
+      syncMapLayers(mapInstance)
     })
 
     const resizeObserver = new ResizeObserver(() => {
@@ -209,7 +268,7 @@ export function MapContainer() {
     if (!map.current || !map.current.isStyleLoaded()) return
     syncMapLayers(map.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showFires, showTerrain, showLabels])
+  }, [showFires, showTerrain, showLabels, showWind, showEvac, riskLevel])
 
   return (
     <div className='absolute inset-0 z-0'>
