@@ -18,9 +18,11 @@ export function MapContainer() {
   const map = useRef<maplibregl.Map | null>(null)
   const fireData = useRef<FeatureCollection>(mockFireData)
 
-  const { basemap, mapView, showFires, showTerrain, showLabels, showEvac, showWind, riskLevel } = useMapStore()
+  const { basemap, mapView, showFires, showTerrain, showLabels, showEvac, showWind, riskLevel, showRiskGrid } = useMapStore()
 
   const syncMapLayers = (mapInstance: maplibregl.Map) => {
+    const state = useMapStore.getState()
+
     if (!mapInstance.getSource("3d-terrain")) {
       mapInstance.addSource("3d-terrain", {
         type: "raster-dem",
@@ -30,12 +32,12 @@ export function MapContainer() {
         maxzoom: 14,
       })
     }
-    mapInstance.setTerrain(showTerrain ? { source: "3d-terrain", exaggeration: 1.5 } : null)
+    mapInstance.setTerrain(state.showTerrain ? { source: "3d-terrain", exaggeration: 1.5 } : null)
 
-    const riskData = generateDynamicRiskGrid(mapInstance.getBounds(), mapInstance.getZoom(), riskLevel)
+    const riskData = generateDynamicRiskGrid(mapInstance.getBounds(), mapInstance.getZoom(), state.riskLevel)
 
     if (!mapInstance.getSource("risk-zones")) {
-      mapInstance.addSource("risk-zones", { type: "geojson", data: riskData as any })
+      mapInstance.addSource("risk-zones", { type: "geojson", data: riskData as FeatureCollection })
       mapInstance.addLayer({
         id: "risk-zones-fill",
         type: "fill",
@@ -47,11 +49,14 @@ export function MapContainer() {
         },
       })
     } else {
-      ;(mapInstance.getSource("risk-zones") as maplibregl.GeoJSONSource).setData(riskData as any)
+      ;(mapInstance.getSource("risk-zones") as maplibregl.GeoJSONSource).setData(riskData as FeatureCollection)
     }
 
+    const gridVisibility = state.showRiskGrid ? "visible" : "none"
+    if (mapInstance.getLayer("risk-zones-fill")) mapInstance.setLayoutProperty("risk-zones-fill", "visibility", gridVisibility)
+
     if (!mapInstance.getSource("evac-routes")) {
-      mapInstance.addSource("evac-routes", { type: "geojson", data: mockEvacuationRoutes as any })
+      mapInstance.addSource("evac-routes", { type: "geojson", data: mockEvacuationRoutes as FeatureCollection })
       mapInstance.addLayer({
         id: "evac-routes-line",
         type: "line",
@@ -63,10 +68,10 @@ export function MapContainer() {
         },
       })
     }
-    mapInstance.setLayoutProperty("evac-routes-line", "visibility", showEvac ? "visible" : "none")
+    mapInstance.setLayoutProperty("evac-routes-line", "visibility", state.showEvac ? "visible" : "none")
 
     if (!mapInstance.getSource("wind-vectors")) {
-      mapInstance.addSource("wind-vectors", { type: "geojson", data: mockWindVectors as any })
+      mapInstance.addSource("wind-vectors", { type: "geojson", data: mockWindVectors as FeatureCollection })
       mapInstance.addLayer({
         id: "wind-vectors-symbol",
         type: "symbol",
@@ -84,7 +89,7 @@ export function MapContainer() {
         },
       })
     }
-    mapInstance.setLayoutProperty("wind-vectors-symbol", "visibility", showWind ? "visible" : "none")
+    mapInstance.setLayoutProperty("wind-vectors-symbol", "visibility", state.showWind ? "visible" : "none")
 
     if (!mapInstance.getSource("active-fires")) {
       mapInstance.addSource("active-fires", { type: "geojson", data: fireData.current })
@@ -106,9 +111,9 @@ export function MapContainer() {
         },
       })
     }
-    mapInstance.setLayoutProperty("fire-points", "visibility", showFires ? "visible" : "none")
+    mapInstance.setLayoutProperty("fire-points", "visibility", state.showFires ? "visible" : "none")
 
-    const labelVisibility = showLabels ? "visible" : "none"
+    const labelVisibility = state.showLabels ? "visible" : "none"
     if (mapInstance.getLayer("country-borders")) {
       mapInstance.setLayoutProperty("country-borders", "visibility", labelVisibility)
       mapInstance.setLayoutProperty("place-labels", "visibility", labelVisibility)
@@ -301,7 +306,7 @@ export function MapContainer() {
     if (!map.current || !map.current.isStyleLoaded()) return
     syncMapLayers(map.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showFires, showTerrain, showLabels, showWind, showEvac, riskLevel])
+  }, [showFires, showTerrain, showLabels, showWind, showEvac, riskLevel, showRiskGrid])
 
   return (
     <div className='absolute inset-0 z-0'>

@@ -82,7 +82,7 @@ export const generateGlassPopupHTML = (date: string, title: string, intensity: s
     `
 
 export const generateSectorPopupHTML = (sectorId: string, level: string, temp: number, humidity: number, dotColor: string, textColor: string) => `
-      <div class="font-sans min-w-48 max-w-56 p-4 rounded-2xl bg-background/80 backdrop-blur-2xl shadow-2xl border border-white/10 border-t-white/20 border-l-white/20">
+      <div class="font-sans min-w-48 max-w-56 p-4 rounded-2xl bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20">
         <div class="flex items-center justify-between mb-2 border-b border-white/10 pb-2">
           <div class="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">${sectorId}</div>
           <div class="w-2 h-2 rounded-full ${dotColor} animate-pulse shadow-[0_0_8px_rgba(0,0,0,0.5)]"></div>
