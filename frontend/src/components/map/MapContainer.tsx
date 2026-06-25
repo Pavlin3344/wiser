@@ -127,7 +127,7 @@ export function MapContainer() {
 
     map.current = new maplibregl.Map({
       container: mapContainer.current!,
-      style: "DEFAULT_STYLE",
+      style: DEFAULT_STYLE,
       center: [savedCamera.lng, savedCamera.lat],
       zoom: savedCamera.zoom,
       pitch: savedCamera.pitch,
