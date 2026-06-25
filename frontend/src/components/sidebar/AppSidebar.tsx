@@ -33,18 +33,18 @@ export function AppSidebar() {
         absolute top-2 left-2 z-50 h-[calc(100vh-3.5rem)] rounded-2xl 
         border border-white/10 border-t-white/20 border-l-white/20 
         bg-background/60 backdrop-blur-xl shadow-lg overflow-hidden pointer-events-auto 
-        transition-all duration-300 ease-in-out
+        transition-all duration-300 ease-in-out flex flex-col
         ${open ? "w-64 opacity-100" : "w-0 opacity-0 -translate-x-4 border-none"}
       `}
     >
       <div className='absolute inset-0 bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
 
-      <div className='p-2 flex items-center justify-end z-10'>
+      <div className='p-2 flex items-center justify-end z-10 shrink-0'>
         <SidebarTrigger className='cursor-pointer hover:bg-background/50' onClick={() => setOpen(!open)} />
       </div>
 
       {open && (
-        <div className='flex-1 overflow-y-auto'>
+        <div className='flex-1 overflow-y-auto min-h-0 z-10 no-scrollbar'>
           <SidebarContent>
             <SidebarGroup>
               <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
