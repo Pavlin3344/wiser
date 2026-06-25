@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { useMapStore } from "@/store/use-map-store"
 
 export function FiltersView() {
-  const { dateRange, setDateRange, region, setRegion, riskLevel, setRiskLevel, showThermal, setShowThermal, showSmoke, setShowSmoke, showWind, setShowWind, showEvac, setShowEvac } = useMapStore()
+  const { dateRange, setDateRange, region, setRegion, showRiskGrid, setShowRiskGrid, riskLevel, setRiskLevel, showThermal, setShowThermal, showSmoke, setShowSmoke, showWind, setShowWind, showEvac, setShowEvac } = useMapStore()
   const minDate = subMonths(new Date(), 3)
 
   const uiDateObj = {
@@ -40,6 +40,16 @@ export function FiltersView() {
       <SidebarGroup>
         <SidebarGroupLabel>Data Filters</SidebarGroupLabel>
         <div className='px-4 py-2 space-y-4'>
+          <div className='space-y-1.5'>
+            <Label className='text-xs text-muted-foreground'>Fire Risk</Label>
+            <div className='flex items-center space-x-2 border-b border-white/5 pb-3 mb-3'>
+              <Checkbox id='chk-risk' checked={showRiskGrid} onCheckedChange={(c) => setShowRiskGrid(c as boolean)} />
+              <Label htmlFor='chk-risk' className='text-xs cursor-pointer'>
+                Risk Grid
+              </Label>
+            </div>
+          </div>
+
           <div className='space-y-1.5'>
             <Label className='text-xs text-muted-foreground'>Region</Label>
             <Select value={region} onValueChange={setRegion}>

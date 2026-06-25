@@ -28,6 +28,8 @@ interface MapState {
 
   region: string
   setRegion: (region: string) => void
+  showRiskGrid: boolean
+  setShowRiskGrid: (show: boolean) => void
   riskLevel: string
   setRiskLevel: (level: string) => void
   showThermal: boolean
@@ -67,6 +69,8 @@ export const useMapStore = create<MapState>()(
 
       region: "all",
       setRegion: (region) => set({ region }),
+      showRiskGrid: true,
+      setShowRiskGrid: (show) => set({ showRiskGrid: show }),
       riskLevel: "all",
       setRiskLevel: (level) => set({ riskLevel: level }),
       showThermal: true,
