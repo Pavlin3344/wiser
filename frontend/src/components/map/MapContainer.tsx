@@ -4,8 +4,11 @@ import "maplibre-gl/dist/maplibre-gl.css"
 import type { FeatureCollection, Point } from "geojson"
 
 import { MapNavigation } from "@/components/map/MapNavigation"
-import { satelliteStyle, generateGlassPopupHTML } from "@/lib/map-config"
+import { generateDynamicRiskGrid } from "@/lib/grid-generator"
+import { satelliteStyle, generateGlassPopupHTML, generateSectorPopupHTML } from "@/lib/map-config"
 import { mockFireData } from "@/mocks/fire-data"
+import { mockEvacuationRoutes } from "@/mocks/evacuation-data"
+import { mockWindVectors } from "@/mocks/wind-data"
 import { useMapStore } from "@/store/use-map-store"
 
 const DEFAULT_STYLE = "https://demotiles.maplibre.org/style.json"
@@ -15,9 +18,11 @@ export function MapContainer() {
   const map = useRef<maplibregl.Map | null>(null)
   const fireData = useRef<FeatureCollection>(mockFireData)
 
-  const { basemap, mapView, showFires, showTerrain, showLabels } = useMapStore()
+  const { basemap, mapView, showFires, showTerrain, showLabels, showEvac, showWind, riskLevel, showRiskGrid } = useMapStore()
 
   const syncMapLayers = (mapInstance: maplibregl.Map) => {
+    const state = useMapStore.getState()
+
     if (!mapInstance.getSource("3d-terrain")) {
       mapInstance.addSource("3d-terrain", {
         type: "raster-dem",
@@ -27,7 +32,64 @@ export function MapContainer() {
         maxzoom: 14,
       })
     }
-    mapInstance.setTerrain(showTerrain ? { source: "3d-terrain", exaggeration: 1.5 } : null)
+    mapInstance.setTerrain(state.showTerrain ? { source: "3d-terrain", exaggeration: 1.5 } : null)
+
+    const riskData = generateDynamicRiskGrid(mapInstance.getBounds(), mapInstance.getZoom(), state.riskLevel)
+
+    if (!mapInstance.getSource("risk-zones")) {
+      mapInstance.addSource("risk-zones", { type: "geojson", data: riskData as FeatureCollection })
+      mapInstance.addLayer({
+        id: "risk-zones-fill",
+        type: "fill",
+        source: "risk-zones",
+        paint: {
+          "fill-color": ["match", ["get", "level"], "high", "#ef4444", "moderate", "#f59e0b", "low", "#22c55e", "#ffffff"],
+          "fill-opacity": 0.2,
+          "fill-outline-color": ["match", ["get", "level"], "high", "#ef4444", "moderate", "#f59e0b", "low", "#22c55e", "#ffffff"],
+        },
+      })
+    } else {
+      ;(mapInstance.getSource("risk-zones") as maplibregl.GeoJSONSource).setData(riskData as FeatureCollection)
+    }
+
+    const gridVisibility = state.showRiskGrid ? "visible" : "none"
+    if (mapInstance.getLayer("risk-zones-fill")) mapInstance.setLayoutProperty("risk-zones-fill", "visibility", gridVisibility)
+
+    if (!mapInstance.getSource("evac-routes")) {
+      mapInstance.addSource("evac-routes", { type: "geojson", data: mockEvacuationRoutes as FeatureCollection })
+      mapInstance.addLayer({
+        id: "evac-routes-line",
+        type: "line",
+        source: "evac-routes",
+        paint: {
+          "line-color": "#3b82f6",
+          "line-width": 3,
+          "line-dasharray": [2, 2],
+        },
+      })
+    }
+    mapInstance.setLayoutProperty("evac-routes-line", "visibility", state.showEvac ? "visible" : "none")
+
+    if (!mapInstance.getSource("wind-vectors")) {
+      mapInstance.addSource("wind-vectors", { type: "geojson", data: mockWindVectors as FeatureCollection })
+      mapInstance.addLayer({
+        id: "wind-vectors-symbol",
+        type: "symbol",
+        source: "wind-vectors",
+        layout: {
+          "text-field": "↑",
+          "text-rotate": ["get", "direction"],
+          "text-size": 20,
+          "text-allow-overlap": true,
+        },
+        paint: {
+          "text-color": "#38bdf8",
+          "text-halo-color": "#000000",
+          "text-halo-width": 1,
+        },
+      })
+    }
+    mapInstance.setLayoutProperty("wind-vectors-symbol", "visibility", state.showWind ? "visible" : "none")
 
     if (!mapInstance.getSource("active-fires")) {
       mapInstance.addSource("active-fires", { type: "geojson", data: fireData.current })
@@ -49,9 +111,9 @@ export function MapContainer() {
         },
       })
     }
-    mapInstance.setLayoutProperty("fire-points", "visibility", showFires ? "visible" : "none")
+    mapInstance.setLayoutProperty("fire-points", "visibility", state.showFires ? "visible" : "none")
 
-    const labelVisibility = showLabels ? "visible" : "none"
+    const labelVisibility = state.showLabels ? "visible" : "none"
     if (mapInstance.getLayer("country-borders")) {
       mapInstance.setLayoutProperty("country-borders", "visibility", labelVisibility)
       mapInstance.setLayoutProperty("place-labels", "visibility", labelVisibility)
@@ -65,7 +127,7 @@ export function MapContainer() {
 
     map.current = new maplibregl.Map({
       container: mapContainer.current!,
-      style: "DEFAULT_STYLE",
+      style: DEFAULT_STYLE,
       center: [savedCamera.lng, savedCamera.lat],
       zoom: savedCamera.zoom,
       pitch: savedCamera.pitch,
@@ -125,6 +187,39 @@ export function MapContainer() {
           .addTo(mapInstance)
       })
 
+      mapInstance.on("mouseenter", "risk-zones-fill", () => {
+        mapInstance.getCanvas().style.cursor = "crosshair"
+      })
+
+      mapInstance.on("mouseleave", "risk-zones-fill", () => {
+        mapInstance.getCanvas().style.cursor = ""
+      })
+
+      mapInstance.on("click", "risk-zones-fill", (e) => {
+        if (!e.features || !e.features[0]) return
+
+        const props = e.features[0].properties
+        const level = props.level || "unknown"
+        const sectorId = props.sectorId || "SEC-UNKNOWN"
+        const temp = props.temp || "--"
+        const humidity = props.humidity || "--"
+
+        const dotColor = level === "high" ? "bg-destructive" : level === "moderate" ? "bg-orange-500" : "bg-emerald-500"
+        const textColor = level === "high" ? "text-destructive" : level === "moderate" ? "text-orange-500" : "text-emerald-500"
+
+        const html = generateSectorPopupHTML(sectorId, level, temp, humidity, dotColor, textColor)
+
+        new maplibregl.Popup({
+          closeButton: false,
+          className: "glass-popup",
+          offset: 0,
+          maxWidth: "300px",
+        })
+          .setLngLat(e.lngLat)
+          .setHTML(html)
+          .addTo(mapInstance)
+      })
+
       let isUpdating = false
 
       mapInstance.on("mousemove", (e) => {
@@ -165,6 +260,8 @@ export function MapContainer() {
         pitch: mapInstance.getPitch(),
         bearing: mapInstance.getBearing(),
       })
+
+      syncMapLayers(mapInstance)
     })
 
     const resizeObserver = new ResizeObserver(() => {
@@ -209,7 +306,7 @@ export function MapContainer() {
     if (!map.current || !map.current.isStyleLoaded()) return
     syncMapLayers(map.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showFires, showTerrain, showLabels])
+  }, [showFires, showTerrain, showLabels, showWind, showEvac, riskLevel, showRiskGrid])
 
   return (
     <div className='absolute inset-0 z-0'>

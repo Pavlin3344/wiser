@@ -80,3 +80,27 @@ export const generateGlassPopupHTML = (date: string, title: string, intensity: s
     </div>
     </div>
     `
+
+export const generateSectorPopupHTML = (sectorId: string, level: string, temp: number, humidity: number, dotColor: string, textColor: string) => `
+      <div class="font-sans min-w-48 max-w-56 p-4 rounded-2xl bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20">
+        <div class="flex items-center justify-between mb-2 border-b border-white/10 pb-2">
+          <div class="text-[10px] font-mono font-bold uppercase tracking-widest text-muted-foreground">${sectorId}</div>
+          <div class="w-2 h-2 rounded-full ${dotColor} animate-pulse shadow-[0_0_8px_rgba(0,0,0,0.5)]"></div>
+        </div>
+        
+        <div class="font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-1.5 ${textColor}">
+          Sector Status: ${level}
+        </div>
+    
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div class="bg-black/20 rounded-lg p-2 border border-white/5 flex flex-col justify-center items-center">
+            <span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Surface</span>
+            <span class="font-mono font-bold text-foreground text-sm">${temp}°C</span>
+          </div>
+          <div class="bg-black/20 rounded-lg p-2 border border-white/5 flex flex-col justify-center items-center">
+            <span class="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Humidity</span>
+            <span class="font-mono font-bold text-foreground text-sm">${humidity}%</span>
+          </div>
+        </div>
+      </div>
+    `
