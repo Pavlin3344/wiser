@@ -40,11 +40,22 @@ export function AppSidebar() {
       <div className='absolute inset-0 bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
 
       <div className='p-2 flex items-center justify-end z-10 shrink-0'>
-        <SidebarTrigger className='cursor-pointer hover:bg-background/50' onClick={() => setOpen(!open)} />
+        <SidebarTrigger className='cursor-pointer hover:bg-background/30' onClick={() => setOpen(!open)} />
       </div>
 
       {open && (
-        <div className='flex-1 overflow-y-auto min-h-0 z-10 no-scrollbar'>
+        <div
+          className='flex-1 overflow-y-auto min-h-0 z-10
+          [&::-webkit-scrollbar]:w-1.5
+          [&::-webkit-scrollbar-track]:bg-transparent
+          [&::-webkit-scrollbar-thumb]:bg-white/0
+          [&::-webkit-scrollbar-thumb]:rounded-full
+          [&::-webkit-scrollbar-thumb]:border
+          [&::-webkit-scrollbar-thumb]:border-transparent
+          [&::-webkit-scrollbar-thumb]:bg-clip-padding
+          hover:[&::-webkit-scrollbar-thumb]:bg-white/20
+          transition-all duration-300'
+        >
           <SidebarContent>
             <SidebarGroup>
               <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
