@@ -20,6 +20,7 @@ export function MapContainer() {
 
   const windPhase = useRef(0)
   const reqAnimFrame = useRef<number | null>(null)
+  const lastFrameTime = useRef<number>(0)
 
   const { basemap, mapView, showFires, showTerrain, showLabels, showEvac, showWind, riskLevel, showRiskGrid, isPlaying } = useMapStore()
 
@@ -351,16 +352,20 @@ export function MapContainer() {
   useEffect(() => {
     if (!map.current || !showWind) return
 
-    const animateWind = () => {
-      windPhase.current += 1
+    const animateWind = (timestamp: number) => {
+      reqAnimFrame.current = requestAnimationFrame(animateWind)
 
+      if (timestamp - lastFrameTime.current < 41) return
+
+      lastFrameTime.current = timestamp
+
+      windPhase.current += 1
       const state = useMapStore.getState()
+
       const windData = generateDynamicWindVectors(map.current!.getBounds(), map.current!.getZoom(), state.currentTime, windPhase.current)
 
       const source = map.current?.getSource("wind-vectors") as maplibregl.GeoJSONSource | undefined
       if (source) source.setData(windData as FeatureCollection)
-
-      reqAnimFrame.current = requestAnimationFrame(animateWind)
     }
 
     reqAnimFrame.current = requestAnimationFrame(animateWind)
