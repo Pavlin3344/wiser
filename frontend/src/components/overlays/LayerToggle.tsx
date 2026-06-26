@@ -21,12 +21,12 @@ export function LayerToggle() {
 
         <div className='flex flex-col gap-1 z-10'>
           <Label className='text-sm font-semibold flex items-center gap-1.5 cursor-pointer' onClick={() => setShowLabels(!showLabels)}>
-            <MapIcon className='size-4 text-primary' /> Map Overlays
+            <MapIcon className='size-4 text-destructive' /> Map Overlays
           </Label>
           <span className='text-[12px] text-muted-foreground leading-none'>Borders & Labels</span>
         </div>
 
-        <Switch checked={showLabels} onCheckedChange={setShowLabels} className='z-10' />
+        <Switch checked={showLabels} onCheckedChange={setShowLabels} className='data-[state=checked]:bg-destructive z-10 data-[state=checked]:border-destructive' />
       </div>
     </div>
   )
