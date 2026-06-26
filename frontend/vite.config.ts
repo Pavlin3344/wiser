@@ -11,4 +11,19 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  //- TEMPORARY REMOVE AFTER TESTING IT IS TEMPORARY!!!!!!!!!!!!!
+  server: {
+    proxy: {
+      "/effis-wms": {
+        target: "https://maps.effis.emergency.copernicus.eu",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/effis-wms/, "/effis"),
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => {
+            proxyReq.setHeader("Referer", "https://forest-fire.emergency.copernicus.eu/")
+          })
+        },
+      },
+    },
+  },
 })
