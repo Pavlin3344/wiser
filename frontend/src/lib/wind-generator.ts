@@ -12,7 +12,13 @@ interface WindProperties {
  * Optimized with pre-calculated constants and explicit typing.
  */
 export function generateDynamicWindVectors(bounds: maplibregl.LngLatBounds, zoom: number, time: number, phase: number): FeatureCollection<Point, WindProperties> {
-  const step = zoom > 8 ? 0.2 : zoom > 5 ? 0.5 : 1.5
+  let step = 8
+  if (zoom > 4) step = 1
+  if (zoom > 6) step = 0.25
+  if (zoom > 8) step = 0.1
+  if (zoom > 10) step = 0.025
+  if (zoom > 12) step = 0.005
+  if (zoom > 14) step = 0.001
 
   const minLng = Math.floor(bounds.getWest() / step) * step
   const maxLng = Math.ceil(bounds.getEast() / step) * step
