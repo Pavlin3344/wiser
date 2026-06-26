@@ -1,7 +1,7 @@
 import type maplibregl from "maplibre-gl"
 import type { FeatureCollection, Polygon } from "geojson"
 
-export function generateDynamicRiskGrid(bounds: maplibregl.LngLatBounds, zoom: number, filterLevel: string): FeatureCollection<Polygon> {
+export function generateDynamicRiskGrid(bounds: maplibregl.LngLatBounds, zoom: number, filterLevel: string, time: number): FeatureCollection<Polygon> {
   let latStep = 4
   if (zoom > 4) latStep = 1
   if (zoom > 6) latStep = 0.25
@@ -23,7 +23,8 @@ export function generateDynamicRiskGrid(bounds: maplibregl.LngLatBounds, zoom: n
 
   for (let lng = minLng; lng <= maxLng; lng += lngStep) {
     for (let lat = minLat; lat <= maxLat; lat += latStep) {
-      const seed = Math.abs(Math.sin(lat * 12.9898 + lng * 78.233) * 43758.5453)
+      const timeFactor = time * 0.1
+      const seed = Math.abs(Math.sin(lat * 12.9898 + lng * 78.233 + timeFactor) * 43758.5453)
       const rand = seed - Math.floor(seed)
 
       let level = "low"
