@@ -1,19 +1,16 @@
 import { useEffect, useRef } from "react"
 import maplibregl, { type StyleSpecification } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
-import type { FeatureCollection, Point } from "geojson"
+import type { FeatureCollection } from "geojson"
 
 import { MapNavigation } from "@/components/map/MapNavigation"
-/* - Random Grid Generator
-import { generateDynamicRiskGrid } from "@/lib/grid-generator"
-*/
+
 import { satelliteStyle, generateGlassPopupHTML, generateSectorPopupHTML } from "@/lib/map-config"
 import { generateDynamicWindVectors } from "@/lib/wind-generator"
 import { mockFireData } from "@/mocks/fire-data"
 import { mockEvacuationRoutes } from "@/mocks/evacuation-data"
 import { useMapStore } from "@/store/use-map-store"
 
-const DEFAULT_STYLE = "https://demotiles.maplibre.org/style.json"
 const LIGHT_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
 const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
 
@@ -28,8 +25,7 @@ export function MapContainer() {
 
   const { basemap, mapView, showFires, showTerrain, showLabels, showEvac, showWind, riskLevel, showRiskGrid, isPlaying, theme } = useMapStore()
 
-  const syncMapLayers = (mapInstance: maplibregl.Map) => {
-    const state = useMapStore.getState()
+  const initializeLayers = (mapInstance: maplibregl.Map) => {
     const today = new Date().toISOString().split("T")[0]
 
     if (!mapInstance.getSource("3d-terrain")) {
@@ -41,7 +37,6 @@ export function MapContainer() {
         maxzoom: 14,
       })
     }
-    mapInstance.setTerrain(state.showTerrain ? { source: "3d-terrain", exaggeration: 1.5 } : null)
 
     if (!mapInstance.getSource("effis-fwi")) {
       mapInstance.addSource("effis-fwi", {
@@ -50,20 +45,15 @@ export function MapContainer() {
         tileSize: 256,
         attribution: "Copernicus EFFIS",
       })
+    }
 
-      mapInstance.addLayer(
-        {
-          id: "effis-fwi-layer",
-          type: "raster",
-          source: "effis-fwi",
-          paint: {
-            "raster-opacity": state.showRiskGrid ? 0.7 : 0,
-          },
-        },
-        mapInstance.getLayer("fire-points") ? "fire-points" : undefined,
-      )
-    } else {
-      mapInstance.setLayoutProperty("effis-fwi-layer", "visibility", state.showRiskGrid ? "visible" : "none")
+    if (!mapInstance.getLayer("effis-fwi-layer")) {
+      mapInstance.addLayer({
+        id: "effis-fwi-layer",
+        type: "raster",
+        source: "effis-fwi",
+        paint: { "raster-opacity": 0.7 },
+      })
     }
 
     if (!mapInstance.getSource("effis-viirs")) {
@@ -80,37 +70,16 @@ export function MapContainer() {
         id: "effis-viirs-layer",
         type: "raster",
         source: "effis-viirs",
-        paint: { "raster-opacity": state.showFires ? 0.8 : 0 },
+        paint: { "raster-opacity": 0.8 },
+        layout: { visibility: "none" },
       })
-    } else {
-      mapInstance.setLayoutProperty("effis-viirs-layer", "visibility", state.showFires ? "visible" : "none")
     }
-
-    /* - Grid Generator Random
-    const riskData = generateDynamicRiskGrid(mapInstance.getBounds(), mapInstance.getZoom(), state.riskLevel, state.currentTime)
-
-    if (!mapInstance.getSource("risk-zones")) {
-      mapInstance.addSource("risk-zones", { type: "geojson", data: riskData as FeatureCollection })
-      mapInstance.addLayer({
-        id: "risk-zones-fill",
-        type: "fill",
-        source: "risk-zones",
-        paint: {
-          "fill-color": ["match", ["get", "level"], "high", "#ef4444", "moderate", "#f59e0b", "low", "#22c55e", "#ffffff"],
-          "fill-opacity": 0.2,
-          "fill-outline-color": ["match", ["get", "level"], "high", "#ef4444", "moderate", "#f59e0b", "low", "#22c55e", "#ffffff"],
-        },
-      })
-    } else {
-      ;(mapInstance.getSource("risk-zones") as maplibregl.GeoJSONSource).setData(riskData as FeatureCollection)
-    }
-
-    const gridVisibility = state.showRiskGrid ? "visible" : "none"
-    if (mapInstance.getLayer("risk-zones-fill")) mapInstance.setLayoutProperty("risk-zones-fill", "visibility", gridVisibility)
-    */
 
     if (!mapInstance.getSource("evac-routes")) {
       mapInstance.addSource("evac-routes", { type: "geojson", data: mockEvacuationRoutes as FeatureCollection })
+    }
+
+    if (!mapInstance.getLayer("evac-routes-line")) {
       mapInstance.addLayer({
         id: "evac-routes-line",
         type: "line",
@@ -122,45 +91,9 @@ export function MapContainer() {
         },
       })
     }
-    mapInstance.setLayoutProperty("evac-routes-line", "visibility", state.showEvac ? "visible" : "none")
-
-    if (state.showWind) {
-      const windData = generateDynamicWindVectors(mapInstance.getBounds(), mapInstance.getZoom(), state.currentTime, windPhase.current)
-
-      if (!mapInstance.getSource("wind-vectors")) {
-        mapInstance.addSource("wind-vectors", { type: "geojson", data: windData as FeatureCollection })
-        mapInstance.addLayer({
-          id: "wind-vectors-symbol",
-          type: "symbol",
-          source: "wind-vectors",
-          layout: {
-            "text-field": "↑",
-            "text-rotate": ["get", "direction"],
-            "text-size": ["interpolate", ["linear"], ["get", "speed"], 5, 12, 40, 24],
-            "text-allow-overlap": false,
-            "text-ignore-placement": false,
-          },
-          paint: {
-            "text-color": "#38bdf8",
-            "text-halo-color": "#ffffff",
-            "text-halo-width": 1,
-            "text-opacity": ["get", "opacity"],
-          },
-        })
-      } else {
-        ;(mapInstance.getSource("wind-vectors") as maplibregl.GeoJSONSource).setData(windData as FeatureCollection)
-      }
-      mapInstance.setLayoutProperty("wind-vectors-symbol", "visibility", state.showWind ? "visible" : "none")
-    } else {
-      if (mapInstance.getLayer("wind-vectors-symbol")) {
-        mapInstance.setLayoutProperty("wind-vectors-symbol", "visibility", "none")
-      }
-    }
 
     if (!mapInstance.getSource("active-fires")) {
       mapInstance.addSource("active-fires", { type: "geojson", data: fireData.current })
-    } else {
-      ;(mapInstance.getSource("active-fires") as maplibregl.GeoJSONSource).setData(fireData.current)
     }
 
     if (!mapInstance.getLayer("fire-points")) {
@@ -177,9 +110,39 @@ export function MapContainer() {
         },
       })
     }
-    mapInstance.setLayoutProperty("fire-points", "visibility", state.showFires ? "visible" : "none")
+  }
+
+  const syncMapLayers = (mapInstance: maplibregl.Map) => {
+    const state = useMapStore.getState()
+
+    mapInstance.setTerrain(state.showTerrain ? { source: "3d-terrain", exaggeration: 1.5 } : null)
+
+    if (mapInstance.getLayer("effis-fwi-layer")) {
+      mapInstance.setLayoutProperty("effis-fwi-layer", "visibility", state.showRiskGrid ? "visible" : "none")
+    }
+
+    if (mapInstance.getLayer("effis-viirs-layer")) {
+      mapInstance.setLayoutProperty("effis-viirs-layer", "visibility", state.showFires ? "visible" : "none")
+    }
+
+    if (mapInstance.getLayer("evac-routes-line")) {
+      mapInstance.setLayoutProperty("evac-routes-line", "visibility", state.showEvac ? "visible" : "none")
+    }
+
+    if (mapInstance.getSource("active-fires")) {
+      ;(mapInstance.getSource("active-fires") as maplibregl.GeoJSONSource).setData(fireData.current)
+    }
+
+    if (mapInstance.getLayer("fire-points")) {
+      mapInstance.setLayoutProperty("fire-points", "visibility", state.showFires ? "visible" : "none")
+    }
+
+    if (mapInstance.getLayer("wind-vectors-symbol")) {
+      mapInstance.setLayoutProperty("wind-vectors-symbol", "visibility", state.showWind ? "visible" : "none")
+    }
 
     const labelVisibility = state.showLabels ? "visible" : "none"
+
     if (mapInstance.getLayer("country-borders")) {
       mapInstance.setLayoutProperty("country-borders", "visibility", labelVisibility)
       mapInstance.setLayoutProperty("place-labels", "visibility", labelVisibility)
@@ -193,20 +156,19 @@ export function MapContainer() {
 
     map.current = new maplibregl.Map({
       container: mapContainer.current!,
-      style: DEFAULT_STYLE,
+      style: LIGHT_STYLE,
       center: [savedCamera.lng, savedCamera.lat],
       zoom: savedCamera.zoom,
       pitch: savedCamera.pitch,
       bearing: savedCamera.bearing,
       attributionControl: false,
-      canvasContextAttributes: {
-        antialias: true,
-      },
+      canvasContextAttributes: { antialias: true },
     })
 
     const mapInstance = map.current
 
     map.current.on("load", () => {
+      initializeLayers(mapInstance)
       syncMapLayers(mapInstance)
 
       fetch("/api/v1/fires/active")
@@ -228,73 +190,42 @@ export function MapContainer() {
         mapInstance.getCanvas().style.cursor = ""
       })
 
-      mapInstance.on("click", "fire-points", (e) => {
-        e.originalEvent.stopPropagation()
+      mapInstance.on("click", async (e) => {
+        const state = useMapStore.getState()
+        if (!state.showFires && !state.showRiskGrid) return
 
-        if (!e.features || !e.features[0]) return
+        const { lng, lat } = e.lngLat
+        const canvas = mapInstance.getCanvas()
+        const bounds = mapInstance.getBounds()
+        const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`
 
-        const coordinates = (e.features[0].geometry as Point).coordinates.slice()
-        const properties = e.features[0].properties
+        const layerToQuery = state.showFires ? "viirs.hs" : "mf010.fwi"
+        const getFeatureInfoUrl = `/effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&LAYERS=${layerToQuery}&QUERY_LAYERS=${layerToQuery}&BBOX=${bbox}&WIDTH=${canvas.width}&HEIGHT=${canvas.height}&SRS=EPSG:3857&X=${Math.round(e.point.x)}&Y=${Math.round(e.point.y)}&INFO_FORMAT=application/json`
 
-        while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
-          coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360
+        try {
+          const response = await fetch(getFeatureInfoUrl)
+          const data = await response.json()
+
+          if (data && data.features && data.features.length > 0) {
+            const props = data.features[0].properties
+
+            if (layerToQuery === "viirs.hs") {
+              const date = props.FIREDATE ? new Date(props.FIREDATE).toLocaleDateString() : "Live"
+              const intensity = props.FRP > 50 ? "critical" : props.FRP > 20 ? "high" : "moderate"
+              const dotColor = intensity === "critical" ? "bg-destructive" : intensity === "high" ? "bg-orange-500" : "bg-amber-400"
+              const textColor = intensity === "critical" ? "text-destructive" : intensity === "high" ? "text-orange-500" : "text-amber-500"
+
+              const html = generateGlassPopupHTML(date, "VIIRS Sat Active Ignition", `FRP: ${props.FRP || "--"} MW`, [lng, lat], dotColor, textColor)
+              new maplibregl.Popup({ closeButton: false, className: "glass-popup", offset: 10, maxWidth: "300px" }).setLngLat([lng, lat]).setHTML(html).addTo(mapInstance)
+            } else if (layerToQuery === "mf010.fwi") {
+              const riskVal = props.GRAY_INDEX || props.value || "Analyzing"
+              const html = generateSectorPopupHTML(`Copernicus Macro Matrix`, `FWI Rating: ${riskVal}`, 0, 0, "bg-orange-500", "text-orange-500")
+              new maplibregl.Popup({ closeButton: false, className: "glass-popup", offset: 10, maxWidth: "300px" }).setLngLat([lng, lat]).setHTML(html).addTo(mapInstance)
+            }
+          }
+        } catch (err) {
+          console.warn("Empty grid location metadata requested or server processing timeout.", err)
         }
-
-        const intensity = properties?.intensity || "unknown"
-        const title = properties?.title || "Unknown Fire"
-        const date = properties?.date ? new Date(properties.date).toLocaleDateString() : "Live"
-
-        const dotColor = intensity === "critical" ? "bg-destructive" : intensity === "high" ? "bg-orange-500" : "bg-amber-400"
-        const textColor = intensity === "critical" ? "text-destructive" : intensity === "high" ? "text-orange-500" : "text-amber-500"
-
-        const html = generateGlassPopupHTML(date, title, intensity, coordinates, dotColor, textColor)
-
-        new maplibregl.Popup({
-          closeButton: false,
-          className: "glass-popup",
-          offset: 10,
-          maxWidth: "300px",
-        })
-          .setLngLat(coordinates as [number, number])
-          .setHTML(html)
-          .addTo(mapInstance)
-      })
-
-      mapInstance.on("mouseenter", "risk-zones-fill", () => {
-        mapInstance.getCanvas().style.cursor = "crosshair"
-      })
-
-      mapInstance.on("mouseleave", "risk-zones-fill", () => {
-        mapInstance.getCanvas().style.cursor = ""
-      })
-
-      mapInstance.on("click", "risk-zones-fill", (e) => {
-        const fireFeatures = mapInstance.queryRenderedFeatures(e.point, { layers: ["fire-points"] })
-
-        if (fireFeatures.length > 0) return
-
-        if (!e.features || !e.features[0]) return
-
-        const props = e.features[0].properties
-        const level = props.level || "unknown"
-        const sectorId = props.sectorId || "SEC-UNKNOWN"
-        const temp = props.temp || "--"
-        const humidity = props.humidity || "--"
-
-        const dotColor = level === "high" ? "bg-destructive" : level === "moderate" ? "bg-orange-500" : "bg-emerald-500"
-        const textColor = level === "high" ? "text-destructive" : level === "moderate" ? "text-orange-500" : "text-emerald-500"
-
-        const html = generateSectorPopupHTML(sectorId, level, temp, humidity, dotColor, textColor)
-
-        new maplibregl.Popup({
-          closeButton: false,
-          className: "glass-popup",
-          offset: 10,
-          maxWidth: "300px",
-        })
-          .setLngLat(e.lngLat)
-          .setHTML(html)
-          .addTo(mapInstance)
       })
 
       let isUpdating = false
@@ -313,7 +244,6 @@ export function MapContainer() {
             const elevation = mapInstance.queryTerrainElevation(e.lngLat)
             elevEl.innerText = elevation ? `${Math.round(elevation)}m ASL` : "0m ASL"
           }
-
           isUpdating = false
         })
       })
@@ -337,7 +267,6 @@ export function MapContainer() {
         pitch: mapInstance.getPitch(),
         bearing: mapInstance.getBearing(),
       })
-
       syncMapLayers(mapInstance)
     })
 
@@ -346,7 +275,6 @@ export function MapContainer() {
     })
     resizeObserver.observe(mapContainer.current!)
     return () => resizeObserver.disconnect()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -359,6 +287,7 @@ export function MapContainer() {
     mapInstance.setStyle(targetStyle)
 
     mapInstance.once("styledata", () => {
+      initializeLayers(mapInstance)
       syncMapLayers(mapInstance)
       mapInstance.setProjection({ type: mapView === "3d" ? "globe" : "mercator" })
     })
@@ -384,7 +313,6 @@ export function MapContainer() {
   useEffect(() => {
     if (!map.current || !map.current.isStyleLoaded()) return
     syncMapLayers(map.current)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showFires, showTerrain, showLabels, showWind, showEvac, riskLevel, showRiskGrid])
 
   useEffect(() => {
@@ -394,7 +322,6 @@ export function MapContainer() {
       const store = useMapStore.getState()
       const nextTime = (store.currentTime + 1) % 24
       store.setCurrentTime(nextTime)
-
       syncMapLayers(map.current!)
     }, 500)
 
@@ -406,18 +333,38 @@ export function MapContainer() {
 
     const animateWind = (timestamp: number) => {
       reqAnimFrame.current = requestAnimationFrame(animateWind)
-
       if (timestamp - lastFrameTime.current < 41) return
-
       lastFrameTime.current = timestamp
 
       windPhase.current += 1
       const state = useMapStore.getState()
-
       const windData = generateDynamicWindVectors(map.current!.getBounds(), map.current!.getZoom(), state.currentTime, windPhase.current)
 
-      const source = map.current?.getSource("wind-vectors") as maplibregl.GeoJSONSource | undefined
-      if (source) source.setData(windData as FeatureCollection)
+      if (!map.current!.getSource("wind-vectors")) {
+        map.current!.addSource("wind-vectors", { type: "geojson", data: windData as FeatureCollection })
+        map.current!.addLayer({
+          id: "wind-vectors-symbol",
+          type: "symbol",
+          source: "wind-vectors",
+          layout: {
+            "text-field": "↑",
+            "text-rotate": ["get", "direction"],
+            "text-size": ["interpolate", ["linear"], ["get", "speed"], 5, 12, 40, 24],
+            "text-allow-overlap": false,
+            "text-ignore-placement": false,
+            visibility: "visible",
+          },
+          paint: {
+            "text-color": "#38bdf8",
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 1,
+            "text-opacity": ["get", "opacity"],
+          },
+        })
+      } else {
+        const source = map.current?.getSource("wind-vectors") as maplibregl.GeoJSONSource | undefined
+        if (source) source.setData(windData as FeatureCollection)
+      }
     }
 
     reqAnimFrame.current = requestAnimationFrame(animateWind)
