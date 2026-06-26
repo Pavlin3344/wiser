@@ -204,31 +204,64 @@ export function MapContainer() {
         const { lng, lat } = e.lngLat
         const canvas = mapInstance.getCanvas()
         const bounds = mapInstance.getBounds()
+
         const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`
 
-        const layerToQuery = state.showFires ? "viirs.hs" : "mf010.fwi"
-        const getFeatureInfoUrl = `/effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&LAYERS=${layerToQuery}&QUERY_LAYERS=${layerToQuery}&BBOX=${bbox}&WIDTH=${canvas.width}&HEIGHT=${canvas.height}&SRS=EPSG:3857&X=${Math.round(e.point.x)}&Y=${Math.round(e.point.y)}&INFO_FORMAT=application/json`
+        const activeLayers = []
+        if (state.showFires) activeLayers.push("viirs.hs")
+        if (state.showRiskGrid) activeLayers.push("mf010.fwi")
+
+        const queryLayersStr = activeLayers.join(",")
+        const stylesStr = queryLayersStr
+          .split(",")
+          .map(() => "")
+          .join(",")
+
+        const getFeatureInfoUrl = `/effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&LAYERS=${queryLayersStr}&QUERY_LAYERS=${queryLayersStr}&STYLES=${stylesStr}&BBOX=${bbox}&WIDTH=${canvas.width}&HEIGHT=${canvas.height}&SRS=EPSG:3857&X=${Math.round(e.point.x)}&Y=${Math.round(e.point.y)}&INFO_FORMAT=application/vnd.ogc.gml`
 
         try {
           const response = await fetch(getFeatureInfoUrl)
-          const data = await response.json()
 
-          if (data && data.features && data.features.length > 0) {
-            const props = data.features[0].properties
+          if (!response.ok) {
+            throw new Error("WMS Server rejected the request.")
+          }
 
-            if (layerToQuery === "viirs.hs") {
-              const date = props.FIREDATE ? new Date(props.FIREDATE).toLocaleDateString() : "Live"
-              const intensity = props.FRP > 50 ? "critical" : props.FRP > 20 ? "high" : "moderate"
-              const dotColor = intensity === "critical" ? "bg-destructive" : intensity === "high" ? "bg-orange-500" : "bg-amber-400"
-              const textColor = intensity === "critical" ? "text-destructive" : intensity === "high" ? "text-orange-500" : "text-amber-500"
+          const data = await response.text()
 
-              const html = generateGlassPopupHTML(date, "VIIRS Sat Active Ignition", `FRP: ${props.FRP || "--"} MW`, [lng, lat], dotColor, textColor)
-              new maplibregl.Popup({ closeButton: false, className: "glass-popup", offset: 10, maxWidth: "300px" }).setLngLat([lng, lat]).setHTML(html).addTo(mapInstance)
-            } else if (layerToQuery === "mf010.fwi") {
-              const riskVal = props.GRAY_INDEX || props.value || "Analyzing"
-              const html = generateSectorPopupHTML(`Copernicus Macro Matrix`, `FWI Rating: ${riskVal}`, 0, 0, "bg-orange-500", "text-orange-500")
-              new maplibregl.Popup({ closeButton: false, className: "glass-popup", offset: 10, maxWidth: "300px" }).setLngLat([lng, lat]).setHTML(html).addTo(mapInstance)
+          console.log("🔥 RAW WMS XML:", data)
+
+          const parser = new DOMParser()
+          const xmlDoc = parser.parseFromString(data, "text/xml")
+          const props: Record<string, string> = {}
+
+          const elements = xmlDoc.getElementsByTagName("*")
+
+          for (let i = 0; i < elements.length; i++) {
+            const el = elements[i]
+            if (el.children.length === 0 && el.textContent?.trim()) {
+              props[el.tagName] = el.textContent.trim()
             }
+            for (let j = 0; j < el.attributes.length; j++) {
+              props[el.attributes[j].name] = el.attributes[j].value
+            }
+          }
+
+          if (Object.keys(props).length === 0) return
+
+          const isFire = queryLayersStr.includes("viirs") && (props.FRP || props.FIREDATE)
+
+          if (isFire) {
+            const date = props.FIREDATE ? new Date(props.FIREDATE).toLocaleDateString() : "Live"
+            const intensity = Number(props.FRP) > 50 ? "critical" : Number(props.FRP) > 20 ? "high" : "moderate"
+            const dotColor = intensity === "critical" ? "bg-destructive" : intensity === "high" ? "bg-orange-500" : "bg-amber-400"
+            const textColor = intensity === "critical" ? "text-destructive" : intensity === "high" ? "text-orange-500" : "text-amber-500"
+
+            const html = generateGlassPopupHTML(date, "VIIRS Active Ignition", `FRP: ${props.FRP || "--"} MW`, [lng, lat], dotColor, textColor)
+            new maplibregl.Popup({ closeButton: false, className: "glass-popup", offset: 10, maxWidth: "300px" }).setLngLat([lng, lat]).setHTML(html).addTo(mapInstance)
+          } else if (queryLayersStr.includes("mf010.fwi")) {
+            const riskVal = props.GRAY_INDEX ?? props.value_0 ?? props.class ?? props.PALETTE_INDEX ?? "Moderate"
+            const html = generateSectorPopupHTML(`Fire Weather Index`, `Risk Value: ${riskVal}`, 0, 0, "bg-orange-500", "text-orange-500")
+            new maplibregl.Popup({ closeButton: false, className: "glass-popup", offset: 10, maxWidth: "300px" }).setLngLat([lng, lat]).setHTML(html).addTo(mapInstance)
           }
         } catch (err) {
           console.warn("Empty grid location metadata requested or server processing timeout.", err)
