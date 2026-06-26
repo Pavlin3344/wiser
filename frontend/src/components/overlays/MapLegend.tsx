@@ -14,12 +14,7 @@ const FWI_LEVELS = [
   { label: "Very Extreme (> 70.0)", color: "#41091f" },
 ]
 
-const VIIRS_LEVELS = [
-  { label: "Fire Season (VIIRS Suomi)", color: "#18c118" },
-  { label: "Low Confidence", color: "#fef0d9" },
-  { label: "Nominal Confidence", color: "#fdcc8a" },
-  { label: "High Confidence", color: "#e34a33" },
-]
+const VIIRS_LEVELS = [{ label: "Fire Season (VIIRS Suomi)", color: "#18c118" }]
 
 export function MapLegend({ title, type = "fwi" }: MapLegendProps & { type?: "fwi" | "viirs" }) {
   const levels = type === "fwi" ? FWI_LEVELS : VIIRS_LEVELS

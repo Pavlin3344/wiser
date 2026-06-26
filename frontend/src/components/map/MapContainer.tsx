@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react"
 import maplibregl, { type StyleSpecification } from "maplibre-gl"
 import "maplibre-gl/dist/maplibre-gl.css"
-import type { FeatureCollection } from "geojson"
+import type { FeatureCollection, Point } from "geojson"
 
 import { MapNavigation } from "@/components/map/MapNavigation"
 
@@ -23,7 +23,7 @@ export function MapContainer() {
   const reqAnimFrame = useRef<number | null>(null)
   const lastFrameTime = useRef<number>(0)
 
-  const { basemap, mapView, showFires, showTerrain, showLabels, showEvac, showWind, riskLevel, showRiskGrid, isPlaying, theme } = useMapStore()
+  const { basemap, mapView, showFires, showTerrain, showLabels, showEvac, showWind, showRiskGrid, isPlaying, theme } = useMapStore()
 
   const initializeLayers = (mapInstance: maplibregl.Map) => {
     const today = new Date().toISOString().split("T")[0]
@@ -153,10 +153,14 @@ export function MapContainer() {
     if (map.current) return
 
     const savedCamera = useMapStore.getState().camera
+    const initialTheme = useMapStore.getState().theme
+    const initialBasemap = useMapStore.getState().basemap
+    let initialStyle = initialTheme === "dark" ? DARK_STYLE : LIGHT_STYLE
+    if (initialBasemap === "satellite") initialStyle = satelliteStyle as unknown as string
 
     map.current = new maplibregl.Map({
       container: mapContainer.current!,
-      style: LIGHT_STYLE,
+      style: initialStyle,
       center: [savedCamera.lng, savedCamera.lat],
       zoom: savedCamera.zoom,
       pitch: savedCamera.pitch,
@@ -168,6 +172,9 @@ export function MapContainer() {
     const mapInstance = map.current
 
     map.current.on("load", () => {
+      const currentMapView = useMapStore.getState().mapView
+      mapInstance.setProjection({ type: currentMapView === "3d" ? "globe" : "mercator" })
+
       initializeLayers(mapInstance)
       syncMapLayers(mapInstance)
 
@@ -226,6 +233,38 @@ export function MapContainer() {
         } catch (err) {
           console.warn("Empty grid location metadata requested or server processing timeout.", err)
         }
+      })
+
+      mapInstance.on("click", "fire-points", (e) => {
+        e.originalEvent.stopPropagation()
+
+        if (!e.features || !e.features[0]) return
+
+        const coordinates = (e.features[0].geometry as Point).coordinates.slice()
+        const properties = e.features[0].properties
+
+        while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+          coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360
+        }
+
+        const intensity = properties?.intensity || "unknown"
+        const title = properties?.title || "Unknown Fire"
+        const date = properties?.date ? new Date(properties.date).toLocaleDateString() : "Live"
+
+        const dotColor = intensity === "critical" ? "bg-destructive" : intensity === "high" ? "bg-orange-500" : "bg-amber-400"
+        const textColor = intensity === "critical" ? "text-destructive" : intensity === "high" ? "text-orange-500" : "text-amber-500"
+
+        const html = generateGlassPopupHTML(date, title, intensity, coordinates, dotColor, textColor)
+
+        new maplibregl.Popup({
+          closeButton: false,
+          className: "glass-popup",
+          offset: 10,
+          maxWidth: "300px",
+        })
+          .setLngLat(coordinates as [number, number])
+          .setHTML(html)
+          .addTo(mapInstance)
       })
 
       let isUpdating = false
@@ -313,7 +352,7 @@ export function MapContainer() {
   useEffect(() => {
     if (!map.current || !map.current.isStyleLoaded()) return
     syncMapLayers(map.current)
-  }, [showFires, showTerrain, showLabels, showWind, showEvac, riskLevel, showRiskGrid])
+  }, [showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid])
 
   useEffect(() => {
     if (!isPlaying || !map.current) return
