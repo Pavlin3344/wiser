@@ -7,6 +7,9 @@ interface SerializedDateRange {
 }
 
 interface MapState {
+  currentTime: number
+  setCurrentTime: (time: number) => void
+
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
   activeSidebarTab: "risk" | "detection" | "analysis" | "alerts"
@@ -48,6 +51,9 @@ interface MapState {
 export const useMapStore = create<MapState>()(
   persist(
     (set) => ({
+      currentTime: 0,
+      setCurrentTime: (time) => set({ currentTime: time }),
+
       sidebarOpen: true,
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
       activeSidebarTab: "risk",
