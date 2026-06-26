@@ -37,7 +37,7 @@ export const satelliteStyle: StyleSpecification = {
       id: "place-labels",
       type: "symbol",
       source: "vector-overlays",
-      "source-layer": "place",
+      "source-layer": "countries",
       layout: {
         "text-field": "{name}",
         "text-font": ["Open Sans Bold"],

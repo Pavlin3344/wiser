@@ -4,7 +4,9 @@ import "maplibre-gl/dist/maplibre-gl.css"
 import type { FeatureCollection, Point } from "geojson"
 
 import { MapNavigation } from "@/components/map/MapNavigation"
+/* - Random Grid Generator
 import { generateDynamicRiskGrid } from "@/lib/grid-generator"
+*/
 import { satelliteStyle, generateGlassPopupHTML, generateSectorPopupHTML } from "@/lib/map-config"
 import { generateDynamicWindVectors } from "@/lib/wind-generator"
 import { mockFireData } from "@/mocks/fire-data"
@@ -28,6 +30,7 @@ export function MapContainer() {
 
   const syncMapLayers = (mapInstance: maplibregl.Map) => {
     const state = useMapStore.getState()
+    const today = new Date().toISOString().split("T")[0]
 
     if (!mapInstance.getSource("3d-terrain")) {
       mapInstance.addSource("3d-terrain", {
@@ -40,6 +43,50 @@ export function MapContainer() {
     }
     mapInstance.setTerrain(state.showTerrain ? { source: "3d-terrain", exaggeration: 1.5 } : null)
 
+    if (!mapInstance.getSource("effis-fwi")) {
+      mapInstance.addSource("effis-fwi", {
+        type: "raster",
+        tiles: [`/effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=mf010.fwi&TIME=${today}&STYLES=&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE`],
+        tileSize: 256,
+        attribution: "Copernicus EFFIS",
+      })
+
+      mapInstance.addLayer(
+        {
+          id: "effis-fwi-layer",
+          type: "raster",
+          source: "effis-fwi",
+          paint: {
+            "raster-opacity": state.showRiskGrid ? 0.7 : 0,
+          },
+        },
+        mapInstance.getLayer("fire-points") ? "fire-points" : undefined,
+      )
+    } else {
+      mapInstance.setLayoutProperty("effis-fwi-layer", "visibility", state.showRiskGrid ? "visible" : "none")
+    }
+
+    if (!mapInstance.getSource("effis-viirs")) {
+      mapInstance.addSource("effis-viirs", {
+        type: "raster",
+        tiles: ["https://maps.effis.emergency.copernicus.eu/effis?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=viirs.hs&STYLES=&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE"],
+        tileSize: 256,
+        attribution: "Copernicus EFFIS",
+      })
+    }
+
+    if (!mapInstance.getLayer("effis-viirs-layer")) {
+      mapInstance.addLayer({
+        id: "effis-viirs-layer",
+        type: "raster",
+        source: "effis-viirs",
+        paint: { "raster-opacity": state.showFires ? 0.8 : 0 },
+      })
+    } else {
+      mapInstance.setLayoutProperty("effis-viirs-layer", "visibility", state.showFires ? "visible" : "none")
+    }
+
+    /* - Grid Generator Random
     const riskData = generateDynamicRiskGrid(mapInstance.getBounds(), mapInstance.getZoom(), state.riskLevel, state.currentTime)
 
     if (!mapInstance.getSource("risk-zones")) {
@@ -60,6 +107,7 @@ export function MapContainer() {
 
     const gridVisibility = state.showRiskGrid ? "visible" : "none"
     if (mapInstance.getLayer("risk-zones-fill")) mapInstance.setLayoutProperty("risk-zones-fill", "visibility", gridVisibility)
+    */
 
     if (!mapInstance.getSource("evac-routes")) {
       mapInstance.addSource("evac-routes", { type: "geojson", data: mockEvacuationRoutes as FeatureCollection })
@@ -378,7 +426,6 @@ export function MapContainer() {
       if (reqAnimFrame.current) cancelAnimationFrame(reqAnimFrame.current)
     }
   }, [showWind])
-
   return (
     <div className='absolute inset-0 z-0'>
       <div className='relative h-full w-full'>
