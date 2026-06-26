@@ -54,6 +54,11 @@ export const satelliteStyle: StyleSpecification = {
   ],
 }
 
+export const EFFIS_LEGENDS = {
+  fwi: "http://maps.effis.emergency.copernicus.eu/effis?language=eng&version=1.1.1&service=WMS&request=GetLegendGraphic&layer=mf010.fwi&format=image/png&STYLE=default",
+  viirs: "http://maps.effis.emergency.copernicus.eu/effis?language=eng&version=1.1.1&service=WMS&request=GetLegendGraphic&layer=viirs.hs&format=image/png&STYLE=default",
+}
+
 export const generateGlassPopupHTML = (date: string, title: string, intensity: string, coordinates: number[], dotColor: string, textColor: string) => `
   <div class="font-sans max-w-56 p-4 rounded-2xl bg-background/60 backdrop-blur-xl shadow-lg border-white/10 border-t-white/20 border-l-white/20">
   <div class="flex items-center justify-between mb-1.5">
