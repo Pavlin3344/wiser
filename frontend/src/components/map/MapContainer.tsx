@@ -6,9 +6,9 @@ import type { FeatureCollection, Point } from "geojson"
 import { MapNavigation } from "@/components/map/MapNavigation"
 import { generateDynamicRiskGrid } from "@/lib/grid-generator"
 import { satelliteStyle, generateGlassPopupHTML, generateSectorPopupHTML } from "@/lib/map-config"
+import { generateDynamicWindVectors } from "@/lib/wind-generator"
 import { mockFireData } from "@/mocks/fire-data"
 import { mockEvacuationRoutes } from "@/mocks/evacuation-data"
-import { mockWindVectors } from "@/mocks/wind-data"
 import { useMapStore } from "@/store/use-map-store"
 
 const DEFAULT_STYLE = "https://demotiles.maplibre.org/style.json"
@@ -70,26 +70,37 @@ export function MapContainer() {
     }
     mapInstance.setLayoutProperty("evac-routes-line", "visibility", state.showEvac ? "visible" : "none")
 
-    if (!mapInstance.getSource("wind-vectors")) {
-      mapInstance.addSource("wind-vectors", { type: "geojson", data: mockWindVectors as FeatureCollection })
-      mapInstance.addLayer({
-        id: "wind-vectors-symbol",
-        type: "symbol",
-        source: "wind-vectors",
-        layout: {
-          "text-field": "↑",
-          "text-rotate": ["get", "direction"],
-          "text-size": 20,
-          "text-allow-overlap": true,
-        },
-        paint: {
-          "text-color": "#38bdf8",
-          "text-halo-color": "#000000",
-          "text-halo-width": 1,
-        },
-      })
+    if (state.showWind) {
+      const windData = generateDynamicWindVectors(mapInstance.getBounds(), mapInstance.getZoom())
+
+      if (!mapInstance.getSource("wind-vectors")) {
+        mapInstance.addSource("wind-vectors", { type: "geojson", data: windData as FeatureCollection })
+        mapInstance.addLayer({
+          id: "wind-vectors-symbol",
+          type: "symbol",
+          source: "wind-vectors",
+          layout: {
+            "text-field": "↑",
+            "text-rotate": ["get", "direction"],
+            "text-size": ["interpolate", ["linear"], ["get", "speed"], 5, 12, 40, 24],
+            "text-allow-overlap": false,
+            "text-ignore-placement": false,
+          },
+          paint: {
+            "text-color": "#38bdf8",
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 1,
+          },
+        })
+      } else {
+        ;(mapInstance.getSource("wind-vectors") as maplibregl.GeoJSONSource).setData(windData as FeatureCollection)
+      }
+      mapInstance.setLayoutProperty("wind-vectors-symbol", "visibility", state.showWind ? "visible" : "none")
+    } else {
+      if (mapInstance.getLayer("wind-vectors-symbol")) {
+        mapInstance.setLayoutProperty("wind-vectors-symbol", "visibility", "none")
+      }
     }
-    mapInstance.setLayoutProperty("wind-vectors-symbol", "visibility", state.showWind ? "visible" : "none")
 
     if (!mapInstance.getSource("active-fires")) {
       mapInstance.addSource("active-fires", { type: "geojson", data: fireData.current })
@@ -163,6 +174,8 @@ export function MapContainer() {
       })
 
       mapInstance.on("click", "fire-points", (e) => {
+        e.originalEvent.stopPropagation()
+
         if (!e.features || !e.features[0]) return
 
         const coordinates = (e.features[0].geometry as Point).coordinates.slice()
@@ -181,7 +194,12 @@ export function MapContainer() {
 
         const html = generateGlassPopupHTML(date, title, intensity, coordinates, dotColor, textColor)
 
-        new maplibregl.Popup({ closeButton: false, className: "glass-popup", offset: 10 })
+        new maplibregl.Popup({
+          closeButton: false,
+          className: "glass-popup",
+          offset: 10,
+          maxWidth: "300px",
+        })
           .setLngLat(coordinates as [number, number])
           .setHTML(html)
           .addTo(mapInstance)
@@ -196,6 +214,10 @@ export function MapContainer() {
       })
 
       mapInstance.on("click", "risk-zones-fill", (e) => {
+        const fireFeatures = mapInstance.queryRenderedFeatures(e.point, { layers: ["fire-points"] })
+
+        if (fireFeatures.length > 0) return
+
         if (!e.features || !e.features[0]) return
 
         const props = e.features[0].properties
@@ -212,7 +234,7 @@ export function MapContainer() {
         new maplibregl.Popup({
           closeButton: false,
           className: "glass-popup",
-          offset: 0,
+          offset: 10,
           maxWidth: "300px",
         })
           .setLngLat(e.lngLat)

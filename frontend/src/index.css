@@ -151,10 +151,19 @@ code {
   background: transparent !important;
   box-shadow: none !important;
   padding: 0 !important;
+  border: none !important;
 }
 
 .glass-popup .maplibregl-popup-tip {
-  border-top-color: hsl(var(--background) / 0.7) !important;
+  border-top-color: rgba(255, 255, 255, 0.5) !important;
+  border-bottom-color: transparent !important;
+  border-left-color: transparent !important;
+  border-right-color: transparent !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background: rgba(var(--background), 0.6) !important;
+  filter: drop-shadow(0 0 0 transparent);
+  box-shadow: none !important;
 }
 
 @theme inline {
