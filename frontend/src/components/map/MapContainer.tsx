@@ -12,6 +12,8 @@ import { mockEvacuationRoutes } from "@/mocks/evacuation-data"
 import { useMapStore } from "@/store/use-map-store"
 
 const DEFAULT_STYLE = "https://demotiles.maplibre.org/style.json"
+const LIGHT_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
 
 export function MapContainer() {
   const mapContainer = useRef<HTMLDivElement>(null)
@@ -22,7 +24,7 @@ export function MapContainer() {
   const reqAnimFrame = useRef<number | null>(null)
   const lastFrameTime = useRef<number>(0)
 
-  const { basemap, mapView, showFires, showTerrain, showLabels, showEvac, showWind, riskLevel, showRiskGrid, isPlaying } = useMapStore()
+  const { basemap, mapView, showFires, showTerrain, showLabels, showEvac, showWind, riskLevel, showRiskGrid, isPlaying, theme } = useMapStore()
 
   const syncMapLayers = (mapInstance: maplibregl.Map) => {
     const state = useMapStore.getState()
@@ -302,7 +304,9 @@ export function MapContainer() {
   useEffect(() => {
     if (!map.current) return
     const mapInstance = map.current
-    const targetStyle: string | StyleSpecification = basemap === "satellite" ? satelliteStyle : DEFAULT_STYLE
+
+    let targetStyle: string | StyleSpecification = theme === "dark" ? DARK_STYLE : LIGHT_STYLE
+    if (basemap === "satellite") targetStyle = satelliteStyle
 
     mapInstance.setStyle(targetStyle)
 
@@ -311,7 +315,7 @@ export function MapContainer() {
       mapInstance.setProjection({ type: mapView === "3d" ? "globe" : "mercator" })
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [basemap])
+  }, [basemap, theme])
 
   useEffect(() => {
     if (!map.current || !map.current.isStyleLoaded()) return

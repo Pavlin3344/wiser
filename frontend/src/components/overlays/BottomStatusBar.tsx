@@ -7,25 +7,25 @@ export function BottomStatusBar() {
 
       <div className='flex items-center gap-6'>
         <div className='flex items-center gap-1.5'>
-          <Crosshair className='size-3 text-primary' />
+          <Crosshair className='size-3 text-destructive' />
           <span id='ui-coords'>0.0000° N, 0.0000° E</span>
         </div>
 
         <div className='flex items-center gap-1.5'>
-          <Mountain className='size-3 text-primary' />
+          <Mountain className='size-3 text-destructive' />
           <span id='ui-elevation'>0m ASL</span>
         </div>
       </div>
 
       <div className='flex items-center gap-6'>
         <div className='flex items-center gap-1.5'>
-          <Search className='size-3 text-primary' />
+          <Search className='size-3 text-destructive' />
           <span id='ui-zoom'>ZOOM: 7.0</span>
         </div>
 
         <div className='text-border'>|</div>
 
-        <span className='font-semibold text-primary'>Wiser System Core v1.0</span>
+        <span className='font-semibold text-destructive'>Wiser System Core v1.0</span>
       </div>
     </div>
   )

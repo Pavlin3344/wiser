@@ -1,16 +1,7 @@
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts"
 
 import { SidebarGroup, SidebarGroupLabel } from "@/components/ui/sidebar"
-
-const mockChartData = [
-  { name: "Mon", fires: 4 },
-  { name: "Tue", fires: 7 },
-  { name: "Wed", fires: 2 },
-  { name: "Thu", fires: 12 },
-  { name: "Fri", fires: 9 },
-  { name: "Sat", fires: 15 },
-  { name: "Sun", fires: 8 },
-]
+import { mockChartData } from "@/mocks/chart-data"
 
 export function AnalysisView() {
   return (
