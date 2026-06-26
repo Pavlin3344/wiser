@@ -18,7 +18,10 @@ export function MapContainer() {
   const map = useRef<maplibregl.Map | null>(null)
   const fireData = useRef<FeatureCollection>(mockFireData)
 
-  const { basemap, mapView, showFires, showTerrain, showLabels, showEvac, showWind, riskLevel, showRiskGrid } = useMapStore()
+  const windPhase = useRef(0)
+  const reqAnimFrame = useRef<number | null>(null)
+
+  const { basemap, mapView, showFires, showTerrain, showLabels, showEvac, showWind, riskLevel, showRiskGrid, isPlaying } = useMapStore()
 
   const syncMapLayers = (mapInstance: maplibregl.Map) => {
     const state = useMapStore.getState()
@@ -34,7 +37,7 @@ export function MapContainer() {
     }
     mapInstance.setTerrain(state.showTerrain ? { source: "3d-terrain", exaggeration: 1.5 } : null)
 
-    const riskData = generateDynamicRiskGrid(mapInstance.getBounds(), mapInstance.getZoom(), state.riskLevel)
+    const riskData = generateDynamicRiskGrid(mapInstance.getBounds(), mapInstance.getZoom(), state.riskLevel, state.currentTime)
 
     if (!mapInstance.getSource("risk-zones")) {
       mapInstance.addSource("risk-zones", { type: "geojson", data: riskData as FeatureCollection })
@@ -71,7 +74,7 @@ export function MapContainer() {
     mapInstance.setLayoutProperty("evac-routes-line", "visibility", state.showEvac ? "visible" : "none")
 
     if (state.showWind) {
-      const windData = generateDynamicWindVectors(mapInstance.getBounds(), mapInstance.getZoom())
+      const windData = generateDynamicWindVectors(mapInstance.getBounds(), mapInstance.getZoom(), state.currentTime, windPhase.current)
 
       if (!mapInstance.getSource("wind-vectors")) {
         mapInstance.addSource("wind-vectors", { type: "geojson", data: windData as FeatureCollection })
@@ -90,6 +93,7 @@ export function MapContainer() {
             "text-color": "#38bdf8",
             "text-halo-color": "#ffffff",
             "text-halo-width": 1,
+            "text-opacity": ["get", "opacity"],
           },
         })
       } else {
@@ -329,6 +333,42 @@ export function MapContainer() {
     syncMapLayers(map.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showFires, showTerrain, showLabels, showWind, showEvac, riskLevel, showRiskGrid])
+
+  useEffect(() => {
+    if (!isPlaying || !map.current) return
+
+    const interval = setInterval(() => {
+      const store = useMapStore.getState()
+      const nextTime = (store.currentTime + 1) % 24
+      store.setCurrentTime(nextTime)
+
+      syncMapLayers(map.current!)
+    }, 500)
+
+    return () => clearInterval(interval)
+  }, [isPlaying])
+
+  useEffect(() => {
+    if (!map.current || !showWind) return
+
+    const animateWind = () => {
+      windPhase.current += 1
+
+      const state = useMapStore.getState()
+      const windData = generateDynamicWindVectors(map.current!.getBounds(), map.current!.getZoom(), state.currentTime, windPhase.current)
+
+      const source = map.current?.getSource("wind-vectors") as maplibregl.GeoJSONSource | undefined
+      if (source) source.setData(windData as FeatureCollection)
+
+      reqAnimFrame.current = requestAnimationFrame(animateWind)
+    }
+
+    reqAnimFrame.current = requestAnimationFrame(animateWind)
+
+    return () => {
+      if (reqAnimFrame.current) cancelAnimationFrame(reqAnimFrame.current)
+    }
+  }, [showWind])
 
   return (
     <div className='absolute inset-0 z-0'>

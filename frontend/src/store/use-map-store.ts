@@ -10,6 +10,9 @@ interface MapState {
   currentTime: number
   setCurrentTime: (time: number) => void
 
+  isPlaying: boolean
+  setIsPlaying: (playing: boolean) => void
+
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
   activeSidebarTab: "risk" | "detection" | "analysis" | "alerts"
@@ -53,6 +56,9 @@ export const useMapStore = create<MapState>()(
     (set) => ({
       currentTime: 0,
       setCurrentTime: (time) => set({ currentTime: time }),
+
+      isPlaying: false,
+      setIsPlaying: (playing) => set({ isPlaying: playing }),
 
       sidebarOpen: true,
       setSidebarOpen: (open) => set({ sidebarOpen: open }),

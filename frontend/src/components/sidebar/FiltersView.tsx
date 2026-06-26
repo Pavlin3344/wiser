@@ -4,6 +4,7 @@ import { format } from "date-fns/format"
 
 import { CalendarIcon } from "lucide-react"
 
+import { TimeSlider } from "@/components/sidebar/TimeSlider"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
@@ -143,6 +144,7 @@ export function FiltersView() {
               Today
             </Button>
           </div>
+          <TimeSlider />
         </div>
       </SidebarGroup>
     </>
