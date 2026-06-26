@@ -10,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { SidebarGroup, SidebarGroupLabel } from "@/components/ui/sidebar"
+import { SidebarGroup } from "@/components/ui/sidebar"
 import { Calendar } from "@/components/ui/calendar"
 
 import { useMapStore } from "@/store/use-map-store"
@@ -39,95 +39,100 @@ export function FiltersView() {
   return (
     <>
       <SidebarGroup>
-        <SidebarGroupLabel>Data Filters</SidebarGroupLabel>
-        <div className='px-4 py-2 space-y-4'>
+        <div className='px-4 space-y-3'>
+          <Label className='text-xs text-muted-foreground'>Fire Risk</Label>
           <div className='space-y-3'>
-            <Label className='text-xs text-muted-foreground'>Fire Risk</Label>
-            <div className='flex items-center space-x-2 border-b border-white/5 pb-3 mb-3'>
+            <div className='flex items-center space-x-2'>
               <Checkbox id='chk-risk' checked={showRiskGrid} onCheckedChange={(c) => setShowRiskGrid(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
               <Label htmlFor='chk-risk' className='text-xs cursor-pointer'>
                 Risk Grid
               </Label>
             </div>
           </div>
+        </div>
+      </SidebarGroup>
 
-          <div className='space-y-3'>
-            <Label className='text-xs text-muted-foreground'>Region</Label>
-            <Select value={region} onValueChange={setRegion}>
-              <SelectTrigger className='h-8 text-xs bg-background/20 backdrop-blur-sm rounded-full'>
-                <SelectValue placeholder='Select region' />
-              </SelectTrigger>
-              <SelectContent className='bg-background/40 backdrop-blur-sm border border-white/10 border-t-white/20 border-l-white/20 shadow-lg rounded-2xl'>
-                <SelectItem value='all' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
-                  All Regions
-                </SelectItem>
-                <SelectItem value='north' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
-                  Northern Sector
-                </SelectItem>
-                <SelectItem value='south' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
-                  Southern Sector
-                </SelectItem>
-              </SelectContent>
-            </Select>
+      <SidebarGroup>
+        <div className='px-4 space-y-3'>
+          <Label className='text-xs text-muted-foreground'>Region</Label>
+          <Select value={region} onValueChange={setRegion}>
+            <SelectTrigger className='h-8 text-xs bg-background/20 backdrop-blur-sm rounded-full'>
+              <SelectValue placeholder='Select region' />
+            </SelectTrigger>
+            <SelectContent className='bg-background/40 backdrop-blur-sm border border-white/10 border-t-white/20 border-l-white/20 shadow-lg rounded-2xl'>
+              <SelectItem value='all' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
+                All Regions
+              </SelectItem>
+              <SelectItem value='north' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
+                Northern Sector
+              </SelectItem>
+              <SelectItem value='south' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
+                Southern Sector
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </SidebarGroup>
+
+      <SidebarGroup>
+        <div className='px-4 space-y-3'>
+          <Label className='text-xs text-muted-foreground'>Risk Level</Label>
+          <Select value={riskLevel} onValueChange={setRiskLevel}>
+            <SelectTrigger className='h-8 text-xs bg-background/20 backdrop-blur-sm rounded-full'>
+              <SelectValue placeholder='Select severity' />
+            </SelectTrigger>
+            <SelectContent className='bg-background/40 backdrop-blur-sm border border-white/10 border-t-white/20 border-l-white/20 shadow-lg rounded-2xl'>
+              <SelectItem value='all' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
+                All Risk Levels
+              </SelectItem>
+              <SelectItem value='high' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
+                High / Critical
+              </SelectItem>
+              <SelectItem value='moderate' className='text-xs cursor-pointer focus:bg-orange-500/80 focus:text-destructive transition-colors'>
+                Moderate
+              </SelectItem>
+              <SelectItem value='low' className='text-xs cursor-pointer focus:bg-emerald-500/80 focus:text-destructive transition-colors'>
+                Low
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </SidebarGroup>
+
+      <SidebarGroup>
+        <div className='px-4 space-y-3'>
+          <Label className='text-xs text-muted-foreground'>Map Indicators</Label>
+          <div className='flex items-center space-x-2'>
+            <Checkbox id='chk-thermal' checked={showThermal} onCheckedChange={(c) => setShowThermal(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
+            <Label htmlFor='chk-thermal' className='text-xs font-medium cursor-pointer'>
+              Thermal Anomalies
+            </Label>
+          </div>
+          <div className='flex items-center space-x-2'>
+            <Checkbox id='chk-smoke' checked={showSmoke} onCheckedChange={(c) => setShowSmoke(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
+            <Label htmlFor='chk-smoke' className='text-xs font-medium cursor-pointer'>
+              Smoke Plumes
+            </Label>
+          </div>
+          <div className='flex items-center space-x-2'>
+            <Checkbox id='chk-wind' checked={showWind} onCheckedChange={(c) => setShowWind(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
+            <Label htmlFor='chk-wind' className='text-xs font-medium cursor-pointer'>
+              Wind Vectors
+            </Label>
           </div>
 
-          <div className='space-y-3'>
-            <Label className='text-xs text-muted-foreground'>Risk Level</Label>
-            <Select value={riskLevel} onValueChange={setRiskLevel}>
-              <SelectTrigger className='h-8 text-xs bg-background/20 backdrop-blur-sm rounded-full'>
-                <SelectValue placeholder='Select severity' />
-              </SelectTrigger>
-              <SelectContent className='bg-background/40 backdrop-blur-sm border border-white/10 border-t-white/20 border-l-white/20 shadow-lg rounded-2xl'>
-                <SelectItem value='all' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
-                  All Risk Levels
-                </SelectItem>
-                <SelectItem value='high' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
-                  High / Critical
-                </SelectItem>
-                <SelectItem value='moderate' className='text-xs cursor-pointer focus:bg-orange-500/80 focus:text-destructive transition-colors'>
-                  Moderate
-                </SelectItem>
-                <SelectItem value='low' className='text-xs cursor-pointer focus:bg-emerald-500/80 focus:text-destructive transition-colors'>
-                  Low
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className='space-y-3 pt-2'>
-            <Label className='text-xs text-muted-foreground'>Map Indicators</Label>
-            <div className='flex items-center space-x-2'>
-              <Checkbox id='chk-thermal' checked={showThermal} onCheckedChange={(c) => setShowThermal(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
-              <Label htmlFor='chk-thermal' className='text-xs font-medium cursor-pointer'>
-                Thermal Anomalies
-              </Label>
-            </div>
-            <div className='flex items-center space-x-2'>
-              <Checkbox id='chk-smoke' checked={showSmoke} onCheckedChange={(c) => setShowSmoke(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
-              <Label htmlFor='chk-smoke' className='text-xs font-medium cursor-pointer'>
-                Smoke Plumes
-              </Label>
-            </div>
-            <div className='flex items-center space-x-2'>
-              <Checkbox id='chk-wind' checked={showWind} onCheckedChange={(c) => setShowWind(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
-              <Label htmlFor='chk-wind' className='text-xs font-medium cursor-pointer'>
-                Wind Vectors
-              </Label>
-            </div>
-
-            <div className='flex items-center space-x-2'>
-              <Checkbox id='chk-evac' checked={showEvac} onCheckedChange={(c) => setShowEvac(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
-              <Label htmlFor='chk-evac' className='text-xs font-medium cursor-pointer'>
-                Evacuation Routes
-              </Label>
-            </div>
+          <div className='flex items-center space-x-2'>
+            <Checkbox id='chk-evac' checked={showEvac} onCheckedChange={(c) => setShowEvac(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
+            <Label htmlFor='chk-evac' className='text-xs font-medium cursor-pointer'>
+              Evacuation Routes
+            </Label>
           </div>
         </div>
       </SidebarGroup>
 
-      <SidebarGroup className='mt-4 border-t border-white/10 pt-4'>
-        <SidebarGroupLabel>Timeline & Forecast</SidebarGroupLabel>
+      <SidebarGroup>
         <div className='px-4 py-2 space-y-3'>
+          <Label className='text-xs text-muted-foreground'>Timeline & Forecast</Label>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant='ghost' className='w-full justify-start text-left font-normal h-9 px-3 text-xs bg-background/20 backdrop-blur-sm transition-colors'>
