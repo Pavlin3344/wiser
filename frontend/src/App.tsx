@@ -5,25 +5,28 @@ import { MapContainer } from "@/components/map/MapContainer"
 import { TopBar } from "@/components/overlays/TopBar"
 import { SecondaryBar } from "@/components/overlays/SecondaryBar"
 import { BottomStatusBar } from "@/components/overlays/BottomStatusBar"
+import { ThemeProvider } from "@/components/providers/ThemeProvider"
 import { useMapStore } from "@/store/use-map-store"
 
 function App() {
   const { sidebarOpen, setSidebarOpen } = useMapStore()
 
   return (
-    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
-      <TooltipProvider>
-        <AppSidebar />
+    <ThemeProvider>
+      <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
+        <TooltipProvider>
+          <AppSidebar />
 
-        <SidebarInset className='absolute inset-0 p-0 overflow-hidden'>
-          <MapContainer />
+          <SidebarInset className='absolute inset-0 p-0 overflow-hidden'>
+            <MapContainer />
 
-          <TopBar />
-          <SecondaryBar />
-          <BottomStatusBar />
-        </SidebarInset>
-      </TooltipProvider>
-    </SidebarProvider>
+            <TopBar />
+            <SecondaryBar />
+            <BottomStatusBar />
+          </SidebarInset>
+        </TooltipProvider>
+      </SidebarProvider>
+    </ThemeProvider>
   )
 }
 
