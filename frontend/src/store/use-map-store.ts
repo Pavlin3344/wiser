@@ -1,12 +1,17 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
+import type { Theme } from "@/types/types"
+
 interface SerializedDateRange {
   from: string | undefined
   to: string | undefined
 }
 
 interface MapState {
+  theme: Theme
+  setTheme: (theme: Theme) => void
+
   currentTime: number
   setCurrentTime: (time: number) => void
 
@@ -54,6 +59,9 @@ interface MapState {
 export const useMapStore = create<MapState>()(
   persist(
     (set) => ({
+      theme: "light",
+      setTheme: (theme) => set({ theme }),
+
       currentTime: 0,
       setCurrentTime: (time) => set({ currentTime: time }),
 
