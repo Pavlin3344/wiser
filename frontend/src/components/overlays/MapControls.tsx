@@ -8,7 +8,7 @@ export function MapControls() {
 
   return (
     <div className='pointer-events-auto w-52'>
-      <div className='relative bg-background/60 backdrop-blur-xl shadow-xl rounded-2xl border border-white/10 border-t-white/20 border-l-white/20 p-3 flex flex-col gap-3'>
+      <div className='relative bg-background/60 backdrop-blur-xl shadow-lg rounded-2xl border border-white/10 border-t-white/20 border-l-white/20 p-3 flex flex-col gap-3'>
         <div className='absolute inset-0 rounded-2xl bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
 
         <div>

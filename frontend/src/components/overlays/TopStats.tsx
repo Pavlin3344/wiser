@@ -1,16 +1,12 @@
-import { SidebarTrigger, useSidebar } from "@/components/ui/sidebar"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
 
 export function TopStats() {
-  const { open } = useSidebar()
-
   return (
     <div className='flex items-center gap-2 pointer-events-none transition-all duration-300 ease-in-out'>
-      {!open && (
-        <div className='pointer-events-auto'>
-          <SidebarTrigger className='bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20 hover:bg-background/80 h-10 w-10 rounded-full cursor-pointer' />
-        </div>
-      )}
+      <div className='pointer-events-auto'>
+        <SidebarTrigger className='bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20 hover:bg-background/80 h-10 w-10 rounded-full cursor-pointer' />
+      </div>
 
       <div className='relative pointer-events-auto bg-background/60 backdrop-blur-xl shadow-lg rounded-full border border-white/10 border-t-white/20 border-l-white/20 flex items-center h-10 px-3 gap-2'>
         <div className='absolute inset-0 rounded-full bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
