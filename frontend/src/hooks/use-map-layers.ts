@@ -34,6 +34,13 @@ export function initializeLayers(map: maplibregl.Map): void {
   addSource("effis-viirs", { type: "raster", tiles: EFFIS_VIIRS_TILES, tileSize: 256, attribution: "Copernicus EFFIS" })
   addSource("evac-routes", { type: "geojson", data: mockEvacuationRoutes as FeatureCollection })
   addSource("active-fires", { type: "geojson", data: mockFireData as FeatureCollection })
+  addSource("user-location", {
+    type: "geojson",
+    data: {
+      type: "FeatureCollection",
+      features: [],
+    },
+  })
 
   const addLayer = (spec: maplibregl.LayerSpecification) => {
     if (!map.getLayer(spec.id)) map.addLayer(spec)
@@ -58,6 +65,18 @@ export function initializeLayers(map: maplibregl.Map): void {
       "circle-color": "#ef4444",
       "circle-opacity": 0.8,
       "circle-stroke-width": 2,
+      "circle-stroke-color": "#ffffff",
+    },
+  })
+
+  addLayer({
+    id: "user-location-layer",
+    type: "circle",
+    source: "user-location",
+    paint: {
+      "circle-radius": 8,
+      "circle-color": "#3b82f6",
+      "circle-stroke-width": 3,
       "circle-stroke-color": "#ffffff",
     },
   })
