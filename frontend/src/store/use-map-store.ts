@@ -3,11 +3,6 @@ import { persist, subscribeWithSelector } from "zustand/middleware"
 
 import type { Theme } from "@/types/types"
 
-interface SerializedDateRange {
-  from: string | undefined
-  to: string | undefined
-}
-
 export interface Camera {
   lng: number
   lat: number
@@ -73,8 +68,8 @@ interface MapState {
   setRegion: (region: string) => void
   riskLevel: string
   setRiskLevel: (level: string) => void
-  dateRange: SerializedDateRange
-  setDateRange: (range: SerializedDateRange) => void
+  selectedDate: string
+  setSelectedDate: (date: string) => void
 
   /** Updated every mousemove/zoom — consume via useMapStore.subscribe(),
    *  NOT via useMapStore() hook, to avoid re-renders. */
@@ -134,11 +129,8 @@ export const useMapStore = create<MapState>()(
         setRegion: (region) => set({ region }),
         riskLevel: "all",
         setRiskLevel: (riskLevel) => set({ riskLevel }),
-        dateRange: {
-          from: new Date().toISOString(),
-          to: new Date().toISOString(),
-        },
-        setDateRange: (dateRange) => set({ dateRange }),
+        selectedDate: new Date().toISOString(),
+        setSelectedDate: (selectedDate) => set({ selectedDate }),
 
         mapStatus: { lat: 42.0, lng: 25.5, zoom: 7, elevation: 0, bearing: 0 },
         setMapStatus: (partial) => set((s) => ({ mapStatus: { ...s.mapStatus, ...partial } })),
