@@ -10,6 +10,7 @@ import { initializeLayers, syncLayers, useMapLayers } from "@/hooks/use-map-laye
 import { useMapStyle, useMapView, useTimePlayback } from "@/hooks/use-map-style"
 import { useWindAnimation } from "@/hooks/use-wind-animation"
 import { useFireData } from "@/hooks/use-fire-data"
+import { useFlyTo } from "@/hooks/use-fly-to"
 
 export function MapContainer() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -32,6 +33,7 @@ export function MapContainer() {
     }
   }, [mapRef])
 
+  useFlyTo(mapRef)
   useFireData({ mapRef, fireDataRef })
   useMapLayers(mapRef, fireDataRef)
   useMapEvents(mapRef)

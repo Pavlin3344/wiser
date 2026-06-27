@@ -1,11 +1,14 @@
 import * as React from "react"
-import { AlertTriangleIcon, BarChart3Icon, CalendarIcon, FireExtinguisher, FlameIcon, GlobeIcon, LayersIcon, MapIcon, MoonIcon, RouteIcon, SunIcon, WindIcon } from "lucide-react"
+import { AlertTriangleIcon, BarChart3Icon, CalendarIcon, FireExtinguisher, FlameIcon, GlobeIcon, LayersIcon, MapIcon, MapPinIcon, MoonIcon, RouteIcon, SunIcon, WindIcon } from "lucide-react"
 
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from "@/components/ui/command"
+import { useGeolocation } from "@/hooks/use-geolocation"
 import { useMapStore } from "@/store/use-map-store"
 
 export function CommandMenu({ open, setOpen }: { open: boolean; setOpen: React.Dispatch<React.SetStateAction<boolean>> }) {
   const { theme, setTheme, mapView, setBasemap, setMapView, basemap, showFires, setShowFires, showRiskGrid, setShowRiskGrid, showWind, setShowWind, showEvac, setShowEvac, setActiveSidebarTab, setSelectedDate } = useMapStore()
+
+  const { findMe } = useGeolocation()
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -103,6 +106,14 @@ export function CommandMenu({ open, setOpen }: { open: boolean; setOpen: React.D
               <CommandItem onSelect={() => runCommand(() => setSelectedDate(new Date().toISOString()))}>
                 <CalendarIcon className='mr-2 h-4 w-4' />
                 <span>Jump to Today</span>
+              </CommandItem>
+            </CommandGroup>
+
+            <CommandGroup heading='Location'>
+              <CommandItem onSelect={() => runCommand(() => findMe())}>
+                <MapPinIcon className='mr-2 h-4 w-4' />
+                <span>Locate My Position</span>
+                <CommandShortcut>⌘L</CommandShortcut>
               </CommandItem>
             </CommandGroup>
           </CommandList>

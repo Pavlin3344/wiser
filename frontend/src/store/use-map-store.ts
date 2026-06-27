@@ -42,6 +42,9 @@ interface MapState {
   camera: Camera
   setCamera: (camera: Camera) => void
 
+  flyToTarget: { lat: number; lng: number; zoom: number } | null
+  setFlyToTarget: (target: { lat: number; lng: number; zoom: number } | null) => void
+
   mapView: "2d" | "3d"
   setMapView: (view: "2d" | "3d") => void
   basemap: "topographic" | "satellite"
@@ -103,6 +106,9 @@ export const useMapStore = create<MapState>()(
         camera: { lng: 25.5, lat: 42.0, zoom: 7, pitch: 0, bearing: 0 },
         setCamera: (camera) => set({ camera }),
 
+        flyToTarget: null,
+        setFlyToTarget: (flyToTarget) => set({ flyToTarget }),
+
         mapView: "2d",
         setMapView: (mapView) => set({ mapView }),
         basemap: "topographic",
@@ -144,7 +150,7 @@ export const useMapStore = create<MapState>()(
       {
         name: "wiser-system-storage",
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        partialize: ({ mapStatus, currentTime, isPlaying, activeFireCount, overallRiskLevel, ...rest }) => rest,
+        partialize: ({ mapStatus, currentTime, isPlaying, activeFireCount, overallRiskLevel, flyToTarget, ...rest }) => rest,
       },
     ),
   ),
