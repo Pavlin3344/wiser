@@ -5,9 +5,10 @@ import { useMapStore } from "@/store/use-map-store"
 import { mockEvacuationRoutes } from "@/mocks/evacuation-data"
 import { mockFireData } from "@/mocks/fire-data"
 
-const TODAY = new Date().toISOString().split("T")[0]
-
-const EFFIS_FWI_TILES = [`/effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap` + `&LAYERS=mf010.fwi&TIME=${TODAY}&STYLES=` + `&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256` + `&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE`]
+function getFwiTilesUrl(isoDate: string): string[] {
+  const dateStr = isoDate.split("T")[0]
+  return [`/effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=mf010.fwi&TIME=${dateStr}&STYLES=&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE`]
+}
 
 const EFFIS_VIIRS_TILES = [`https://maps.effis.emergency.copernicus.eu/effis` + `?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap` + `&LAYERS=viirs.hs&STYLES=` + `&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256` + `&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE`]
 
@@ -16,6 +17,8 @@ const EFFIS_VIIRS_TILES = [`https://maps.effis.emergency.copernicus.eu/effis` + 
  * Safe to call multiple times — each block guards with getSource/getLayer.
  */
 export function initializeLayers(map: maplibregl.Map): void {
+  const { selectedDate } = useMapStore.getState()
+
   const addSource = (id: string, spec: maplibregl.SourceSpecification) => {
     if (!map.getSource(id)) map.addSource(id, spec)
   }
@@ -27,7 +30,7 @@ export function initializeLayers(map: maplibregl.Map): void {
     tileSize: 256,
     maxzoom: 14,
   })
-  addSource("effis-fwi", { type: "raster", tiles: EFFIS_FWI_TILES, tileSize: 256, attribution: "Copernicus EFFIS" })
+  addSource("effis-fwi", { type: "raster", tiles: getFwiTilesUrl(selectedDate), tileSize: 256, attribution: "Copernicus EFFIS" })
   addSource("effis-viirs", { type: "raster", tiles: EFFIS_VIIRS_TILES, tileSize: 256, attribution: "Copernicus EFFIS" })
   addSource("evac-routes", { type: "geojson", data: mockEvacuationRoutes as FeatureCollection })
   addSource("active-fires", { type: "geojson", data: mockFireData as FeatureCollection })
@@ -89,7 +92,7 @@ export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): vo
  * Uses a single flat dependency array — no synchronisation bugs.
  */
 export function useMapLayers(mapRef: RefObject<maplibregl.Map | null>, fireDataRef: RefObject<FeatureCollection>): void {
-  const { showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid } = useMapStore()
+  const { showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid, selectedDate } = useMapStore()
 
   useEffect(() => {
     const map = mapRef.current
@@ -97,4 +100,15 @@ export function useMapLayers(mapRef: RefObject<maplibregl.Map | null>, fireDataR
     syncLayers(map, fireDataRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map?.isStyleLoaded()) return
+
+    const source = map.getSource("effis-fwi") as maplibregl.Source & { setTiles?: (tiles: string[]) => void }
+
+    if (source && typeof source.setTiles === "function") {
+      source.setTiles(getFwiTilesUrl(selectedDate))
+    }
+  }, [selectedDate, mapRef])
 }
