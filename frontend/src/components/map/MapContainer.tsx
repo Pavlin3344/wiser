@@ -9,6 +9,7 @@ import { useMapInit } from "@/hooks/use-map-init"
 import { initializeLayers, syncLayers, useMapLayers } from "@/hooks/use-map-layers"
 import { useMapStyle, useMapView, useTimePlayback } from "@/hooks/use-map-style"
 import { useWindAnimation } from "@/hooks/use-wind-animation"
+import { useFireData } from "@/hooks/use-fire-data"
 
 export function MapContainer() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -22,16 +23,6 @@ export function MapContainer() {
     const handleLoad = () => {
       initializeLayers(map)
       syncLayers(map, fireDataRef.current)
-
-      fetch("/api/v1/fires/active")
-        .then((r) => (r.ok ? (r.json() as Promise<FeatureCollection>) : Promise.reject(r.status)))
-        .then((data) => {
-          fireDataRef.current = data
-          syncLayers(map, data)
-        })
-        .catch((err) => {
-          console.warn(`[Wiser] Backend unavailable (${err}). Using EFFIS mock data.`)
-        })
     }
 
     map.once("load", handleLoad)
@@ -41,6 +32,7 @@ export function MapContainer() {
     }
   }, [mapRef])
 
+  useFireData({ mapRef, fireDataRef })
   useMapLayers(mapRef, fireDataRef)
   useMapEvents(mapRef)
   useWindAnimation(mapRef)
