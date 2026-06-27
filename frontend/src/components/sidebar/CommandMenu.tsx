@@ -1,5 +1,5 @@
 import * as React from "react"
-import { AlertTriangleIcon, BarChart3Icon, CalendarIcon, FlameIcon, GlobeIcon, LayersIcon, MapIcon, MoonIcon, RouteIcon, SunIcon, WindIcon } from "lucide-react"
+import { AlertTriangleIcon, BarChart3Icon, CalendarIcon, FireExtinguisher, FlameIcon, GlobeIcon, LayersIcon, MapIcon, MoonIcon, RouteIcon, SunIcon, WindIcon } from "lucide-react"
 
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from "@/components/ui/command"
 import { useMapStore } from "@/store/use-map-store"
@@ -39,6 +39,11 @@ export function CommandMenu({ open, setOpen }: { open: boolean; setOpen: React.D
                 <MapIcon className='mr-2 h-4 w-4' />
                 <span>Risk Dashboard</span>
                 <CommandShortcut>R</CommandShortcut>
+              </CommandItem>
+              <CommandItem onSelect={() => runCommand(() => setActiveSidebarTab("detection"))}>
+                <FireExtinguisher className='mr-2 h-4 w-4' />
+                <span>Detection</span>
+                <CommandShortcut>D</CommandShortcut>
               </CommandItem>
               <CommandItem onSelect={() => runCommand(() => setActiveSidebarTab("analysis"))}>
                 <BarChart3Icon className='mr-2 h-4 w-4' />
