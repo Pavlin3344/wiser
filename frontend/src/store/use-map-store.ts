@@ -1,5 +1,5 @@
 import { create } from "zustand"
-import { persist } from "zustand/middleware"
+import { persist, subscribeWithSelector } from "zustand/middleware"
 
 import type { Theme } from "@/types/types"
 
@@ -8,41 +8,58 @@ interface SerializedDateRange {
   to: string | undefined
 }
 
+export interface Camera {
+  lng: number
+  lat: number
+  zoom: number
+  pitch: number
+  bearing: number
+}
+
+/** High-frequency map UI state — updated every mousemove / zoom.
+ *  Subscribers read this directly via useMapStore.subscribe() to avoid
+ *  re-rendering the entire React tree on every pointer event. */
+export interface MapStatus {
+  lat: number
+  lng: number
+  zoom: number
+  elevation: number
+  bearing: number
+}
+
+type SidebarTab = "risk" | "detection" | "analysis" | "alerts"
+export type RiskLevel = "Low" | "Moderate" | "High" | "Critical"
+
 interface MapState {
   theme: Theme
   setTheme: (theme: Theme) => void
 
   currentTime: number
   setCurrentTime: (time: number) => void
-
   isPlaying: boolean
   setIsPlaying: (playing: boolean) => void
 
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
-  activeSidebarTab: "risk" | "detection" | "analysis" | "alerts"
-  setActiveSidebarTab: (tab: "risk" | "detection" | "analysis" | "alerts") => void
+  activeSidebarTab: SidebarTab
+  setActiveSidebarTab: (tab: SidebarTab) => void
 
-  camera: { lng: number; lat: number; zoom: number; pitch: number; bearing: number }
-  setCamera: (camera: { lng: number; lat: number; zoom: number; pitch: number; bearing: number }) => void
+  camera: Camera
+  setCamera: (camera: Camera) => void
 
   mapView: "2d" | "3d"
   setMapView: (view: "2d" | "3d") => void
   basemap: "topographic" | "satellite"
   setBasemap: (map: "topographic" | "satellite") => void
+
   showFires: boolean
   setShowFires: (show: boolean) => void
   showTerrain: boolean
   setShowTerrain: (show: boolean) => void
   showLabels: boolean
   setShowLabels: (show: boolean) => void
-
-  region: string
-  setRegion: (region: string) => void
   showRiskGrid: boolean
   setShowRiskGrid: (show: boolean) => void
-  riskLevel: string
-  setRiskLevel: (level: string) => void
   showThermal: boolean
   setShowThermal: (show: boolean) => void
   showSmoke: boolean
@@ -52,61 +69,91 @@ interface MapState {
   showEvac: boolean
   setShowEvac: (show: boolean) => void
 
+  region: string
+  setRegion: (region: string) => void
+  riskLevel: string
+  setRiskLevel: (level: string) => void
   dateRange: SerializedDateRange
   setDateRange: (range: SerializedDateRange) => void
+
+  /** Updated every mousemove/zoom — consume via useMapStore.subscribe(),
+   *  NOT via useMapStore() hook, to avoid re-renders. */
+  mapStatus: MapStatus
+  setMapStatus: (status: Partial<MapStatus>) => void
+
+  activeFireCount: number
+  setActiveFireCount: (count: number) => void
+
+  overallRiskLevel: RiskLevel
+  setOverallRiskLevel: (level: RiskLevel) => void
 }
 
 export const useMapStore = create<MapState>()(
-  persist(
-    (set) => ({
-      theme: "light",
-      setTheme: (theme) => set({ theme }),
+  subscribeWithSelector(
+    persist(
+      (set) => ({
+        theme: "light",
+        setTheme: (theme) => set({ theme }),
 
-      currentTime: 0,
-      setCurrentTime: (time) => set({ currentTime: time }),
+        currentTime: 0,
+        setCurrentTime: (currentTime) => set({ currentTime }),
+        isPlaying: false,
+        setIsPlaying: (isPlaying) => set({ isPlaying }),
 
-      isPlaying: false,
-      setIsPlaying: (playing) => set({ isPlaying: playing }),
+        sidebarOpen: true,
+        setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+        activeSidebarTab: "risk",
+        setActiveSidebarTab: (activeSidebarTab) => set({ activeSidebarTab }),
 
-      sidebarOpen: true,
-      setSidebarOpen: (open) => set({ sidebarOpen: open }),
-      activeSidebarTab: "risk",
-      setActiveSidebarTab: (tab) => set({ activeSidebarTab: tab }),
+        camera: { lng: 25.5, lat: 42.0, zoom: 7, pitch: 0, bearing: 0 },
+        setCamera: (camera) => set({ camera }),
 
-      camera: { lng: 25.5, lat: 42.0, zoom: 7, pitch: 0, bearing: 0 },
-      setCamera: (camera) => set({ camera }),
+        mapView: "2d",
+        setMapView: (mapView) => set({ mapView }),
+        basemap: "topographic",
+        setBasemap: (basemap) => set({ basemap }),
 
-      mapView: "2d",
-      setMapView: (view) => set({ mapView: view }),
-      basemap: "topographic",
-      setBasemap: (map) => set({ basemap: map }),
-      showFires: false,
-      setShowFires: (show) => set({ showFires: show }),
-      showTerrain: false,
-      setShowTerrain: (show) => set({ showTerrain: show }),
-      showLabels: false,
-      setShowLabels: (show) => set({ showLabels: show }),
+        showFires: false,
+        setShowFires: (showFires) => set({ showFires }),
+        showTerrain: false,
+        setShowTerrain: (showTerrain) => set({ showTerrain }),
+        showLabels: false,
+        setShowLabels: (showLabels) => set({ showLabels }),
+        showRiskGrid: true,
+        setShowRiskGrid: (showRiskGrid) => set({ showRiskGrid }),
+        showThermal: true,
+        setShowThermal: (showThermal) => set({ showThermal }),
+        showSmoke: true,
+        setShowSmoke: (showSmoke) => set({ showSmoke }),
+        showWind: false,
+        setShowWind: (showWind) => set({ showWind }),
+        showEvac: false,
+        setShowEvac: (showEvac) => set({ showEvac }),
 
-      region: "all",
-      setRegion: (region) => set({ region }),
-      showRiskGrid: true,
-      setShowRiskGrid: (show) => set({ showRiskGrid: show }),
-      riskLevel: "all",
-      setRiskLevel: (level) => set({ riskLevel: level }),
-      showThermal: true,
-      setShowThermal: (show) => set({ showThermal: show }),
-      showSmoke: true,
-      setShowSmoke: (show) => set({ showSmoke: show }),
-      showWind: false,
-      setShowWind: (show) => set({ showWind: show }),
-      showEvac: false,
-      setShowEvac: (show) => set({ showEvac: show }),
+        region: "all",
+        setRegion: (region) => set({ region }),
+        riskLevel: "all",
+        setRiskLevel: (riskLevel) => set({ riskLevel }),
+        dateRange: {
+          from: new Date().toISOString(),
+          to: new Date().toISOString(),
+        },
+        setDateRange: (dateRange) => set({ dateRange }),
 
-      dateRange: { from: new Date().toISOString(), to: new Date().toISOString() },
-      setDateRange: (range) => set({ dateRange: range }),
-    }),
-    {
-      name: "wiser-system-storage",
-    },
+        mapStatus: { lat: 42.0, lng: 25.5, zoom: 7, elevation: 0, bearing: 0 },
+        setMapStatus: (partial) => set((s) => ({ mapStatus: { ...s.mapStatus, ...partial } })),
+
+        activeFireCount: 12,
+        setActiveFireCount: (activeFireCount) => set({ activeFireCount }),
+
+        overallRiskLevel: "Moderate",
+        setOverallRiskLevel: (overallRiskLevel) => set({ overallRiskLevel }),
+      }),
+      {
+        name: "wiser-system-storage",
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        partialize: ({ mapStatus, currentTime, isPlaying, activeFireCount, overallRiskLevel, ...rest }) => rest,
+      },
+    ),
   ),
 )
