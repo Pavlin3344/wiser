@@ -1,12 +1,9 @@
 import { useMapStore } from "@/store/use-map-store"
 
-export function useGeolocation(mapRef: React.RefObject<maplibregl.Map | null>) {
+export function useGeolocation(mapRef?: React.RefObject<maplibregl.Map | null>) {
   const { setFlyToTarget } = useMapStore()
 
   const findMe = () => {
-    const map = mapRef.current
-    if (!map) return
-
     if (!navigator.geolocation) {
       alert("Geolocation is not supported by your browser")
       return
@@ -16,6 +13,9 @@ export function useGeolocation(mapRef: React.RefObject<maplibregl.Map | null>) {
       const { latitude, longitude } = position.coords
 
       setFlyToTarget({ lat: latitude, lng: longitude, zoom: 12 })
+
+      const map = mapRef?.current
+      if (!map) return
 
       const source = map.getSource("user-location") as maplibregl.GeoJSONSource | undefined
       if (source) {
