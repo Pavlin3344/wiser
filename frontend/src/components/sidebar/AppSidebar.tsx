@@ -1,5 +1,7 @@
+import React, { memo } from "react"
 import { Map, Flame, LineChart, Bell, Command, Settings, ChevronsUpDown, Sparkles, BadgeCheck, CreditCard, LogOut, LifeBuoy, Send } from "lucide-react"
 
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, Sidebar, SidebarHeader, SidebarFooter, SidebarRail, SidebarGroupContent } from "@/components/ui/sidebar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
@@ -11,26 +13,93 @@ import { SearchForm } from "@/components/sidebar/SearchForm"
 import { CommandMenu } from "@/components/sidebar/CommandMenu"
 
 import { useMapStore } from "@/store/use-map-store"
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
-import React from "react"
+
+const NAV_ITEMS = [
+  { id: "risk", label: "Risk Assessment", Icon: Map },
+  { id: "detection", label: "Detection", Icon: Flame },
+  { id: "analysis", label: "Analysis & Trends", Icon: LineChart },
+  { id: "alerts", label: "System Alerts", Icon: Bell },
+] as const
+
+type Tab = (typeof NAV_ITEMS)[number]["id"]
+
+const TAB_CONTENT: Record<Tab, React.ReactNode> = {
+  risk: <FiltersView />,
+  detection: <DetectionView />,
+  analysis: <AnalysisView />,
+  alerts: <AlertsView />,
+}
+
+const UserMenu = memo(function UserMenu() {
+  return (
+    <SidebarMenu>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <SidebarMenuButton size='lg' className='data-[state=open]:bg-background/20 data-[state=open]:backdrop-blur-xl data-[state=open]:text-sidebar-accent-foreground hover:bg-background/30'>
+            <Avatar className='h-8 w-8 rounded-full'>
+              <AvatarImage alt='Guest' />
+              <AvatarFallback className='rounded-full'>GU</AvatarFallback>
+            </Avatar>
+            <div className='grid flex-1 text-left text-sm leading-tight'>
+              <span className='truncate font-medium'>Guest User</span>
+              <span className='truncate text-xs'>guestuser@wisertech.com</span>
+            </div>
+            <ChevronsUpDown className='ml-auto size-4' />
+          </SidebarMenuButton>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className='bg-background/60 backdrop-blur-xl w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg' side='right' align='end' sideOffset={4}>
+          <DropdownMenuLabel className='p-0 font-normal'>
+            <div className='flex items-center gap-2 px-1 py-1.5 text-left text-sm'>
+              <Avatar className='h-8 w-8 rounded-full'>
+                <AvatarImage alt='Guest User' />
+                <AvatarFallback className='rounded-full'>GU</AvatarFallback>
+              </Avatar>
+              <div className='grid flex-1 text-left text-sm leading-tight'>
+                <span className='truncate font-medium'>Guest User</span>
+                <span className='truncate text-xs'>guestuser@wisertech.com</span>
+              </div>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem disabled={true}>
+              <Sparkles />
+              Upgrade to Pro
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem disabled={true}>
+              <BadgeCheck />
+              Account
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={true}>
+              <CreditCard />
+              Billing
+            </DropdownMenuItem>
+            <DropdownMenuItem disabled={true}>
+              <Bell />
+              Notifications
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem>
+            <Settings />
+            Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={true}>
+            <LogOut />
+            Log out
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </SidebarMenu>
+  )
+})
 
 export function AppSidebar() {
   const { activeSidebarTab, setActiveSidebarTab } = useMapStore()
   const [commandOpen, setCommandOpen] = React.useState(false)
-
-  const renderSidebarContent = () => {
-    switch (activeSidebarTab) {
-      case "analysis":
-        return <AnalysisView />
-      case "alerts":
-        return <AlertsView />
-      case "detection":
-        return <DetectionView />
-      case "risk":
-      default:
-        return <FiltersView />
-    }
-  }
 
   return (
     <Sidebar
@@ -76,34 +145,18 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel>Dashboard</SidebarGroupLabel>
           <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={() => setActiveSidebarTab("risk")} isActive={activeSidebarTab === "risk"}>
-                <Map className={activeSidebarTab === "risk" ? "text-destructive" : ""} />
-                Risk Assessment
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={() => setActiveSidebarTab("detection")} isActive={activeSidebarTab === "detection"}>
-                <Flame className={activeSidebarTab === "detection" ? "text-destructive" : ""} />
-                Detection
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={() => setActiveSidebarTab("analysis")} isActive={activeSidebarTab === "analysis"}>
-                <LineChart className={activeSidebarTab === "analysis" ? "text-destructive" : ""} />
-                Analysis & Trends
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={() => setActiveSidebarTab("alerts")} isActive={activeSidebarTab === "alerts"}>
-                <Bell className={activeSidebarTab === "alerts" ? "text-destructive" : ""} />
-                System Alerts
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+            {NAV_ITEMS.map(({ id, label, Icon }) => (
+              <SidebarMenuItem key={id}>
+                <SidebarMenuButton onClick={() => setActiveSidebarTab(id)} isActive={activeSidebarTab === id}>
+                  <Icon className={activeSidebarTab === id ? "text-destructive" : ""} />
+                  {label}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
         </SidebarGroup>
 
-        {renderSidebarContent()}
+        {TAB_CONTENT[activeSidebarTab]}
 
         <SidebarGroup className='mt-auto'>
           <SidebarGroupContent>
@@ -130,68 +183,7 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter>
-        <SidebarMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <SidebarMenuButton size='lg' className='data-[state=open]:bg-background/20 data-[state=open]:backdrop-blur-xl data-[state=open]:text-sidebar-accent-foreground hover:bg-background/30'>
-                <Avatar className='h-8 w-8 rounded-full'>
-                  <AvatarImage alt='Guest' />
-                  <AvatarFallback className='rounded-full'>GU</AvatarFallback>
-                </Avatar>
-                <div className='grid flex-1 text-left text-sm leading-tight'>
-                  <span className='truncate font-medium'>Guest User</span>
-                  <span className='truncate text-xs'>guestuser@wisertech.com</span>
-                </div>
-                <ChevronsUpDown className='ml-auto size-4' />
-              </SidebarMenuButton>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className='bg-background/60 backdrop-blur-xl w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg' side='right' align='end' sideOffset={4}>
-              <DropdownMenuLabel className='p-0 font-normal'>
-                <div className='flex items-center gap-2 px-1 py-1.5 text-left text-sm'>
-                  <Avatar className='h-8 w-8 rounded-full'>
-                    <AvatarImage alt='Guest User' />
-                    <AvatarFallback className='rounded-full'>GU</AvatarFallback>
-                  </Avatar>
-                  <div className='grid flex-1 text-left text-sm leading-tight'>
-                    <span className='truncate font-medium'>Guest User</span>
-                    <span className='truncate text-xs'>guestuser@wisertech.com</span>
-                  </div>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem disabled={true}>
-                  <Sparkles />
-                  Upgrade to Pro
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuGroup>
-                <DropdownMenuItem disabled={true}>
-                  <BadgeCheck />
-                  Account
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={true}>
-                  <CreditCard />
-                  Billing
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={true}>
-                  <Bell />
-                  Notifications
-                </DropdownMenuItem>
-              </DropdownMenuGroup>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <Settings />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem disabled={true}>
-                <LogOut />
-                Log out
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </SidebarMenu>
+        <UserMenu />
       </SidebarFooter>
 
       <SidebarRail />
