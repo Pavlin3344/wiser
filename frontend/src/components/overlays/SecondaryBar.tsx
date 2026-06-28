@@ -6,6 +6,7 @@ import { LayerToggle } from "@/components/overlays/LayerToggle"
 import { ThemeToggle } from "@/components/overlays/ThemeToggle"
 
 import { useMapStore } from "@/store/use-map-store"
+import { LocationToggle } from "./LocationToggle"
 
 export function SecondaryBar() {
   const { showRiskGrid, showFires } = useMapStore()
@@ -19,6 +20,7 @@ export function SecondaryBar() {
       {showRiskGrid && <MapLegend title='Fire Weather Index' type='fwi' />}
       {showFires && <MapLegend title='Active Fires (VIIRS)' type='viirs' />}
       <ThemeToggle />
+      <LocationToggle />
     </div>
   )
 }

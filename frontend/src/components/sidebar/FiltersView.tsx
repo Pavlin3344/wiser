@@ -1,4 +1,3 @@
-import type { DateRange } from "react-day-picker"
 import { subMonths } from "date-fns/subMonths"
 import { format } from "date-fns/format"
 
@@ -16,24 +15,18 @@ import { Calendar } from "@/components/ui/calendar"
 import { useMapStore } from "@/store/use-map-store"
 
 export function FiltersView() {
-  const { dateRange, setDateRange, region, setRegion, showRiskGrid, setShowRiskGrid, riskLevel, setRiskLevel, showThermal, setShowThermal, showSmoke, setShowSmoke, showWind, setShowWind, showEvac, setShowEvac } = useMapStore()
+  const { selectedDate, setSelectedDate, region, setRegion, showRiskGrid, setShowRiskGrid, riskLevel, setRiskLevel, showThermal, setShowThermal, showSmoke, setShowSmoke, showWind, setShowWind, showEvac, setShowEvac } = useMapStore()
   const minDate = subMonths(new Date(), 3)
 
-  const uiDateObj = {
-    from: dateRange.from ? new Date(dateRange.from) : undefined,
-    to: dateRange.to ? new Date(dateRange.to) : undefined,
-  }
+  const uiDate = selectedDate ? new Date(selectedDate) : undefined
 
-  const handleSelect = (newRange: DateRange | undefined) => {
-    setDateRange({
-      from: newRange?.from?.toISOString(),
-      to: newRange?.to?.toISOString(),
-    })
+  const handleSelect = (newDate: Date | undefined) => {
+    if (!newDate) return
+    setSelectedDate(newDate.toISOString())
   }
 
   const setToday = () => {
-    const today = new Date().toISOString()
-    setDateRange({ from: today, to: today })
+    setSelectedDate(new Date().toISOString())
   }
 
   return (
@@ -137,11 +130,11 @@ export function FiltersView() {
             <PopoverTrigger asChild>
               <Button variant='ghost' className='w-full justify-start text-left font-normal h-9 px-3 text-xs bg-background/20 backdrop-blur-sm transition-colors'>
                 <CalendarIcon className='mr-2 h-4 w-4 shrink-0 text-destructive' />
-                <span className='truncate'>{uiDateObj?.from ? (uiDateObj.to ? `${format(uiDateObj.from, "MMM d")} - ${format(uiDateObj.to, "MMM d, yyyy")}` : format(uiDateObj.from, "MMM d, yyyy")) : "Pick a date"}</span>
+                <span className='truncate'>{uiDate ? format(uiDate, "MMM d, yyyy") : "Pick a date"}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className='w-auto p-0 bg-background/40 backdrop-blur-sm border border-white/10 border-t-white/20 border-l-white/20 shadow-lg rounded-2xl overflow-hidden transition-colors' align='start'>
-              <Calendar mode='range' selected={uiDateObj} onSelect={handleSelect} disabled={(d) => d > new Date() || d < minDate} />
+              <Calendar mode='single' selected={uiDate} onSelect={handleSelect} disabled={(d) => d > new Date() || d < minDate} />
             </PopoverContent>
           </Popover>
           <div className='flex gap-2'>
