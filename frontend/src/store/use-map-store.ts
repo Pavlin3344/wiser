@@ -38,6 +38,8 @@ interface MapState {
   setSidebarOpen: (open: boolean) => void
   activeSidebarTab: SidebarTab
   setActiveSidebarTab: (tab: SidebarTab) => void
+  secondaryBarOpen: boolean
+  setSecondaryBarOpen: (open: boolean) => void
 
   camera: Camera
   setCamera: (camera: Camera) => void
@@ -102,6 +104,8 @@ export const useMapStore = create<MapState>()(
         setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
         activeSidebarTab: "risk",
         setActiveSidebarTab: (activeSidebarTab) => set({ activeSidebarTab }),
+        secondaryBarOpen: true,
+        setSecondaryBarOpen: (secondaryBarOpen) => set({ secondaryBarOpen }),
 
         camera: { lng: 25.5, lat: 42.0, zoom: 7, pitch: 0, bearing: 0 },
         setCamera: (camera) => set({ camera }),
