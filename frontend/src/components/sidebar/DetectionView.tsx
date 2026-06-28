@@ -70,7 +70,7 @@ export function DetectionView() {
         </div>
       </SidebarGroup>
 
-      <SidebarGroup className='mt-4 border-t border-border/10 pt-4'>
+      <SidebarGroup className='mt-4 border-t border-white/10 pt-4'>
         <SidebarGroupLabel>Live Telemetry</SidebarGroupLabel>
         <div className='px-4 py-2 space-y-3'>
           <div className='bg-background/20 backdrop-blur-xl rounded-xl p-3 space-y-2'>
