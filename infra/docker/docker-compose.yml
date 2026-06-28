@@ -19,7 +19,7 @@ services:
       retries: 5
 
   timescale:
-    image: timescale/timescaledb-ha:pg16
+    image: timescale/timescaledb:2.28.1-pg17
     container_name: wiser-timescale
     restart: unless-stopped
     environment:
@@ -29,7 +29,7 @@ services:
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
-      - timescale_data:/home/postgres/pgdata/data
+      - timescale_data:/var/lib/postgresql/data
       - ../../db/timescale/hypertables:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wiser -d wiser_timeseries"]
@@ -38,15 +38,16 @@ services:
       retries: 5
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
     container_name: wiser-minio
     restart: unless-stopped
+    mem_limit: 512m
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9000:9000"
+      - "100.116.156.92:9001:9001"
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
@@ -57,7 +58,7 @@ services:
       retries: 5
 
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:RELEASE.2025-09-07T16-57-40Z
     container_name: wiser-minio-init
     restart: "no"
     depends_on:
@@ -75,6 +76,7 @@ services:
     image: rabbitmq:3-management
     container_name: wiser-rabbitmq
     restart: unless-stopped
+    mem_limit: 512m
     environment:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
@@ -104,7 +106,7 @@ services:
       - "80:80"
 
   node-exporter:
-    image: prom/node-exporter:latest
+    image: prom/node-exporter:v1.8.2
     container_name: wiser-node-exporter
     restart: unless-stopped
     pid: host
@@ -118,7 +120,7 @@ services:
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:latest
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: wiser-cadvisor
     restart: unless-stopped
     privileged: true
@@ -130,20 +132,22 @@ services:
       - /dev/disk/:/dev/disk:ro
 
   postgres-exporter:
-    image: prometheuscommunity/postgres-exporter:latest
+    image: prometheuscommunity/postgres-exporter:v0.15.0
     container_name: wiser-postgres-exporter
     restart: unless-stopped
     environment:
       DATA_SOURCE_NAME: "postgresql://wiser:${POSTGRES_PASSWORD}@postgres:5432/wiser?sslmode=disable"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
 
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.53.0
     container_name: wiser-prometheus
     restart: unless-stopped
+    mem_limit: 512m
     ports:
-      - "9090:9090"
+      - "100.116.156.92:9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/rules:/etc/prometheus/rules:ro
@@ -154,11 +158,12 @@ services:
       - '--storage.tsdb.retention.time=90d'
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.4.0
     container_name: wiser-grafana
     restart: unless-stopped
+    mem_limit: 256m
     ports:
-      - "3000:3000"
+      - "100.116.156.92:3000:3000"
     environment:
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
       GF_USERS_ALLOW_SIGN_UP: "false"
@@ -168,20 +173,22 @@ services:
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
 
   alertmanager:
-    image: prom/alertmanager:latest
+    image: prom/alertmanager:v0.27.0
     container_name: wiser-alertmanager
     restart: unless-stopped
+    mem_limit: 128m
     ports:
-      - "9093:9093"
+      - "127.0.0.1:9093:9093"
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
 
   alerta:
-    image: alerta/alerta-web:latest
+    image: alerta/alerta-web:9.1.0
     container_name: wiser-alerta
     restart: unless-stopped
+    mem_limit: 256m
     ports:
-      - "8080:8080"
+      - "100.116.156.92:8080:8080"
     environment:
       - DATABASE_URL=mongodb://alerta-mongo:27017/monitoring
       - WORKERS=4
@@ -196,6 +203,7 @@ services:
     image: mongo:6
     container_name: wiser-alerta-mongo
     restart: unless-stopped
+    mem_limit: 512m
     volumes:
       - alerta_mongo_data:/data/db
     healthcheck:
@@ -209,12 +217,13 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
     container_name: wiser-elasticsearch
     restart: unless-stopped
+    mem_limit: 1g
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
-      - "9200:9200"
+      - "127.0.0.1:9200:9200"
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     healthcheck:
@@ -227,6 +236,7 @@ services:
     image: docker.elastic.co/logstash/logstash:8.13.0
     container_name: wiser-logstash
     restart: unless-stopped
+    mem_limit: 512m
     environment:
       - "LS_JAVA_OPTS=-Xms256m -Xmx256m"
     ports:
@@ -242,10 +252,11 @@ services:
     image: docker.elastic.co/kibana/kibana:8.13.0
     container_name: wiser-kibana
     restart: unless-stopped
+    mem_limit: 768m
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     ports:
-      - "5601:5601"
+      - "100.116.156.92:5601:5601"
     depends_on:
       elasticsearch:
         condition: service_healthy
