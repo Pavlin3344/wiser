@@ -1,5 +1,3 @@
-import React from "react"
-
 import { Button } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
@@ -15,12 +13,11 @@ import { LocationToggle } from "./LocationToggle"
 import { ChevronsUpDown } from "lucide-react"
 
 export function SecondaryBar() {
-  const { showRiskGrid, showFires } = useMapStore()
-  const [isOpen, setIsOpen] = React.useState(false)
+  const { secondaryBarOpen, setSecondaryBarOpen, showRiskGrid, showFires } = useMapStore()
 
   return (
     <div className='absolute top-2 right-2 z-10 pointer-events-none'>
-      <Collapsible open={isOpen} onOpenChange={setIsOpen} className='flex flex-col gap-2'>
+      <Collapsible open={secondaryBarOpen} onOpenChange={setSecondaryBarOpen} className='flex flex-col gap-2'>
         <CollapsibleTrigger asChild className='self-end'>
           <Button className='size-9 pointer-events-auto cursor-pointer'>
             <ChevronsUpDown />
