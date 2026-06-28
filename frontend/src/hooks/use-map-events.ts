@@ -42,7 +42,7 @@ async function fetchEffisInfo(map: maplibregl.Map, e: maplibregl.MapMouseEvent):
 
     if (layer === "viirs.hs") {
       const date = props.FIREDATE ? new Date(props.FIREDATE as string).toLocaleDateString() : "Live"
-      const { dot, text, label } = intensityStyle(Number(props.FRP ?? 0))
+      const { dot, text } = intensityStyle(Number(props.FRP ?? 0))
       openPopup(map, [lng, lat], generateGlassPopupHTML(date, "VIIRS Sat Active Ignition", `FRP: ${props.FRP ?? "--"} MW`, [lng, lat], dot, text))
     } else {
       const riskVal = props.GRAY_INDEX ?? props.value ?? "Analyzing"
