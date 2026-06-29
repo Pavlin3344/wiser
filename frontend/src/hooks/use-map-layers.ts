@@ -84,7 +84,7 @@ export function initializeLayers(map: maplibregl.Map): void {
 
 /** Reads current store state and sets all layer visibilities + terrain. */
 export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): void {
-  const { showTerrain, showRiskGrid, showFires, showEvac, showWind, showLabels } = useMapStore.getState()
+  const { showTerrain, showRiskGrid, showFires, showEvac, showLabels } = useMapStore.getState()
 
   const setVis = (id: string, visible: boolean) => {
     if (map.getLayer(id)) {
@@ -98,7 +98,6 @@ export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): vo
   setVis("effis-viirs-layer", showFires)
   setVis("evac-routes-line", showEvac)
   setVis("fire-points", showFires)
-  setVis("wind-vectors-symbol", showWind)
   setVis("country-borders", showLabels)
   setVis("place-labels", showLabels)
 
