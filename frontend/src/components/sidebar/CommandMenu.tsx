@@ -3,10 +3,15 @@ import { AlertTriangleIcon, BarChart3Icon, CalendarIcon, FireExtinguisher, Flame
 
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from "@/components/ui/command"
 import { useGeolocation } from "@/hooks/use-geolocation"
+import { useUIStore } from "@/store/use-ui-store"
+import { useLayerStore } from "@/store/use-layer-store"
 import { useMapStore } from "@/store/use-map-store"
+import { useFilterStore } from "@/store/use-filter-store"
 
 export function CommandMenu({ open, setOpen }: { open: boolean; setOpen: React.Dispatch<React.SetStateAction<boolean>> }) {
-  const { theme, setTheme, mapView, setBasemap, setMapView, basemap, showFires, setShowFires, showRiskGrid, setShowRiskGrid, showWind, setShowWind, showEvac, setShowEvac, setActiveSidebarTab, setSelectedDate } = useMapStore()
+  const { theme, setTheme, setActiveSidebarTab } = useUIStore()
+  const { mapView, setMapView, basemap, setBasemap } = useMapStore()
+  const { showFires, setShowFires, showRiskGrid, setShowRiskGrid, showWind, setShowWind, showEvac, setShowEvac } = useLayerStore()
 
   const { findMe } = useGeolocation()
 
@@ -102,18 +107,20 @@ export function CommandMenu({ open, setOpen }: { open: boolean; setOpen: React.D
 
             <CommandSeparator className='bg-white/5' />
 
-            <CommandGroup heading='Timeline'>
-              <CommandItem onSelect={() => runCommand(() => setSelectedDate(new Date().toISOString()))}>
-                <CalendarIcon className='mr-2 h-4 w-4' />
-                <span>Jump to Today</span>
-              </CommandItem>
-            </CommandGroup>
-
             <CommandGroup heading='Location'>
               <CommandItem onSelect={() => runCommand(() => findMe())}>
                 <MapPinIcon className='mr-2 h-4 w-4' />
                 <span>Locate My Position</span>
                 <CommandShortcut>⌘L</CommandShortcut>
+              </CommandItem>
+            </CommandGroup>
+
+            <CommandSeparator className='bg-white/5' />
+
+            <CommandGroup heading='Timeline'>
+              <CommandItem onSelect={() => runCommand(() => useFilterStore.getState().setSelectedDate(new Date().toISOString()))}>
+                <CalendarIcon className='mr-2 h-4 w-4' />
+                <span>Jump to Today</span>
               </CommandItem>
             </CommandGroup>
           </CommandList>
