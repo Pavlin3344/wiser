@@ -59,7 +59,7 @@ export const useMapStore = create<MapState>()(
         setMapStatus: (partial) => set((s) => ({ mapStatus: { ...s.mapStatus, ...partial } })),
       }),
       {
-        name: "wiser-map-storage",
+        name: "wiser-system-storage",
         // mapStatus and flyToTarget are transient — never persist them
         partialize: ({ mapStatus, flyToTarget, ...rest }) => rest,
       },

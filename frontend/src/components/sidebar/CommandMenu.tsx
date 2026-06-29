@@ -8,7 +8,7 @@ import { useLayerStore } from "@/store/use-layer-store"
 import { useMapStore } from "@/store/use-map-store"
 import { useFilterStore } from "@/store/use-filter-store"
 
-export function CommandMenu({ open, setOpen }: { open: boolean; setOpen: React.Dispatch<React.SetStateAction<boolean>> }) {
+export const CommandMenu = React.memo(function CommandMenu({ open, setOpen }: { open: boolean; setOpen: React.Dispatch<React.SetStateAction<boolean>> }) {
   const { theme, setTheme, setActiveSidebarTab } = useUIStore()
   const { mapView, setMapView, basemap, setBasemap } = useMapStore()
   const { showFires, setShowFires, showRiskGrid, setShowRiskGrid, showWind, setShowWind, showEvac, setShowEvac } = useLayerStore()
@@ -128,4 +128,4 @@ export function CommandMenu({ open, setOpen }: { open: boolean; setOpen: React.D
       </CommandDialog>
     </div>
   )
-}
+})
