@@ -1,4 +1,4 @@
-import { useEffect, type RefObject } from "react"
+import { useEffect, useRef, type RefObject } from "react"
 import maplibregl, { type StyleSpecification } from "maplibre-gl"
 import { useMapStore } from "@/store/use-map-store"
 import { useUIStore } from "@/store/use-ui-store"
@@ -14,14 +14,19 @@ export function resolveMapStyle(theme: string, basemap: string): string | StyleS
 
 /**
  * Creates and tears down the MapLibre instance.
- * Returns a stable ref — consumers should never re-create the map themselves.
+ * Returns a STABLE ref via useRef — consumers should never re-create the map themselves.
+ *
+ * IMPORTANT: This MUST use useRef, NOT a plain `{ current: null }` object.
+ * A plain object is re-created on every render, which causes all downstream
+ * hooks to receive a stale null ref after the first re-render.
  */
 export function useMapInit(containerRef: RefObject<HTMLDivElement | null>): RefObject<maplibregl.Map | null> {
-  const mapRef = { current: null as maplibregl.Map | null }
+  const mapRef = useRef<maplibregl.Map | null>(null)
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return
 
+    // Read initial values from store without subscribing (avoids re-running the effect)
     const { camera, mapView, basemap } = useMapStore.getState()
     const { theme } = useUIStore.getState()
 
