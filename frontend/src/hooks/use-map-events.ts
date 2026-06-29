@@ -20,7 +20,7 @@ function openPopup(
   map: maplibregl.Map,
   lngLat: [number, number],
   html: string,
-  activePopupRef: React.MutableRefObject<maplibregl.Popup | null>,
+  activePopupRef: React.RefObject<maplibregl.Popup | null>,
 ) {
   activePopupRef.current?.remove()
 
@@ -35,10 +35,17 @@ function openPopup(
     .addTo(map)
 }
 
+/** Converts a geographic coordinate (WGS84) to EPSG:3857 Web Mercator (meters). */
+function lngLatTo3857(lng: number, lat: number): [number, number] {
+  const x = (lng * 20037508.34) / 180
+  const y = (Math.log(Math.tan(((90 + lat) * Math.PI) / 360)) * 180) / Math.PI
+  return [x, (y * 20037508.34) / 180]
+}
+
 async function fetchEffisInfo(
   map: maplibregl.Map,
   e: maplibregl.MapMouseEvent,
-  activePopupRef: React.MutableRefObject<maplibregl.Popup | null>,
+  activePopupRef: React.RefObject<maplibregl.Popup | null>,
 ): Promise<void> {
   const { showFires, showRiskGrid } = useLayerStore.getState()
   // Only query EFFIS when a relevant layer is visible
@@ -46,24 +53,60 @@ async function fetchEffisInfo(
 
   const { lng, lat } = e.lngLat
   const canvas = map.getCanvas()
+
+  // BBOX must be in EPSG:3857 meters — getBounds() returns geographic degrees which
+  // would be treated as invalid Mercator coordinates by the WMS server.
   const b = map.getBounds()
-  const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`
+  const [minX, minY] = lngLatTo3857(b.getWest(), b.getSouth())
+  const [maxX, maxY] = lngLatTo3857(b.getEast(), b.getNorth())
+  const bbox = `${minX},${minY},${maxX},${maxY}`
+
+  // Use CSS pixel dimensions (clientWidth/clientHeight) to stay consistent with
+  // e.point.x / e.point.y which are also CSS pixels. canvas.width is device pixels
+  // (2× on retina) and would misalign the X/Y coordinates on high-DPI screens.
+  const width = canvas.clientWidth
+  const height = canvas.clientHeight
+
   const layer = showFires ? "viirs.hs" : "mf010.fwi"
 
   const url =
     `/effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo` +
     `&LAYERS=${layer}&QUERY_LAYERS=${layer}` +
-    `&BBOX=${bbox}&WIDTH=${canvas.width}&HEIGHT=${canvas.height}` +
+    `&BBOX=${bbox}&WIDTH=${width}&HEIGHT=${height}` +
     `&SRS=EPSG:3857&X=${Math.round(e.point.x)}&Y=${Math.round(e.point.y)}` +
-    `&INFO_FORMAT=application/json`
+    `&STYLES=&INFO_FORMAT=text/plain`
 
   try {
-    const data: { features?: Array<{ properties: Record<string, unknown> }> } = await fetch(url).then((r) =>
-      r.json(),
-    )
+    const res = await fetch(url)
+    const text = await res.text()
 
-    const props = data?.features?.[0]?.properties
-    if (!props) return
+    if (text.includes("ServiceException")) {
+      console.warn("WMS Service Exception:", text)
+      return
+    }
+
+    console.info("WMS GetFeatureInfo Response:", text)
+
+    if (
+      !text.trim() ||
+      text.includes("Search returned no results")
+    ) {
+      return
+    }
+
+    // Parse text/plain key=value style output
+    const props: Record<string, string> = {}
+
+    for (const line of text.split("\n")) {
+      const trimmed = line.trim()
+
+      if (!trimmed.includes("=")) continue
+
+      const [key, ...rest] = trimmed.split("=")
+      props[key.trim()] = rest.join("=").trim()
+    }
+
+    console.info("Parsed props:", props)
 
     if (layer === "viirs.hs") {
       const date = props.FIREDATE ? new Date(props.FIREDATE as string).toLocaleDateString() : "Live"
