@@ -1,7 +1,7 @@
-import { useEffect, type RefObject } from "react"
+import { useEffect, useRef, type RefObject } from "react"
 import maplibregl from "maplibre-gl"
 import type { Point } from "geojson"
-import { useMapStore } from "@/store/use-map-store"
+import { useLayerStore } from "@/store/use-layer-store"
 import { generateGlassPopupHTML, generateSectorPopupHTML } from "@/lib/popups"
 
 function intensityStyle(frp: number) {
@@ -10,8 +10,20 @@ function intensityStyle(frp: number) {
   return { dot: "bg-amber-400", text: "text-amber-500", label: "moderate" }
 }
 
-function openPopup(map: maplibregl.Map, lngLat: [number, number], html: string) {
-  new maplibregl.Popup({
+/**
+ * Opens a glass popup, replacing any previously open popup so they never stack.
+ * The activePopup ref is shared across all callers via the module scope is
+ * captured once in useMapEvents through the closure.
+ */
+function openPopup(
+  map: maplibregl.Map,
+  lngLat: [number, number],
+  html: string,
+  activePopupRef: React.MutableRefObject<maplibregl.Popup | null>,
+) {
+  activePopupRef.current?.remove()
+
+  activePopupRef.current = new maplibregl.Popup({
     closeButton: false,
     className: "glass-popup",
     offset: 10,
@@ -22,8 +34,13 @@ function openPopup(map: maplibregl.Map, lngLat: [number, number], html: string) 
     .addTo(map)
 }
 
-async function fetchEffisInfo(map: maplibregl.Map, e: maplibregl.MapMouseEvent): Promise<void> {
-  const { showFires, showRiskGrid } = useMapStore.getState()
+async function fetchEffisInfo(
+  map: maplibregl.Map,
+  e: maplibregl.MapMouseEvent,
+  activePopupRef: React.MutableRefObject<maplibregl.Popup | null>,
+): Promise<void> {
+  const { showFires, showRiskGrid } = useLayerStore.getState()
+  // Only query EFFIS when a relevant layer is visible
   if (!showFires && !showRiskGrid) return
 
   const { lng, lat } = e.lngLat
@@ -32,10 +49,17 @@ async function fetchEffisInfo(map: maplibregl.Map, e: maplibregl.MapMouseEvent):
   const bbox = `${b.getWest()},${b.getSouth()},${b.getEast()},${b.getNorth()}`
   const layer = showFires ? "viirs.hs" : "mf010.fwi"
 
-  const url = `/effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo` + `&LAYERS=${layer}&QUERY_LAYERS=${layer}` + `&BBOX=${bbox}&WIDTH=${canvas.width}&HEIGHT=${canvas.height}` + `&SRS=EPSG:3857&X=${Math.round(e.point.x)}&Y=${Math.round(e.point.y)}` + `&INFO_FORMAT=application/json`
+  const url =
+    `/effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo` +
+    `&LAYERS=${layer}&QUERY_LAYERS=${layer}` +
+    `&BBOX=${bbox}&WIDTH=${canvas.width}&HEIGHT=${canvas.height}` +
+    `&SRS=EPSG:3857&X=${Math.round(e.point.x)}&Y=${Math.round(e.point.y)}` +
+    `&INFO_FORMAT=application/json`
 
   try {
-    const data: { features?: Array<{ properties: Record<string, unknown> }> } = await fetch(url).then((r) => r.json())
+    const data: { features?: Array<{ properties: Record<string, unknown> }> } = await fetch(url).then((r) =>
+      r.json(),
+    )
 
     const props = data?.features?.[0]?.properties
     if (!props) return
@@ -43,10 +67,20 @@ async function fetchEffisInfo(map: maplibregl.Map, e: maplibregl.MapMouseEvent):
     if (layer === "viirs.hs") {
       const date = props.FIREDATE ? new Date(props.FIREDATE as string).toLocaleDateString() : "Live"
       const { dot, text } = intensityStyle(Number(props.FRP ?? 0))
-      openPopup(map, [lng, lat], generateGlassPopupHTML(date, "VIIRS Sat Active Ignition", `FRP: ${props.FRP ?? "--"} MW`, [lng, lat], dot, text))
+      openPopup(
+        map,
+        [lng, lat],
+        generateGlassPopupHTML(date, "VIIRS Sat Active Ignition", `FRP: ${props.FRP ?? "--"} MW`, [lng, lat], dot, text),
+        activePopupRef,
+      )
     } else {
       const riskVal = props.GRAY_INDEX ?? props.value ?? "Analyzing"
-      openPopup(map, [lng, lat], generateSectorPopupHTML("Copernicus Macro Matrix", `FWI Rating: ${riskVal}`, 0, 0, "bg-orange-500", "text-orange-500"))
+      openPopup(
+        map,
+        [lng, lat],
+        generateSectorPopupHTML("Copernicus Macro Matrix", `FWI Rating: ${riskVal}`, 0, 0, "bg-orange-500", "text-orange-500"),
+        activePopupRef,
+      )
     }
   } catch (err) {
     console.warn("Empty grid location metadata requested or server processing timeout.", err)
@@ -62,6 +96,9 @@ async function fetchEffisInfo(map: maplibregl.Map, e: maplibregl.MapMouseEvent):
  * MapNavigation consume via store.subscribe() — no re-renders.
  */
 export function useMapEvents(mapRef: RefObject<maplibregl.Map | null>): void {
+  // Single popup ref — ensures at most one popup is open at a time
+  const activePopupRef = useRef<maplibregl.Popup | null>(null)
+
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -89,11 +126,16 @@ export function useMapEvents(mapRef: RefObject<maplibregl.Map | null>): void {
       const displayDate = date ? new Date(date as string).toLocaleDateString() : "Live"
       const { dot, text } = intensityStyle(intensity === "critical" ? 100 : intensity === "high" ? 30 : 10)
 
-      openPopup(map, coords, generateGlassPopupHTML(displayDate, title as string, intensity as string, coords, dot, text))
+      openPopup(
+        map,
+        coords,
+        generateGlassPopupHTML(displayDate, title as string, intensity as string, coords, dot, text),
+        activePopupRef,
+      )
     }
     map.on("click", "fire-points", onClickFire)
 
-    const onClickMap = (e: maplibregl.MapMouseEvent) => void fetchEffisInfo(map, e)
+    const onClickMap = (e: maplibregl.MapMouseEvent) => void fetchEffisInfo(map, e, activePopupRef)
     map.on("click", onClickMap)
 
     let ticking = false
@@ -134,6 +176,10 @@ export function useMapEvents(mapRef: RefObject<maplibregl.Map | null>): void {
     map.on("moveend", onMoveEnd)
 
     return () => {
+      // Remove any open popup when the map tears down
+      activePopupRef.current?.remove()
+      activePopupRef.current = null
+
       map.off("mouseenter", "fire-points", onEnterFire)
       map.off("mouseleave", "fire-points", onLeaveFire)
       map.off("click", "fire-points", onClickFire)
