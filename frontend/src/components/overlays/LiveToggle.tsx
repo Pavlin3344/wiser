@@ -2,10 +2,10 @@ import { Flame } from "lucide-react"
 
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { useMapStore } from "@/store/use-map-store"
+import { useLayerStore } from "@/store/use-layer-store"
 
 export function LiveToggle() {
-  const { showFires, setShowFires } = useMapStore()
+  const { showFires, setShowFires } = useLayerStore()
 
   return (
     <div className='relative pointer-events-auto flex flex-col items-end gap-2 w-52'>

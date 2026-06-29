@@ -8,12 +8,14 @@ import { TerrainToggle } from "@/components/overlays/TerrainToggle"
 import { LayerToggle } from "@/components/overlays/LayerToggle"
 import { ThemeToggle } from "@/components/overlays/ThemeToggle"
 
-import { useMapStore } from "@/store/use-map-store"
+import { useUIStore } from "@/store/use-ui-store"
+import { useLayerStore } from "@/store/use-layer-store"
 import { LocationToggle } from "./LocationToggle"
 import { ChevronsUpDown } from "lucide-react"
 
 export function SecondaryBar() {
-  const { secondaryBarOpen, setSecondaryBarOpen, showRiskGrid, showFires } = useMapStore()
+  const { secondaryBarOpen, setSecondaryBarOpen } = useUIStore()
+  const { showRiskGrid, showFires } = useLayerStore()
 
   return (
     <div className='absolute top-2 right-2 z-10 pointer-events-none'>
