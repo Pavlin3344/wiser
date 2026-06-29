@@ -2,6 +2,7 @@ import { useEffect, useRef, type RefObject } from "react"
 import maplibregl from "maplibre-gl"
 import type { Point } from "geojson"
 import { useMapStore } from "@/store/use-map-store"
+import { useLayerStore } from "@/store/use-layer-store"
 import { generateGlassPopupHTML, generateSectorPopupHTML } from "@/lib/popups"
 
 function intensityStyle(frp: number) {
@@ -39,7 +40,7 @@ async function fetchEffisInfo(
   e: maplibregl.MapMouseEvent,
   activePopupRef: React.MutableRefObject<maplibregl.Popup | null>,
 ): Promise<void> {
-  const { showFires, showRiskGrid } = useMapStore.getState()
+  const { showFires, showRiskGrid } = useLayerStore.getState()
   // Only query EFFIS when a relevant layer is visible
   if (!showFires && !showRiskGrid) return
 
