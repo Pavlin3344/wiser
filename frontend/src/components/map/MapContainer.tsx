@@ -10,11 +10,14 @@ import { initializeLayers, syncLayers, useMapLayers } from "@/hooks/use-map-laye
 import { useMapStyle, useMapView, useTimePlayback } from "@/hooks/use-map-style"
 import { useFireData } from "@/hooks/use-fire-data"
 import { useFlyTo } from "@/hooks/use-fly-to"
+import { useLayerStore } from "@/store/use-layer-store"
+import { WindLayer } from "@/components/map/WindLayer"
 
 export function MapContainer() {
   const containerRef = useRef<HTMLDivElement>(null)
   const fireDataRef = useRef<FeatureCollection>(mockFireData)
   const mapRef = useMapInit(containerRef)
+  const showWind = useLayerStore((s) => s.showWind)
 
   useEffect(() => {
     const map = mapRef.current
@@ -44,6 +47,7 @@ export function MapContainer() {
     <div className='absolute inset-0 z-0'>
       <div className='relative h-full w-full'>
         <div ref={containerRef} className='h-full w-full' />
+        {showWind && <WindLayer mapRef={mapRef} />}
         <MapNavigation mapRef={mapRef} />
       </div>
     </div>

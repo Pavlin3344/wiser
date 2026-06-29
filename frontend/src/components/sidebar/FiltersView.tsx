@@ -12,10 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { SidebarGroup } from "@/components/ui/sidebar"
 import { Calendar } from "@/components/ui/calendar"
 
-import { useMapStore } from "@/store/use-map-store"
+import { useFilterStore } from "@/store/use-filter-store"
+import { useLayerStore } from "@/store/use-layer-store"
 
 export function FiltersView() {
-  const { selectedDate, setSelectedDate, region, setRegion, showRiskGrid, setShowRiskGrid, riskLevel, setRiskLevel, showThermal, setShowThermal, showSmoke, setShowSmoke, showWind, setShowWind, showEvac, setShowEvac } = useMapStore()
+  const { selectedDate, setSelectedDate, region, setRegion, riskLevel, setRiskLevel } = useFilterStore()
+  const { showRiskGrid, setShowRiskGrid, showThermal, setShowThermal, showSmoke, setShowSmoke, showWind, setShowWind, showEvac, setShowEvac } = useLayerStore()
   const minDate = subMonths(new Date(), 3)
 
   const uiDate = selectedDate ? new Date(selectedDate) : undefined

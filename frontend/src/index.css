@@ -188,7 +188,7 @@ body {
   --input: oklch(1 0 0 / 15%);
 
   --ring: oklch(0.556 0 0);
-  
+
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
@@ -210,9 +210,11 @@ body {
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
   }

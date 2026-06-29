@@ -1,8 +1,8 @@
-import { useMapStore } from "@/store/use-map-store"
+import { useFilterStore } from "@/store/use-filter-store"
 import { Pause, Play } from "lucide-react"
 
 export function TimeSlider() {
-  const { currentTime, setCurrentTime, isPlaying, setIsPlaying } = useMapStore()
+  const { currentTime, setCurrentTime, isPlaying, setIsPlaying } = useFilterStore()
 
   return (
     <div className='flex gap-2'>

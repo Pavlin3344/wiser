@@ -1,25 +1,36 @@
 import { useEffect } from "react"
-import { useMapStore } from "@/store/use-map-store"
+import { useUIStore } from "@/store/use-ui-store"
 
 interface ThemeProviderProps {
   children: React.ReactNode
 }
 
+function applyTheme(theme: string) {
+  const root = window.document.documentElement
+  root.classList.remove("light", "dark")
+
+  if (theme === "system") {
+    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+    root.classList.add(systemTheme)
+    return
+  }
+
+  root.classList.add(theme)
+}
+
 export function ThemeProvider({ children }: ThemeProviderProps) {
-  const { theme } = useMapStore()
+  const { theme } = useUIStore()
 
   useEffect(() => {
-    const root = window.document.documentElement
+    applyTheme(theme)
 
-    root.classList.remove("light", "dark")
+    if (theme !== "system") return
 
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-      root.classList.add(systemTheme)
-      return
-    }
-
-    root.classList.add(theme)
+    // When the user has selected "system", stay in sync with OS preference changes
+    const mq = window.matchMedia("(prefers-color-scheme: dark)")
+    const onOsChange = () => applyTheme("system")
+    mq.addEventListener("change", onOsChange)
+    return () => mq.removeEventListener("change", onOsChange)
   }, [theme])
 
   return <>{children}</>
