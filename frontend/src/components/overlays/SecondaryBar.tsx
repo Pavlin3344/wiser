@@ -21,7 +21,7 @@ export function SecondaryBar() {
     <div className='absolute top-2 right-2 z-10 pointer-events-none'>
       <Collapsible open={secondaryBarOpen} onOpenChange={setSecondaryBarOpen} className='flex flex-col gap-2'>
         <CollapsibleTrigger asChild className='self-end'>
-          <Button className='size-9 pointer-events-auto cursor-pointer'>
+          <Button className='size-9 pointer-events-auto cursor-pointer bg-destructive hover:bg-destructive/80'>
             <ChevronsUpDown />
           </Button>
         </CollapsibleTrigger>
