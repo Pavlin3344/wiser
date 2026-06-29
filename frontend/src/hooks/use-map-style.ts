@@ -1,6 +1,8 @@
 import { useEffect, type RefObject } from "react"
 import maplibregl from "maplibre-gl"
 import { useMapStore } from "@/store/use-map-store"
+import { useUIStore } from "@/store/use-ui-store"
+import { useFilterStore } from "@/store/use-filter-store"
 import { resolveMapStyle } from "./use-map-init"
 import { initializeLayers, syncLayers } from "./use-map-layers"
 import type { FeatureCollection } from "geojson"
@@ -10,7 +12,8 @@ import type { FeatureCollection } from "geojson"
  * then re-initialises all application layers on top of it.
  */
 export function useMapStyle(mapRef: RefObject<maplibregl.Map | null>, fireDataRef: RefObject<FeatureCollection>): void {
-  const { basemap, theme, mapView } = useMapStore()
+  const { basemap, mapView } = useMapStore()
+  const { theme } = useUIStore()
 
   useEffect(() => {
     const map = mapRef.current
@@ -47,7 +50,7 @@ export function useMapView(mapRef: RefObject<maplibregl.Map | null>): void {
  * Advances currentTime by 1 hour every 500 ms while isPlaying is true.
  */
 export function useTimePlayback(mapRef: RefObject<maplibregl.Map | null>, fireDataRef: RefObject<FeatureCollection>): void {
-  const isPlaying = useMapStore((s) => s.isPlaying)
+  const isPlaying = useFilterStore((s) => s.isPlaying)
 
   useEffect(() => {
     if (!isPlaying) return
@@ -55,7 +58,7 @@ export function useTimePlayback(mapRef: RefObject<maplibregl.Map | null>, fireDa
     const id = setInterval(() => {
       const map = mapRef.current
       if (!map) return
-      const { currentTime, setCurrentTime } = useMapStore.getState()
+      const { currentTime, setCurrentTime } = useFilterStore.getState()
       setCurrentTime((currentTime + 1) % 24)
       syncLayers(map, fireDataRef.current)
     }, 500)

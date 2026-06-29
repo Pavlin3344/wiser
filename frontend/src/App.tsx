@@ -6,10 +6,11 @@ import { TopBar } from "@/components/overlays/TopBar"
 import { SecondaryBar } from "@/components/overlays/SecondaryBar"
 import { BottomStatusBar } from "@/components/overlays/BottomStatusBar"
 import { ThemeProvider } from "@/components/providers/ThemeProvider"
-import { useMapStore } from "@/store/use-map-store"
+import { ErrorBoundary } from "@/components/providers/ErrorBoundary"
+import { useUIStore } from "@/store/use-ui-store"
 
 function App() {
-  const { sidebarOpen, setSidebarOpen } = useMapStore()
+  const { sidebarOpen, setSidebarOpen } = useUIStore()
 
   return (
     <ThemeProvider>
@@ -18,7 +19,9 @@ function App() {
           <AppSidebar />
 
           <SidebarInset className='absolute inset-0 p-0 overflow-hidden'>
-            <MapContainer />
+            <ErrorBoundary>
+              <MapContainer />
+            </ErrorBoundary>
 
             <TopBar />
             <SecondaryBar />

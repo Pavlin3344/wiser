@@ -1,4 +1,4 @@
-import React, { memo } from "react"
+import React, { memo, useMemo } from "react"
 import { Map, Flame, LineChart, Bell, Command, Settings, ChevronsUpDown, Sparkles, BadgeCheck, CreditCard, LogOut, LifeBuoy, Send } from "lucide-react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -12,7 +12,7 @@ import { DetectionView } from "@/components/sidebar/DetectionView"
 import { SearchForm } from "@/components/sidebar/SearchForm"
 import { CommandMenu } from "@/components/sidebar/CommandMenu"
 
-import { useMapStore } from "@/store/use-map-store"
+import { useUIStore } from "@/store/use-ui-store"
 
 const NAV_ITEMS = [
   { id: "risk", label: "Risk Assessment", Icon: Map },
@@ -20,15 +20,6 @@ const NAV_ITEMS = [
   { id: "analysis", label: "Analysis & Trends", Icon: LineChart },
   { id: "alerts", label: "System Alerts", Icon: Bell },
 ] as const
-
-type Tab = (typeof NAV_ITEMS)[number]["id"]
-
-const TAB_CONTENT: Record<Tab, React.ReactNode> = {
-  risk: <FiltersView />,
-  detection: <DetectionView />,
-  analysis: <AnalysisView />,
-  alerts: <AlertsView />,
-}
 
 const UserMenu = memo(function UserMenu() {
   return (
@@ -98,8 +89,18 @@ const UserMenu = memo(function UserMenu() {
 })
 
 export function AppSidebar() {
-  const { activeSidebarTab, setActiveSidebarTab } = useMapStore()
+  const { activeSidebarTab, setActiveSidebarTab } = useUIStore()
   const [commandOpen, setCommandOpen] = React.useState(false)
+
+  // Lazy render: only the active tab is mounted — avoids rendering all 4 views at startup
+  const tabContent = useMemo(() => {
+    switch (activeSidebarTab) {
+      case "risk": return <FiltersView />
+      case "detection": return <DetectionView />
+      case "analysis": return <AnalysisView />
+      case "alerts": return <AlertsView />
+    }
+  }, [activeSidebarTab])
 
   return (
     <Sidebar
@@ -156,7 +157,7 @@ export function AppSidebar() {
           </SidebarMenu>
         </SidebarGroup>
 
-        {TAB_CONTENT[activeSidebarTab]}
+        {tabContent}
 
         <SidebarGroup className='mt-auto'>
           <SidebarGroupContent>
