@@ -599,8 +599,8 @@ export function WindLayer({ mapRef }: WindLayerProps) {
       >
         <div className="flex items-center gap-2 bg-background/70 backdrop-blur-xl px-3 py-1.5 rounded-full border border-white/10 shadow-lg text-[9px] font-semibold font-mono tracking-wide uppercase text-foreground/90">
           <span className={`h-1.5 w-1.5 rounded-full ${status === "syncing" ? "bg-amber-400 animate-pulse" :
-              status === "ratelimit" ? "bg-orange-500 animate-pulse" :
-                status === "offline" ? "bg-red-500" : "bg-emerald-400 animate-pulse"
+            status === "ratelimit" ? "bg-orange-500 animate-pulse" :
+              status === "offline" ? "bg-red-500" : "bg-emerald-400 animate-pulse"
             }`} />
           {status === "syncing" ? (
             <span>Syncing wind...</span>
