@@ -1,6 +1,7 @@
-import { useEffect, useRef, type RefObject } from "react"
+import { useEffect, type RefObject } from "react"
 import maplibregl, { type StyleSpecification } from "maplibre-gl"
 import { useMapStore } from "@/store/use-map-store"
+import { useUIStore } from "@/store/use-ui-store"
 import { satelliteStyle } from "@/lib/map-config"
 
 const LIGHT_STYLE = "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
@@ -16,12 +17,13 @@ export function resolveMapStyle(theme: string, basemap: string): string | StyleS
  * Returns a stable ref — consumers should never re-create the map themselves.
  */
 export function useMapInit(containerRef: RefObject<HTMLDivElement | null>): RefObject<maplibregl.Map | null> {
-  const mapRef = useRef<maplibregl.Map | null>(null)
+  const mapRef = { current: null as maplibregl.Map | null }
 
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return
 
-    const { camera, theme, basemap, mapView } = useMapStore.getState()
+    const { camera, mapView, basemap } = useMapStore.getState()
+    const { theme } = useUIStore.getState()
 
     mapRef.current = new maplibregl.Map({
       container: containerRef.current,
@@ -40,7 +42,7 @@ export function useMapInit(containerRef: RefObject<HTMLDivElement | null>): RefO
       })
     })
 
-    // Resize observer keeps the canvas sized correctly without relying on
+    // ResizeObserver keeps the canvas sized correctly without relying on
     // window resize events (handles sidebar open/close transitions too).
     const observer = new ResizeObserver(() => mapRef.current?.resize())
     observer.observe(containerRef.current!)
