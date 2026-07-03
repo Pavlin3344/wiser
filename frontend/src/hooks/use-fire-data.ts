@@ -1,7 +1,6 @@
 import { useEffect, type RefObject } from "react"
 import type maplibregl from "maplibre-gl"
 import type { FeatureCollection } from "geojson"
-import { useDataStore } from "@/store/use-data-store"
 import { syncLayers } from "./use-map-layers"
 import { fetchActiveFires } from "@/services/fireService"
 
