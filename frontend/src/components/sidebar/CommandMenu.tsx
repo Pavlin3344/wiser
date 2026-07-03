@@ -36,25 +36,30 @@ export const CommandMenu = React.memo(function CommandMenu({ open, setOpen }: { 
 
   return (
     <div className='flex flex-col gap-4'>
-      <CommandDialog open={open} onOpenChange={setOpen}>
-        <Command className='bg-background/80 backdrop-blur-xl border border-white/10 rounded-xl overflow-hidden'>
+      <CommandDialog
+        open={open}
+        onOpenChange={setOpen}
+        className='bg-background/60 backdrop-blur-xl border border-white/10 border-t-white/20 border-l-white/20 ring-0 shadow-lg rounded-2xl! overflow-hidden'
+      >
+        <Command className='bg-transparent overflow-hidden relative rounded-2xl'>
+          <div className='absolute inset-0 rounded-2xl bg-linear-to-br from-white/5 to-transparent pointer-events-none z-10' />
           <CommandInput placeholder='Type a command or search map features...' />
-          <CommandList>
+          <CommandList className='relative z-0'>
             <CommandEmpty>No features found.</CommandEmpty>
 
             <CommandGroup heading='Views & Dashboards'>
               <CommandItem onSelect={() => runCommand(() => setActiveSidebarTab("risk"))}>
-                <MapIcon className='mr-2 h-4 w-4' />
+                <MapIcon className='mr-2 h-4 w-4 text-emerald-400' />
                 <span>Risk Dashboard</span>
                 <CommandShortcut>R</CommandShortcut>
               </CommandItem>
               <CommandItem onSelect={() => runCommand(() => setActiveSidebarTab("detection"))}>
-                <FireExtinguisher className='mr-2 h-4 w-4' />
+                <FireExtinguisher className='mr-2 h-4 w-4 text-orange-500' />
                 <span>Detection</span>
                 <CommandShortcut>D</CommandShortcut>
               </CommandItem>
               <CommandItem onSelect={() => runCommand(() => setActiveSidebarTab("analysis"))}>
-                <BarChart3Icon className='mr-2 h-4 w-4' />
+                <BarChart3Icon className='mr-2 h-4 w-4 text-violet-400' />
                 <span>Analytics & Charts</span>
                 <CommandShortcut>A</CommandShortcut>
               </CommandItem>
@@ -68,11 +73,11 @@ export const CommandMenu = React.memo(function CommandMenu({ open, setOpen }: { 
 
             <CommandGroup heading='Map Layers (Toggle)'>
               <CommandItem onSelect={() => runCommand(() => setShowRiskGrid(!showRiskGrid))}>
-                <LayersIcon className='mr-2 h-4 w-4' />
+                <LayersIcon className='mr-2 h-4 w-4 text-amber-400' />
                 <span>{showRiskGrid ? "Hide" : "Show"} EFFIS Risk Grid</span>
               </CommandItem>
               <CommandItem onSelect={() => runCommand(() => setShowFires(!showFires))}>
-                <FlameIcon className={`mr-2 h-4 w-4 ${showFires ? "text-destructive" : ""}`} />
+                <FlameIcon className='mr-2 h-4 w-4 text-red-500' />
                 <span>{showFires ? "Hide" : "Show"} Active Fires (VIIRS)</span>
               </CommandItem>
               <CommandItem onSelect={() => runCommand(() => setShowWind(!showWind))}>
@@ -89,17 +94,17 @@ export const CommandMenu = React.memo(function CommandMenu({ open, setOpen }: { 
 
             <CommandGroup heading='Map Settings'>
               <CommandItem onSelect={() => runCommand(() => setMapView(mapView === "3d" ? "2d" : "3d"))}>
-                <GlobeIcon className='mr-2 h-4 w-4' />
+                <GlobeIcon className='mr-2 h-4 w-4 text-cyan-400' />
                 <span>Switch to {mapView === "3d" ? "2D Flat" : "3D Globe"}</span>
                 <CommandShortcut>G</CommandShortcut>
               </CommandItem>
               <CommandItem onSelect={() => runCommand(() => setBasemap(basemap === "satellite" ? "topographic" : "satellite"))}>
-                <MapIcon className='mr-2 h-4 w-4' />
+                <MapIcon className='mr-2 h-4 w-4 text-teal-400' />
                 <span>Switch to {basemap === "satellite" ? "Topographic" : "Satellite"} Basemap</span>
                 <CommandShortcut>B</CommandShortcut>
               </CommandItem>
               <CommandItem onSelect={() => runCommand(() => setTheme(theme === "dark" ? "light" : "dark"))}>
-                {theme === "dark" ? <SunIcon className='mr-2 h-4 w-4' /> : <MoonIcon className='mr-2 h-4 w-4' />}
+                {theme === "dark" ? <SunIcon className='mr-2 h-4 w-4 text-yellow-400' /> : <MoonIcon className='mr-2 h-4 w-4 text-indigo-300' />}
                 <span>Toggle {theme === "dark" ? "Light" : "Dark"} Mode</span>
                 <CommandShortcut>T</CommandShortcut>
               </CommandItem>
@@ -109,7 +114,7 @@ export const CommandMenu = React.memo(function CommandMenu({ open, setOpen }: { 
 
             <CommandGroup heading='Location'>
               <CommandItem onSelect={() => runCommand(() => findMe())}>
-                <MapPinIcon className='mr-2 h-4 w-4' />
+                <MapPinIcon className='mr-2 h-4 w-4 text-rose-500' />
                 <span>Locate My Position</span>
                 <CommandShortcut>⌘L</CommandShortcut>
               </CommandItem>
@@ -119,7 +124,7 @@ export const CommandMenu = React.memo(function CommandMenu({ open, setOpen }: { 
 
             <CommandGroup heading='Timeline'>
               <CommandItem onSelect={() => runCommand(() => useFilterStore.getState().setSelectedDate(new Date().toISOString()))}>
-                <CalendarIcon className='mr-2 h-4 w-4' />
+                <CalendarIcon className='mr-2 h-4 w-4 text-teal-400' />
                 <span>Jump to Today</span>
               </CommandItem>
             </CommandGroup>
