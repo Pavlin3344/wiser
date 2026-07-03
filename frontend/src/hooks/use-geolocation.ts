@@ -32,7 +32,7 @@ export function useGeolocation(mapRef?: React.RefObject<maplibregl.Map | null>) 
       (err) => {
         console.warn(`[Wiser] Geolocation error (${err.code}): ${err.message}`)
       },
-      { timeout: 10_000, maximumAge: 60_000 },
+      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
     )
   }
 
