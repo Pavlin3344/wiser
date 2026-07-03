@@ -5,6 +5,7 @@ import { useLayerStore } from "@/store/use-layer-store"
 import { useFilterStore } from "@/store/use-filter-store"
 import { mockEvacuationRoutes } from "@/mocks/evacuation-data"
 import { mockFireData } from "@/mocks/fire-data"
+import { useMapStore } from "@/store/use-map-store"
 
 function getFwiTilesUrl(isoDate: string): string[] {
   const dateStr = isoDate.split("T")[0]
@@ -74,6 +75,19 @@ export function initializeLayers(map: maplibregl.Map): void {
   })
 
   addLayer({
+    id: "user-location-accuracy",
+    type: "circle",
+    source: "user-location",
+    paint: {
+      "circle-radius": 20,
+      "circle-color": "#3b82f6",
+      "circle-opacity": 0.15,
+      "circle-stroke-width": 1.5,
+      "circle-stroke-color": "#3b82f6",
+    },
+  })
+
+  addLayer({
     id: "user-location-layer",
     type: "circle",
     source: "user-location",
@@ -107,6 +121,17 @@ export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): vo
 
   const src = map.getSource("active-fires") as maplibregl.GeoJSONSource | undefined
   src?.setData(fireData)
+
+  // Restore user location data if available
+  const { userLocation } = useMapStore.getState()
+  if (userLocation) {
+    const userSrc = map.getSource("user-location") as maplibregl.GeoJSONSource | undefined
+    userSrc?.setData({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [userLocation.lng, userLocation.lat] },
+      properties: {},
+    })
+  }
 }
 
 /**
