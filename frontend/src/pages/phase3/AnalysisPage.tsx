@@ -23,7 +23,7 @@ const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
   return null
 }
 
-export function AnalysisView() {
+export function AnalysisPage() {
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Weekly Fire Analysis</SidebarGroupLabel>

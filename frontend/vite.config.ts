@@ -2,6 +2,7 @@ import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
 import path from "path"
+import fs from "fs"
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -11,8 +12,13 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  //- TEMPORARY REMOVE AFTER TESTING IT IS TEMPORARY!!!!!!!!!!!!!
+  // Proxy configuration required for local development to bypass CORS restrictions
+  // when querying Copernicus EFFIS WMS layers, matching production Nginx routing.
   server: {
+    https: {
+      key: fs.readFileSync(path.resolve(__dirname, "./localhost-key.pem")),
+      cert: fs.readFileSync(path.resolve(__dirname, "./localhost-cert.pem")),
+    },
     proxy: {
       "/effis-wms": {
         target: "https://maps.effis.emergency.copernicus.eu",

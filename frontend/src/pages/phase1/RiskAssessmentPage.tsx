@@ -15,7 +15,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { useFilterStore } from "@/store/use-filter-store"
 import { useLayerStore } from "@/store/use-layer-store"
 
-export function FiltersView() {
+export function RiskAssessmentPage() {
   const { selectedDate, setSelectedDate, region, setRegion, riskLevel, setRiskLevel } = useFilterStore()
   const { showRiskGrid, setShowRiskGrid, showThermal, setShowThermal, showSmoke, setShowSmoke, showWind, setShowWind, showEvac, setShowEvac } = useLayerStore()
   const minDate = subMonths(new Date(), 3)
@@ -135,7 +135,7 @@ export function FiltersView() {
                 <span className='truncate'>{uiDate ? format(uiDate, "MMM d, yyyy") : "Pick a date"}</span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className='w-auto p-0 bg-background/40 backdrop-blur-sm border border-white/10 border-t-white/20 border-l-white/20 shadow-lg rounded-2xl overflow-hidden transition-colors' align='start'>
+            <PopoverContent className='w-auto p-0 bg-background/40 backdrop-blur-sm border border-white/10 border-t-white/20 border-l-white/20 shadow-lg rounded-2xl ring-0 overflow-hidden transition-colors' align='start'>
               <Calendar mode='single' selected={uiDate} onSelect={handleSelect} disabled={(d) => d > new Date() || d < minDate} />
             </PopoverContent>
           </Popover>

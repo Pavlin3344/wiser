@@ -4,12 +4,9 @@ import type { Point } from "geojson"
 import { useMapStore } from "@/store/use-map-store"
 import { useLayerStore } from "@/store/use-layer-store"
 import { generateGlassPopupHTML, generateSectorPopupHTML } from "@/lib/popups"
-
-function intensityStyle(frp: number) {
-  if (frp > 50) return { dot: "bg-destructive", text: "text-destructive", label: "critical" }
-  if (frp > 20) return { dot: "bg-orange-500", text: "text-orange-500", label: "high" }
-  return { dot: "bg-amber-400", text: "text-amber-500", label: "moderate" }
-}
+import { lngLatTo3857 } from "@/utils/geo"
+import { intensityStyle } from "@/utils/helpers"
+import { fetchEffisWmsFeatureInfo } from "@/services/fireService"
 
 /**
  * Opens a glass popup, replacing any previously open popup so they never stack.
@@ -33,13 +30,6 @@ function openPopup(
     .setLngLat(lngLat)
     .setHTML(html)
     .addTo(map)
-}
-
-/** Converts a geographic coordinate (WGS84) to EPSG:3857 Web Mercator (meters). */
-function lngLatTo3857(lng: number, lat: number): [number, number] {
-  const x = (lng * 20037508.34) / 180
-  const y = (Math.log(Math.tan(((90 + lat) * Math.PI) / 360)) * 180) / Math.PI
-  return [x, (y * 20037508.34) / 180]
 }
 
 async function fetchEffisInfo(
@@ -69,16 +59,15 @@ async function fetchEffisInfo(
 
   const layer = showFires ? "viirs.hs" : "mf010.fwi"
 
-  const url =
-    `/effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo` +
-    `&LAYERS=${layer}&QUERY_LAYERS=${layer}` +
-    `&BBOX=${bbox}&WIDTH=${width}&HEIGHT=${height}` +
-    `&SRS=EPSG:3857&X=${Math.round(e.point.x)}&Y=${Math.round(e.point.y)}` +
-    `&STYLES=&INFO_FORMAT=text/plain`
-
   try {
-    const res = await fetch(url)
-    const text = await res.text()
+    const text = await fetchEffisWmsFeatureInfo({
+      layer,
+      bbox,
+      width,
+      height,
+      x: Math.round(e.point.x),
+      y: Math.round(e.point.y),
+    })
 
     if (text.includes("ServiceException")) {
       console.warn("WMS Service Exception:", text)
