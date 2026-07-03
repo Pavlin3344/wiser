@@ -5,10 +5,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, Sidebar, SidebarHeader, SidebarFooter, SidebarRail, SidebarGroupContent } from "@/components/ui/sidebar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
-import { AnalysisView } from "@/components/sidebar/AnalysisView"
-import { AlertsView } from "@/components/sidebar/AlertsView"
-import { FiltersView } from "@/components/sidebar/FiltersView"
-import { DetectionView } from "@/components/sidebar/DetectionView"
+import { AnalysisPage } from "@/pages/phase3/AnalysisPage"
+import { AlertsPage } from "@/pages/alerts/AlertsPage"
+import { RiskAssessmentPage } from "@/pages/phase1/RiskAssessmentPage"
+import { DetectionPage } from "@/pages/phase2/DetectionPage"
 import { SearchForm } from "@/components/sidebar/SearchForm"
 import { CommandMenu } from "@/components/sidebar/CommandMenu"
 
@@ -95,10 +95,10 @@ export function AppSidebar() {
   // Lazy render: only the active tab is mounted — avoids rendering all 4 views at startup
   const tabContent = useMemo(() => {
     switch (activeSidebarTab) {
-      case "risk": return <FiltersView />
-      case "detection": return <DetectionView />
-      case "analysis": return <AnalysisView />
-      case "alerts": return <AlertsView />
+      case "risk": return <RiskAssessmentPage />
+      case "detection": return <DetectionPage />
+      case "analysis": return <AnalysisPage />
+      case "alerts": return <AlertsPage />
     }
   }, [activeSidebarTab])
 
