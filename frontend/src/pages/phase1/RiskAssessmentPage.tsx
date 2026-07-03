@@ -55,14 +55,14 @@ export function RiskAssessmentPage() {
               <SelectValue placeholder='Select region' />
             </SelectTrigger>
             <SelectContent className='bg-background/40 backdrop-blur-sm border border-white/10 border-t-white/20 border-l-white/20 shadow-lg rounded-2xl'>
-              <SelectItem value='all' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
-                All Regions
+              <SelectItem value='world' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
+                World
               </SelectItem>
-              <SelectItem value='north' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
-                Northern Sector
+              <SelectItem value='europe' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
+                Europe
               </SelectItem>
-              <SelectItem value='south' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
-                Southern Sector
+              <SelectItem value='bulgaria' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
+                Bulgaria
               </SelectItem>
             </SelectContent>
           </Select>

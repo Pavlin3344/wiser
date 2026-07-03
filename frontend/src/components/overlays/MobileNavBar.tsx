@@ -62,24 +62,40 @@ function MoreTabContent() {
 
       <div className="border-t border-white/10 pt-3">
         <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Preferences</h4>
-        <div className="flex justify-between items-center p-2.5 bg-white/5 rounded-xl border border-white/10">
+        <div className="flex flex-col gap-2 p-2.5 bg-white/5 rounded-xl border border-white/10">
           <span className="text-xs font-semibold">Theme Mode</span>
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-background/60 border border-white/10 text-xs font-semibold cursor-pointer text-foreground hover:bg-muted/80 transition-colors"
-          >
-            {theme === "dark" ? (
-              <>
-                <Sun className="size-3.5 text-yellow-400" />
-                <span>Light</span>
-              </>
-            ) : (
-              <>
-                <Moon className="size-3.5 text-slate-700" />
-                <span>Dark</span>
-              </>
-            )}
-          </button>
+          <div className="grid grid-cols-3 gap-1 bg-background/40 p-1 rounded-lg border border-white/5">
+            <button
+              onClick={() => setTheme("light")}
+              className={`flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-all ${theme === "light"
+                  ? "bg-destructive text-primary-foreground font-bold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <Sun className="size-3.5 text-yellow-400" />
+              <span>Light</span>
+            </button>
+            <button
+              onClick={() => setTheme("dark")}
+              className={`flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-all ${theme === "dark"
+                  ? "bg-destructive text-primary-foreground font-bold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <Moon className="size-3.5 text-slate-400" />
+              <span>Dark</span>
+            </button>
+            <button
+              onClick={() => setTheme("system")}
+              className={`flex items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-semibold cursor-pointer transition-all ${theme === "system"
+                  ? "bg-destructive text-primary-foreground font-bold shadow-xs"
+                  : "text-muted-foreground hover:text-foreground"
+                }`}
+            >
+              <Smartphone className="size-3.5 text-blue-400" />
+              <span>System</span>
+            </button>
+          </div>
         </div>
       </div>
 
