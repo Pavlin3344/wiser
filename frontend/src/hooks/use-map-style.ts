@@ -14,7 +14,6 @@ import type { FeatureCollection } from "geojson"
 export function useMapStyle(mapRef: RefObject<maplibregl.Map | null>, fireDataRef: RefObject<FeatureCollection>): void {
   const { basemap, mapView } = useMapStore()
   const { theme } = useUIStore()
-  const { region } = useFilterStore()
 
   useEffect(() => {
     const map = mapRef.current
