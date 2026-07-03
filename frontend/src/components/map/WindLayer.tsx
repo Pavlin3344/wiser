@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react"
 import type { Map } from "maplibre-gl"
 import { useUIStore } from "@/store/use-ui-store"
 import { useSidebar } from "@/components/ui/sidebar"
+import { useFilterStore } from "@/store/use-filter-store"
+import { isPointInPolygon, bulgariaBorder } from "@/utils/geo"
 
 interface Particle {
   lng: number
@@ -157,6 +159,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
   const [mapReady, setMapReady] = useState(false)
 
   const theme = useUIStore((s) => s.theme)
+  const region = useFilterStore((s) => s.region)
   const { open: sidebarOpen, isMobile } = useSidebar()
 
   // Real weather data state
@@ -224,24 +227,64 @@ export function WindLayer({ mapRef }: WindLayerProps) {
     dimensions.current = { width, height }
   }
 
+  const getRandomPointInBulgaria = (polygon: number[][][]): [number, number] => {
+    const minLng = 22.357
+    const maxLng = 28.608
+    const minLat = 41.235
+    const maxLat = 44.215
+
+    for (let attempt = 0; attempt < 100; attempt++) {
+      const lng = minLng + Math.random() * (maxLng - minLng)
+      const lat = minLat + Math.random() * (maxLat - minLat)
+      if (isPointInPolygon([lng, lat], polygon)) {
+        return [lng, lat]
+      }
+    }
+    return [25.5, 42.7] // Fallback center of Bulgaria
+  }
+
   const initParticles = (width: number, height: number, map: Map) => {
     const arr: Particle[] = []
     const center = map.getCenter()
+    const { region } = useFilterStore.getState()
+    const isBulgaria = region === "bulgaria"
+
     for (let i = 0; i < particleCount; i++) {
-      const rx = Math.random() * width
-      const ry = Math.random() * height
-      try {
-        const lngLat = map.unproject([rx, ry])
-        if (lngLat && !isNaN(lngLat.lng) && !isNaN(lngLat.lat) && isFinite(lngLat.lng) && isFinite(lngLat.lat)) {
-          arr.push({
-            lng: lngLat.lng,
-            lat: lngLat.lat,
-            prevX: null,
-            prevY: null,
-            age: 0,
-            life: Math.random() * 80 + 40,
-          })
-        } else {
+      if (isBulgaria) {
+        const [lng, lat] = getRandomPointInBulgaria(bulgariaBorder)
+        arr.push({
+          lng,
+          lat,
+          prevX: null,
+          prevY: null,
+          age: 0,
+          life: Math.random() * 80 + 40,
+        })
+      } else {
+        const rx = Math.random() * width
+        const ry = Math.random() * height
+        try {
+          const lngLat = map.unproject([rx, ry])
+          if (lngLat && !isNaN(lngLat.lng) && !isNaN(lngLat.lat) && isFinite(lngLat.lng) && isFinite(lngLat.lat)) {
+            arr.push({
+              lng: lngLat.lng,
+              lat: lngLat.lat,
+              prevX: null,
+              prevY: null,
+              age: 0,
+              life: Math.random() * 80 + 40,
+            })
+          } else {
+            arr.push({
+              lng: center?.lng ?? 0,
+              lat: center?.lat ?? 0,
+              prevX: null,
+              prevY: null,
+              age: 0,
+              life: Math.random() * 80 + 40,
+            })
+          }
+        } catch (e) {
           arr.push({
             lng: center?.lng ?? 0,
             lat: center?.lat ?? 0,
@@ -251,15 +294,6 @@ export function WindLayer({ mapRef }: WindLayerProps) {
             life: Math.random() * 80 + 40,
           })
         }
-      } catch (e) {
-        arr.push({
-          lng: center?.lng ?? 0,
-          lat: center?.lat ?? 0,
-          prevX: null,
-          prevY: null,
-          age: 0,
-          life: Math.random() * 80 + 40,
-        })
       }
     }
     particles.current = arr
@@ -511,21 +545,32 @@ export function WindLayer({ mapRef }: WindLayerProps) {
       // Adjust speed factor dynamically based on zoom level
       const speedFactor = 0.35 / Math.pow(2, zoom)
 
+      const { region } = useFilterStore.getState()
+      const isBulgaria = region === "bulgaria"
+
       // 2. Process and draw each particle
       particles.current.forEach((p) => {
         try {
-          // If particle coordinate is invalid, respawn it immediately
-          if (typeof p.lng !== "number" || typeof p.lat !== "number" || isNaN(p.lng) || isNaN(p.lat) || !isFinite(p.lng) || !isFinite(p.lat)) {
-            const rx = Math.random() * w
-            const ry = Math.random() * h
-            const lngLat = map.unproject([rx, ry])
-            if (lngLat && !isNaN(lngLat.lng) && !isNaN(lngLat.lat)) {
-              p.lng = lngLat.lng
-              p.lat = lngLat.lat
+          const isOutsideBulgaria = isBulgaria && !isPointInPolygon([p.lng, p.lat], bulgariaBorder)
+
+          // If particle coordinate is invalid or outside Bulgaria, respawn it immediately
+          if (isOutsideBulgaria || typeof p.lng !== "number" || typeof p.lat !== "number" || isNaN(p.lng) || isNaN(p.lat) || !isFinite(p.lng) || !isFinite(p.lat)) {
+            if (isBulgaria) {
+              const [lng, lat] = getRandomPointInBulgaria(bulgariaBorder)
+              p.lng = lng
+              p.lat = lat
             } else {
-              const center = map.getCenter()
-              p.lng = center?.lng ?? 0
-              p.lat = center?.lat ?? 0
+              const rx = Math.random() * w
+              const ry = Math.random() * h
+              const lngLat = map.unproject([rx, ry])
+              if (lngLat && !isNaN(lngLat.lng) && !isNaN(lngLat.lat)) {
+                p.lng = lngLat.lng
+                p.lat = lngLat.lat
+              } else {
+                const center = map.getCenter()
+                p.lng = center?.lng ?? 0
+                p.lat = center?.lat ?? 0
+              }
             }
             p.age = 0
             p.life = Math.random() * 80 + 40
@@ -539,21 +584,27 @@ export function WindLayer({ mapRef }: WindLayerProps) {
           const x = pos?.x
           const y = pos?.y
 
-          // Respawn if project returned invalid coordinates, out of bounds, or age exceeds life
+          // Respawn if project returned invalid coordinates, out of bounds, age exceeds life, or outside Bulgaria
           const isInvalidProject = typeof x !== "number" || typeof y !== "number" || isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)
           const isOffScreen = isInvalidProject || x < 0 || x > w || y < 0 || y > h
 
           if (isOffScreen || p.age >= p.life) {
-            const rx = Math.random() * w
-            const ry = Math.random() * h
-            const lngLat = map.unproject([rx, ry])
-            if (lngLat && !isNaN(lngLat.lng) && !isNaN(lngLat.lat)) {
-              p.lng = lngLat.lng
-              p.lat = lngLat.lat
+            if (isBulgaria) {
+              const [lng, lat] = getRandomPointInBulgaria(bulgariaBorder)
+              p.lng = lng
+              p.lat = lat
             } else {
-              const center = map.getCenter()
-              p.lng = center?.lng ?? 0
-              p.lat = center?.lat ?? 0
+              const rx = Math.random() * w
+              const ry = Math.random() * h
+              const lngLat = map.unproject([rx, ry])
+              if (lngLat && !isNaN(lngLat.lng) && !isNaN(lngLat.lat)) {
+                p.lng = lngLat.lng
+                p.lat = lngLat.lat
+              } else {
+                const center = map.getCenter()
+                p.lng = center?.lng ?? 0
+                p.lat = center?.lat ?? 0
+              }
             }
             p.age = 0
             p.life = Math.random() * 80 + 40
@@ -663,7 +714,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
       map.off("resize", handleMapResize)
       map.off("moveend", handleMoveEnd)
     }
-  }, [mapReady, theme, mapRef])
+  }, [mapReady, theme, region, mapRef])
 
   return (
     <>

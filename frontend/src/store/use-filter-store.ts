@@ -22,7 +22,7 @@ interface FilterState {
 export const useFilterStore = create<FilterState>()(
   persist(
     (set) => ({
-      region: "all",
+      region: "bulgaria",
       setRegion: (region) => set({ region }),
 
       riskLevel: "all",

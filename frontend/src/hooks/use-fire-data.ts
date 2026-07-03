@@ -1,7 +1,6 @@
 import { useEffect, type RefObject } from "react"
 import type maplibregl from "maplibre-gl"
 import type { FeatureCollection } from "geojson"
-import { useDataStore } from "@/store/use-data-store"
 import { syncLayers } from "./use-map-layers"
 import { fetchActiveFires } from "@/services/fireService"
 
@@ -23,12 +22,11 @@ export function useFireData({ mapRef, fireDataRef }: { mapRef: RefObject<maplibr
         .then((data) => {
           fireDataRef.current = data
           syncLayers(map, data)
-          useDataStore.getState().setActiveFireCount(data.features.length)
         })
         .catch((err) => {
           console.warn(`[Wiser] Backend unavailable (${err}). Using EFFIS mock data.`)
           // Keep the current mock/stale data in place — do not wipe the map
-          useDataStore.getState().setActiveFireCount(fireDataRef.current.features.length)
+          syncLayers(map, fireDataRef.current)
         })
     }
 
