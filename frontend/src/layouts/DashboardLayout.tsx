@@ -6,6 +6,7 @@ import { MapContainer } from "@/components/map/MapContainer"
 import { TopBar } from "@/components/overlays/TopBar"
 import { SecondaryBar } from "@/components/overlays/SecondaryBar"
 import { BottomStatusBar } from "@/components/overlays/BottomStatusBar"
+import { MobileNavBar } from "@/components/overlays/MobileNavBar"
 import { ThemeProvider } from "@/components/providers/ThemeProvider"
 import { ErrorBoundary } from "@/components/providers/ErrorBoundary"
 import { useUIStore } from "@/store/use-ui-store"
@@ -31,6 +32,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <TopBar />
             <SecondaryBar />
             <BottomStatusBar />
+            <MobileNavBar />
             {children}
           </SidebarInset>
         </TooltipProvider>
@@ -38,3 +40,4 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     </ThemeProvider>
   )
 }
+
