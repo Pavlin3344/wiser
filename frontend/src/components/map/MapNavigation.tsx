@@ -27,8 +27,10 @@ export function MapNavigation({ mapRef }: MapNavigationProps) {
   const zoomOut = () => mapRef.current?.zoomOut()
   const reset = () => mapRef.current?.resetNorthPitch()
 
+  if (isMobile) return null
+
   return (
-    <div className={`absolute right-2 z-10 flex flex-col gap-2 ${isMobile ? "top-16 right-4" : "bottom-12"}`}>
+    <div className='absolute right-2 z-10 flex flex-col gap-2 bottom-12'>
       <div className='relative hidden sm:flex flex-col bg-background/60 backdrop-blur-xl shadow-lg rounded-full overflow-hidden border border-white/10 border-t-white/20 border-l-white/20'>
         <div className='absolute inset-0 bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
 

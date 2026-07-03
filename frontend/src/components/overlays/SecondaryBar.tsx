@@ -11,6 +11,8 @@ import { TerrainToggle } from "@/components/overlays/TerrainToggle"
 import { LayerToggle } from "@/components/overlays/LayerToggle"
 import { ThemeToggle } from "@/components/overlays/ThemeToggle"
 import { LocationToggle } from "@/components/overlays/LocationToggle"
+import { ResetNavigationButton } from "@/components/overlays/ResetNavigationButton"
+import { MobileLayersDrawer } from "@/components/overlays/MobileLayersDrawer"
 
 import { useUIStore } from "@/store/use-ui-store"
 import { useLayerStore } from "@/store/use-layer-store"
@@ -21,24 +23,39 @@ export function SecondaryBar() {
   const { isMobile } = useSidebar()
 
   return (
-    <div className={`absolute z-10 pointer-events-none ${isMobile ? "top-4 right-4" : "top-2 right-2"}`}>
+    <div className={`absolute z-10 pointer-events-none flex flex-col gap-2 ${isMobile ? "top-4 right-4" : "top-2 right-2"}`}>
       <Collapsible open={secondaryBarOpen} onOpenChange={setSecondaryBarOpen} className='flex flex-col gap-2'>
         <CollapsibleTrigger asChild className='self-end'>
-          <Button className='size-9 pointer-events-auto cursor-pointer bg-destructive hover:bg-destructive/80'>
-            <ChevronsUpDown />
+          <Button className='size-9 pointer-events-auto cursor-pointer bg-destructive hover:bg-destructive/80 rounded-full shadow-lg border border-white/10 flex items-center justify-center'>
+            <ChevronsUpDown className="size-4" />
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className='flex flex-col items-end gap-2'>
-          <MapControls />
-          <LiveToggle />
-          <LayerToggle />
-          <TerrainToggle />
-          {showRiskGrid && <MapLegend title='Fire Weather Index' type='fwi' />}
-          {showFires && <MapLegend title='Active Fires (VIIRS)' type='viirs' />}
-          <ThemeToggle />
-          <LocationToggle />
+          {isMobile ? (
+            <>
+              <LocationToggle />
+              <ResetNavigationButton />
+            </>
+          ) : (
+            <>
+              <MapControls />
+              <LiveToggle />
+              <LayerToggle />
+              <TerrainToggle />
+              {showRiskGrid && <MapLegend title='Fire Weather Index' type='fwi' />}
+              {showFires && <MapLegend title='Active Fires (VIIRS)' type='viirs' />}
+              <ThemeToggle />
+              <LocationToggle />
+            </>
+          )}
         </CollapsibleContent>
       </Collapsible>
+
+      {isMobile && (
+        <div className='self-end pointer-events-auto'>
+          <MobileLayersDrawer />
+        </div>
+      )}
     </div>
   )
 }
