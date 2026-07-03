@@ -26,5 +26,27 @@ export const mockEvacuationRoutes: GeoJSON.FeatureCollection = {
         ],
       },
     },
+    {
+      type: "Feature",
+      properties: { routeName: "Euro-Safe Corridor (Greece)", status: "open" },
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [22.5, 39.0],
+          [22.8, 39.5],
+        ],
+      },
+    },
+    {
+      type: "Feature",
+      properties: { routeName: "World Evac (California)", status: "open" },
+      geometry: {
+        type: "LineString",
+        coordinates: [
+          [-121.0, 39.0],
+          [-121.5, 39.5],
+        ],
+      },
+    },
   ],
 }
