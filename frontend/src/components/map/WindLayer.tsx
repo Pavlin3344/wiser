@@ -41,6 +41,9 @@ interface WindLayerProps {
 
 // Simulated wind vector field generator (fallback when offline or rate limited)
 function getMathWindVector(lng: number, lat: number, time: number): [number, number] {
+  if (isNaN(lng) || isNaN(lat) || !isFinite(lng) || !isFinite(lat)) {
+    return [2.5, 0.3]
+  }
   let u = 2.5
   let v = 0.3
 
@@ -79,6 +82,9 @@ function getMathWindVector(lng: number, lat: number, time: number): [number, num
 
 // Perform bilinear interpolation to lookup wind vector at particle's current coordinate
 function getGridWind(lng: number, lat: number, grid: WindGrid): [number, number] | null {
+  if (isNaN(lng) || isNaN(lat) || !isFinite(lng) || !isFinite(lat)) {
+    return null
+  }
   const { west, south, east, latStep, lngStep, rows, cols, data } = grid
 
   // Handle wraps across International Date Line
@@ -220,18 +226,41 @@ export function WindLayer({ mapRef }: WindLayerProps) {
 
   const initParticles = (width: number, height: number, map: Map) => {
     const arr: Particle[] = []
+    const center = map.getCenter()
     for (let i = 0; i < particleCount; i++) {
       const rx = Math.random() * width
       const ry = Math.random() * height
-      const lngLat = map.unproject([rx, ry])
-      arr.push({
-        lng: lngLat.lng,
-        lat: lngLat.lat,
-        prevX: null,
-        prevY: null,
-        age: 0,
-        life: Math.random() * 80 + 40,
-      })
+      try {
+        const lngLat = map.unproject([rx, ry])
+        if (lngLat && !isNaN(lngLat.lng) && !isNaN(lngLat.lat) && isFinite(lngLat.lng) && isFinite(lngLat.lat)) {
+          arr.push({
+            lng: lngLat.lng,
+            lat: lngLat.lat,
+            prevX: null,
+            prevY: null,
+            age: 0,
+            life: Math.random() * 80 + 40,
+          })
+        } else {
+          arr.push({
+            lng: center?.lng ?? 0,
+            lat: center?.lat ?? 0,
+            prevX: null,
+            prevY: null,
+            age: 0,
+            life: Math.random() * 80 + 40,
+          })
+        }
+      } catch (e) {
+        arr.push({
+          lng: center?.lng ?? 0,
+          lat: center?.lat ?? 0,
+          prevX: null,
+          prevY: null,
+          age: 0,
+          life: Math.random() * 80 + 40,
+        })
+      }
     }
     particles.current = arr
   }
@@ -253,6 +282,12 @@ export function WindLayer({ mapRef }: WindLayerProps) {
 
     const center = map.getCenter()
     const currentZoom = map.getZoom()
+
+    // Validate that center and zoom are valid numbers before querying API
+    if (!center || isNaN(center.lng) || isNaN(center.lat) || typeof currentZoom !== "number" || isNaN(currentZoom)) {
+      console.warn("Map center or zoom is invalid, skipping wind data fetch.")
+      return
+    }
 
     const degreeSpanLng = Math.max(120 / Math.pow(1.5, Math.max(currentZoom - 2, 0)), 8)
     const degreeSpanLat = Math.max(80 / Math.pow(1.5, Math.max(currentZoom - 2, 0)), 6)
@@ -460,83 +495,127 @@ export function WindLayer({ mapRef }: WindLayerProps) {
         return
       }
 
+      // If particles were not initialized (e.g. because dimensions were 0 initially), initialize them now
+      if (particles.current.length === 0) {
+        initParticles(w, h, map)
+      }
+
       // 1. Fade previous frame to create smooth, transparent trails
       ctx.globalCompositeOperation = "destination-out"
       ctx.fillStyle = "rgba(0, 0, 0, 0.12)"
       ctx.fillRect(0, 0, w, h)
       ctx.globalCompositeOperation = "source-over"
 
-      const zoom = map.getZoom()
+      const rawZoom = map.getZoom()
+      const zoom = typeof rawZoom === "number" && !isNaN(rawZoom) ? rawZoom : 0
       // Adjust speed factor dynamically based on zoom level
       const speedFactor = 0.35 / Math.pow(2, zoom)
 
       // 2. Process and draw each particle
       particles.current.forEach((p) => {
-        // Project geographic coordinate to current screen pixels
-        const pos = map.project([p.lng, p.lat])
-        const x = pos.x
-        const y = pos.y
+        try {
+          // If particle coordinate is invalid, respawn it immediately
+          if (typeof p.lng !== "number" || typeof p.lat !== "number" || isNaN(p.lng) || isNaN(p.lat) || !isFinite(p.lng) || !isFinite(p.lat)) {
+            const rx = Math.random() * w
+            const ry = Math.random() * h
+            const lngLat = map.unproject([rx, ry])
+            if (lngLat && !isNaN(lngLat.lng) && !isNaN(lngLat.lat)) {
+              p.lng = lngLat.lng
+              p.lat = lngLat.lat
+            } else {
+              const center = map.getCenter()
+              p.lng = center?.lng ?? 0
+              p.lat = center?.lat ?? 0
+            }
+            p.age = 0
+            p.life = Math.random() * 80 + 40
+            p.prevX = null
+            p.prevY = null
+            return
+          }
 
-        // Respawn if out of bounds or age exceeds life
-        const isOffScreen = x < 0 || x > w || y < 0 || y > h
-        if (isOffScreen || p.age >= p.life) {
-          const rx = Math.random() * w
-          const ry = Math.random() * h
-          const lngLat = map.unproject([rx, ry])
-          p.lng = lngLat.lng
-          p.lat = lngLat.lat
-          p.age = 0
-          p.life = Math.random() * 80 + 40
-          p.prevX = null
-          p.prevY = null
-          return
-        }
+          // Project geographic coordinate to current screen pixels
+          const pos = map.project([p.lng, p.lat])
+          const x = pos?.x
+          const y = pos?.y
 
-        // Get wind vector (prefer real grid, fallback to mathematical flow)
-        let u = 0
-        let v = 0
-        let realDataUsed = false
+          // Respawn if project returned invalid coordinates, out of bounds, or age exceeds life
+          const isInvalidProject = typeof x !== "number" || typeof y !== "number" || isNaN(x) || isNaN(y) || !isFinite(x) || !isFinite(y)
+          const isOffScreen = isInvalidProject || x < 0 || x > w || y < 0 || y > h
+          
+          if (isOffScreen || p.age >= p.life) {
+            const rx = Math.random() * w
+            const ry = Math.random() * h
+            const lngLat = map.unproject([rx, ry])
+            if (lngLat && !isNaN(lngLat.lng) && !isNaN(lngLat.lat)) {
+              p.lng = lngLat.lng
+              p.lat = lngLat.lat
+            } else {
+              const center = map.getCenter()
+              p.lng = center?.lng ?? 0
+              p.lat = center?.lat ?? 0
+            }
+            p.age = 0
+            p.life = Math.random() * 80 + 40
+            p.prevX = null
+            p.prevY = null
+            return
+          }
 
-        // Only use grid if we are in a 'live' or 'syncing' status and grid is loaded
-        if ((statusRef.current === "live" || statusRef.current === "syncing") && gridRef.current) {
-          const vec = getGridWind(p.lng, p.lat, gridRef.current)
-          if (vec) {
+          // Get wind vector (prefer real grid, fallback to mathematical flow)
+          let u = 0
+          let v = 0
+          let realDataUsed = false
+
+          // Only use grid if we are in a 'live' or 'syncing' status and grid is loaded
+          if ((statusRef.current === "live" || statusRef.current === "syncing") && gridRef.current) {
+            const vec = getGridWind(p.lng, p.lat, gridRef.current)
+            if (vec) {
+              u = vec[0]
+              v = vec[1]
+              realDataUsed = true
+            }
+          }
+
+          if (!realDataUsed) {
+            const vec = getMathWindVector(p.lng, p.lat, timestamp)
             u = vec[0]
             v = vec[1]
-            realDataUsed = true
           }
+
+          const windSpeed = Math.sqrt(u * u + v * v)
+
+          // Draw particle line segment from prev frame screen position to current
+          if (p.prevX !== null && p.prevY !== null) {
+            ctx.beginPath()
+            ctx.moveTo(p.prevX, p.prevY)
+            ctx.lineTo(x, y)
+            ctx.strokeStyle = getWindColor(windSpeed, "dark")
+            ctx.lineWidth = windSpeed > 8 ? 1.5 : 1.0
+            ctx.stroke()
+          }
+
+          p.prevX = x
+          p.prevY = y
+
+          // Update geographic location, compensating for Mercator longitude distortion near poles
+          const rad = (p.lat * Math.PI) / 180
+          const cosLat = Math.max(Math.cos(rad), 0.1)
+
+          // Calibrate real m/s speeds vs the visual mathematical speed
+          const speedScale = realDataUsed ? 1.6 : 1.0
+          p.lng += (u * speedFactor * speedScale) / cosLat
+          p.lat += v * speedFactor * speedScale
+          p.age++
+        } catch (err) {
+          console.warn("Failed to update particle inside frame:", err)
+          // Gracefully reset particle to recover
+          const center = map.getCenter()
+          p.lng = center?.lng ?? 0
+          p.lat = center?.lat ?? 0
+          p.prevX = null
+          p.prevY = null
         }
-
-        if (!realDataUsed) {
-          const vec = getMathWindVector(p.lng, p.lat, timestamp)
-          u = vec[0]
-          v = vec[1]
-        }
-
-        const windSpeed = Math.sqrt(u * u + v * v)
-
-        // Draw particle line segment from prev frame screen position to current
-        if (p.prevX !== null && p.prevY !== null) {
-          ctx.beginPath()
-          ctx.moveTo(p.prevX, p.prevY)
-          ctx.lineTo(x, y)
-          ctx.strokeStyle = getWindColor(windSpeed, "dark")
-          ctx.lineWidth = windSpeed > 8 ? 1.5 : 1.0
-          ctx.stroke()
-        }
-
-        p.prevX = x
-        p.prevY = y
-
-        // Update geographic location, compensating for Mercator longitude distortion near poles
-        const rad = (p.lat * Math.PI) / 180
-        const cosLat = Math.max(Math.cos(rad), 0.1)
-
-        // Calibrate real m/s speeds vs the visual mathematical speed
-        const speedScale = realDataUsed ? 1.6 : 1.0
-        p.lng += (u * speedFactor * speedScale) / cosLat
-        p.lat += v * speedFactor * speedScale
-        p.age++
       })
 
       animationFrameId = requestAnimationFrame(animate)
