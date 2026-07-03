@@ -14,20 +14,33 @@ import type { FeatureCollection } from "geojson"
 export function useMapStyle(mapRef: RefObject<maplibregl.Map | null>, fireDataRef: RefObject<FeatureCollection>): void {
   const { basemap, mapView } = useMapStore()
   const { theme } = useUIStore()
+  const { region } = useFilterStore()
 
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
 
-    map.setStyle(resolveMapStyle(theme, basemap))
+    const updateStyle = () => {
+      map.setStyle(resolveMapStyle(theme, basemap))
 
-    map.once("styledata", () => {
-      initializeLayers(map)
-      syncLayers(map, fireDataRef.current)
-      map.setProjection({ type: mapView === "3d" ? "globe" : "mercator" })
-    })
+      map.once("styledata", () => {
+        initializeLayers(map)
+        syncLayers(map, fireDataRef.current)
+        map.setProjection({ type: mapView === "3d" ? "globe" : "mercator" })
+      })
+    }
+
+    updateStyle()
+
+    if (theme !== "system") return
+
+    const mq = window.matchMedia("(prefers-color-scheme: dark)")
+    mq.addEventListener("change", updateStyle)
+    return () => {
+      mq.removeEventListener("change", updateStyle)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [basemap, theme])
+  }, [basemap, theme, mapView])
 }
 
 /**

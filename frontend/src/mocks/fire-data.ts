@@ -18,5 +18,15 @@ export const mockFireData: FeatureCollection = {
       geometry: { type: "Point", coordinates: [25.8, 41.8] },
       properties: { intensity: "critical", title: "EFFIS Anomaly Gamma", date: new Date().toISOString() },
     },
+    {
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [21.5, 38.0] },
+      properties: { intensity: "high", title: "EFFIS Greece Anomaly", date: new Date().toISOString() },
+    },
+    {
+      type: "Feature",
+      geometry: { type: "Point", coordinates: [-120.0, 39.5] },
+      properties: { intensity: "critical", title: "California Complex", date: new Date().toISOString() },
+    },
   ],
 }

@@ -9,7 +9,10 @@ const DARK_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.
 
 export function resolveMapStyle(theme: string, basemap: string): string | StyleSpecification {
   if (basemap === "satellite") return satelliteStyle
-  return theme === "dark" ? DARK_STYLE : LIGHT_STYLE
+  const resolved = theme === "system"
+    ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    : theme
+  return resolved === "dark" ? DARK_STYLE : LIGHT_STYLE
 }
 
 /**
