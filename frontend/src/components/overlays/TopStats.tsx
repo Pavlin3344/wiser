@@ -15,8 +15,9 @@ export function TopStats() {
 
   return (
     <div className='flex items-center gap-2 pointer-events-none transition-all duration-300 ease-in-out'>
-      <div className='pointer-events-auto'>
+      <div className='relative pointer-events-auto'>
         <SidebarTrigger className='bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20 hover:bg-background/80 h-10 w-10 rounded-full cursor-pointer' />
+        <div className='absolute inset-0 rounded-full bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
       </div>
 
       <div className='relative pointer-events-auto bg-background/60 backdrop-blur-xl shadow-lg rounded-full border border-white/10 border-t-white/20 border-l-white/20 flex items-center h-10 px-3 gap-2'>
