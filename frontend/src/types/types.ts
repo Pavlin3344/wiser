@@ -3,6 +3,12 @@ import type { Feature, FeatureCollection, Point, LineString, Polygon } from "geo
 // ─── Theme ───────────────────────────────────────────────────────────────────
 export type Theme = "light" | "dark" | "system"
 
+// ─── Risk Level ──────────────────────────────────────────────────────────────
+export type RiskLevel = "Low" | "Moderate" | "High" | "Critical"
+
+// ─── Sidebar Tab ─────────────────────────────────────────────────────────────
+export type SidebarTab = "risk" | "detection" | "analysis" | "alerts"
+
 // ─── FWI ─────────────────────────────────────────────────────────────────────
 /** Numeric Fire Weather Index class (matches backend/message-contracts.md §2). */
 export type FWIClass = 1 | 2 | 3 | 4 | 5 | 6

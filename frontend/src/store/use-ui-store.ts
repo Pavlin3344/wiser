@@ -1,8 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import type { Theme } from "@/types/types"
-
-type SidebarTab = "risk" | "detection" | "analysis" | "alerts"
+import type { Theme, SidebarTab } from "@/types/types"
 
 interface UIState {
   theme: Theme

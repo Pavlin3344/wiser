@@ -1,6 +1,5 @@
 import { create } from "zustand"
-
-export type RiskLevel = "Low" | "Moderate" | "High" | "Critical"
+import type { RiskLevel } from "@/types/types"
 
 interface DataState {
   activeFireCount: number
