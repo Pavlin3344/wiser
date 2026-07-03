@@ -2,7 +2,7 @@ import { AlertTriangle, Flame } from "lucide-react"
 
 import { SidebarGroup, SidebarGroupLabel } from "@/components/ui/sidebar"
 
-export function AlertsView() {
+export function AlertsPage() {
   return (
     <div>
       <SidebarGroup>

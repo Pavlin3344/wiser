@@ -30,7 +30,7 @@ export function useMapInit(containerRef: RefObject<HTMLDivElement | null>): RefO
     const { camera, mapView, basemap } = useMapStore.getState()
     const { theme } = useUIStore.getState()
 
-    mapRef.current = new maplibregl.Map({
+    const map = new maplibregl.Map({
       container: containerRef.current,
       style: resolveMapStyle(theme, basemap),
       center: [camera.lng, camera.lat],
@@ -41,8 +41,11 @@ export function useMapInit(containerRef: RefObject<HTMLDivElement | null>): RefO
       canvasContextAttributes: { antialias: true },
     })
 
-    mapRef.current.once("load", () => {
-      mapRef.current!.setProjection({
+    mapRef.current = map
+    useMapStore.getState().setMapInstance(map)
+
+    map.once("load", () => {
+      map.setProjection({
         type: mapView === "3d" ? "globe" : "mercator",
       })
     })
@@ -56,6 +59,7 @@ export function useMapInit(containerRef: RefObject<HTMLDivElement | null>): RefO
       observer.disconnect()
       mapRef.current?.remove()
       mapRef.current = null
+      useMapStore.getState().setMapInstance(null)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Intentionally run once — map lifecycle is managed imperatively

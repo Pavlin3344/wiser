@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist, subscribeWithSelector } from "zustand/middleware"
+import type maplibregl from "maplibre-gl"
 
 export interface Camera {
   lng: number
@@ -37,6 +38,12 @@ interface MapState {
    *  NOT via useMapStore() hook, to avoid re-renders. */
   mapStatus: MapStatus
   setMapStatus: (status: Partial<MapStatus>) => void
+
+  mapInstance: maplibregl.Map | null
+  setMapInstance: (map: maplibregl.Map | null) => void
+
+  userLocation: { lat: number; lng: number } | null
+  setUserLocation: (loc: { lat: number; lng: number } | null) => void
 }
 
 export const useMapStore = create<MapState>()(
@@ -57,11 +64,17 @@ export const useMapStore = create<MapState>()(
 
         mapStatus: { lat: 42.0, lng: 25.5, zoom: 7, elevation: 0, bearing: 0 },
         setMapStatus: (partial) => set((s) => ({ mapStatus: { ...s.mapStatus, ...partial } })),
+
+        mapInstance: null,
+        setMapInstance: (mapInstance) => set({ mapInstance }),
+
+        userLocation: null,
+        setUserLocation: (userLocation) => set({ userLocation }),
       }),
       {
         name: "wiser-system-storage",
-        // mapStatus and flyToTarget are transient — never persist them
-        partialize: ({ mapStatus, flyToTarget, ...rest }) => rest,
+        // mapStatus, flyToTarget, userLocation and mapInstance are transient — never persist them
+        partialize: ({ mapStatus, flyToTarget, mapInstance, userLocation, ...rest }) => rest,
       },
     ),
   ),

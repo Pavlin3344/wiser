@@ -3,6 +3,7 @@ import type maplibregl from "maplibre-gl"
 import type { FeatureCollection } from "geojson"
 import { useDataStore } from "@/store/use-data-store"
 import { syncLayers } from "./use-map-layers"
+import { fetchActiveFires } from "@/services/fireService"
 
 /** How often to re-fetch active fire data from the backend (ms). */
 const POLL_INTERVAL_MS = 5 * 60 * 1_000 // 5 minutes
@@ -18,8 +19,7 @@ export function useFireData({ mapRef, fireDataRef }: { mapRef: RefObject<maplibr
     if (!map) return
 
     const fetchAndSyncData = () => {
-      fetch("/api/v1/fires/active")
-        .then((r) => (r.ok ? (r.json() as Promise<FeatureCollection>) : Promise.reject(r.status)))
+      fetchActiveFires()
         .then((data) => {
           fireDataRef.current = data
           syncLayers(map, data)
