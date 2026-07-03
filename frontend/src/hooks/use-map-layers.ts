@@ -6,14 +6,15 @@ import { useFilterStore } from "@/store/use-filter-store"
 import { mockEvacuationRoutes } from "@/mocks/evacuation-data"
 import { mockFireData } from "@/mocks/fire-data"
 import { useMapStore } from "@/store/use-map-store"
+import { isPointInPolygon, bulgariaBorder } from "@/utils/geo"
 
 function getFwiTilesUrl(isoDate: string): string[] {
   const dateStr = isoDate.split("T")[0]
-  return [`/effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=mf010.fwi&TIME=${dateStr}&STYLES=&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE`]
+  return [`effis-fwi://effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=mf010.fwi&TIME=${dateStr}&STYLES=&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE`]
 }
 
 const EFFIS_VIIRS_TILES = [
-  `https://maps.effis.emergency.copernicus.eu/effis` +
+  `effis-viirs://maps.effis.emergency.copernicus.eu/effis` +
   `?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap` +
   `&LAYERS=viirs.hs&STYLES=` +
   `&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256` +
@@ -103,6 +104,7 @@ export function initializeLayers(map: maplibregl.Map): void {
 /** Reads current store state and sets all layer visibilities + terrain. */
 export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): void {
   const { showTerrain, showRiskGrid, showFires, showEvac, showLabels } = useLayerStore.getState()
+  const { region } = useFilterStore.getState()
 
   const setVis = (id: string, visible: boolean) => {
     if (map.getLayer(id)) {
@@ -119,8 +121,40 @@ export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): vo
   setVis("country-borders", showLabels)
   setVis("place-labels", showLabels)
 
+  let filteredFireData = fireData
+  let filteredEvacData = mockEvacuationRoutes as FeatureCollection
+
+  if (region === "bulgaria") {
+    // Filter fire data points to be within Bulgaria
+    filteredFireData = {
+      ...fireData,
+      features: fireData.features.filter((f) => {
+        if (f.geometry.type === "Point") {
+          const coords = f.geometry.coordinates as [number, number]
+          return isPointInPolygon(coords, bulgariaBorder)
+        }
+        return false
+      }),
+    }
+
+    // Filter evacuation routes to only show corridors intersecting Bulgaria
+    filteredEvacData = {
+      ...mockEvacuationRoutes,
+      features: mockEvacuationRoutes.features.filter((f) => {
+        if (f.geometry.type === "LineString") {
+          const coords = f.geometry.coordinates as [number, number][]
+          return coords.some((pt) => isPointInPolygon(pt, bulgariaBorder))
+        }
+        return false
+      }),
+    }
+  }
+
   const src = map.getSource("active-fires") as maplibregl.GeoJSONSource | undefined
-  src?.setData(fireData)
+  src?.setData(filteredFireData)
+
+  const evacSrc = map.getSource("evac-routes") as maplibregl.GeoJSONSource | undefined
+  evacSrc?.setData(filteredEvacData)
 
   // Restore user location data if available
   const { userLocation } = useMapStore.getState()
@@ -140,23 +174,27 @@ export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): vo
  */
 export function useMapLayers(mapRef: RefObject<maplibregl.Map | null>, fireDataRef: RefObject<FeatureCollection>): void {
   const { showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid } = useLayerStore()
-  const { selectedDate } = useFilterStore()
+  const { selectedDate, region } = useFilterStore()
 
   useEffect(() => {
     const map = mapRef.current
     if (!map?.isStyleLoaded()) return
     syncLayers(map, fireDataRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid])
+  }, [showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid, region])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map?.isStyleLoaded()) return
 
-    const source = map.getSource("effis-fwi") as maplibregl.Source & { setTiles?: (tiles: string[]) => void }
-
-    if (source && typeof source.setTiles === "function") {
-      source.setTiles(getFwiTilesUrl(selectedDate))
+    const fwiSource = map.getSource("effis-fwi") as maplibregl.Source & { setTiles?: (tiles: string[]) => void }
+    if (fwiSource && typeof fwiSource.setTiles === "function") {
+      fwiSource.setTiles(getFwiTilesUrl(selectedDate))
     }
-  }, [selectedDate, mapRef])
+
+    const viirsSource = map.getSource("effis-viirs") as maplibregl.Source & { setTiles?: (tiles: string[]) => void }
+    if (viirsSource && typeof viirsSource.setTiles === "function") {
+      viirsSource.setTiles(EFFIS_VIIRS_TILES)
+    }
+  }, [selectedDate, region, mapRef])
 }

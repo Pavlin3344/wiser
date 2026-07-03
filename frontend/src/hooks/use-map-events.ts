@@ -4,7 +4,7 @@ import type { Point } from "geojson"
 import { useMapStore } from "@/store/use-map-store"
 import { useLayerStore } from "@/store/use-layer-store"
 import { generateGlassPopupHTML, generateSectorPopupHTML } from "@/lib/popups"
-import { lngLatTo3857 } from "@/utils/geo"
+import { lngLatToMercator } from "@/utils/geo"
 import { intensityStyle } from "@/utils/helpers"
 import { fetchEffisWmsFeatureInfo } from "@/services/fireService"
 
@@ -47,8 +47,8 @@ async function fetchEffisInfo(
   // BBOX must be in EPSG:3857 meters — getBounds() returns geographic degrees which
   // would be treated as invalid Mercator coordinates by the WMS server.
   const b = map.getBounds()
-  const [minX, minY] = lngLatTo3857(b.getWest(), b.getSouth())
-  const [maxX, maxY] = lngLatTo3857(b.getEast(), b.getNorth())
+  const [minX, minY] = lngLatToMercator(b.getWest(), b.getSouth())
+  const [maxX, maxY] = lngLatToMercator(b.getEast(), b.getNorth())
   const bbox = `${minX},${minY},${maxX},${maxY}`
 
   // Use CSS pixel dimensions (clientWidth/clientHeight) to stay consistent with

@@ -55,7 +55,7 @@ export function RiskAssessmentPage() {
               <SelectValue placeholder='Select region' />
             </SelectTrigger>
             <SelectContent className='bg-background/40 backdrop-blur-sm border border-white/10 border-t-white/20 border-l-white/20 shadow-lg rounded-2xl'>
-              <SelectItem value='world' disabled className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
+              <SelectItem value='world' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
                 World
               </SelectItem>
               <SelectItem value='europe' disabled className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
