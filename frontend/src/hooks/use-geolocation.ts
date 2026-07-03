@@ -1,7 +1,7 @@
 import { useMapStore } from "@/store/use-map-store"
 
-export function useGeolocation(mapRef?: React.RefObject<maplibregl.Map | null>) {
-  const { setFlyToTarget } = useMapStore()
+export function useGeolocation() {
+  const { setFlyToTarget, mapInstance, setUserLocation } = useMapStore()
 
   const findMe = () => {
     if (!navigator.geolocation) {
@@ -13,9 +13,10 @@ export function useGeolocation(mapRef?: React.RefObject<maplibregl.Map | null>) 
       (position) => {
         const { latitude, longitude } = position.coords
 
+        setUserLocation({ lat: latitude, lng: longitude })
         setFlyToTarget({ lat: latitude, lng: longitude, zoom: 12 })
 
-        const map = mapRef?.current
+        const map = mapInstance
         if (!map) return
 
         const source = map.getSource("user-location") as maplibregl.GeoJSONSource | undefined
@@ -38,3 +39,4 @@ export function useGeolocation(mapRef?: React.RefObject<maplibregl.Map | null>) 
 
   return { findMe }
 }
+

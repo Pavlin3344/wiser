@@ -41,6 +41,9 @@ interface MapState {
 
   mapInstance: maplibregl.Map | null
   setMapInstance: (map: maplibregl.Map | null) => void
+
+  userLocation: { lat: number; lng: number } | null
+  setUserLocation: (loc: { lat: number; lng: number } | null) => void
 }
 
 export const useMapStore = create<MapState>()(
@@ -64,11 +67,14 @@ export const useMapStore = create<MapState>()(
 
         mapInstance: null,
         setMapInstance: (mapInstance) => set({ mapInstance }),
+
+        userLocation: null,
+        setUserLocation: (userLocation) => set({ userLocation }),
       }),
       {
         name: "wiser-system-storage",
-        // mapStatus, flyToTarget, and mapInstance are transient — never persist them
-        partialize: ({ mapStatus, flyToTarget, mapInstance, ...rest }) => rest,
+        // mapStatus, flyToTarget, userLocation and mapInstance are transient — never persist them
+        partialize: ({ mapStatus, flyToTarget, mapInstance, userLocation, ...rest }) => rest,
       },
     ),
   ),
