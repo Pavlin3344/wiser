@@ -135,7 +135,7 @@ export function RiskAssessmentPage() {
                 <span className='truncate'>{uiDate ? format(uiDate, "MMM d, yyyy") : "Pick a date"}</span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className='w-auto p-0 bg-background/40 backdrop-blur-sm border border-white/10 border-t-white/20 border-l-white/20 shadow-lg rounded-2xl overflow-hidden transition-colors' align='start'>
+            <PopoverContent className='w-auto p-0 bg-background/40 backdrop-blur-sm border border-white/10 border-t-white/20 border-l-white/20 shadow-lg rounded-2xl ring-0 overflow-hidden transition-colors' align='start'>
               <Calendar mode='single' selected={uiDate} onSelect={handleSelect} disabled={(d) => d > new Date() || d < minDate} />
             </PopoverContent>
           </Popover>
