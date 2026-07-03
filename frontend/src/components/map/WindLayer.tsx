@@ -594,7 +594,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
         style={{ mixBlendMode: theme === "dark" ? "screen" : "multiply" }}
       />
       <div
-        className={`absolute bottom-12 z-20 pointer-events-none flex flex-col gap-1.5 transition-all duration-300 ease-in-out ${sidebarOpen ? "left-(--sidebar-width,16rem)" : "left-2"
+        className={`absolute bottom-12 z-20 flex flex-col gap-1.5 transition-all duration-300 ease-in-out ${sidebarOpen ? "left-(--sidebar-width,16rem)" : "left-2"
           }`}
       >
         <div className="flex items-center gap-2 bg-background/60 backdrop-blur-xl px-4 py-1 rounded-full border border-white/10 border-t-white/20 border-l-white/20 shadow-lg text-[9px] font-semibold font-mono tracking-wide uppercase text-foreground/90">

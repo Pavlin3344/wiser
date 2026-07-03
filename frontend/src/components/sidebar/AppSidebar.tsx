@@ -26,7 +26,7 @@ const UserMenu = memo(function UserMenu() {
     <SidebarMenu>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <SidebarMenuButton size='lg' className='data-[state=open]:bg-background/20 data-[state=open]:backdrop-blur-xl data-[state=open]:text-sidebar-accent-foreground hover:bg-background/30'>
+          <SidebarMenuButton size='lg' className='data-[state=open]:bg-background/20 data-[state=open]:backdrop-blur-xl data-[state=open]:text-sidebar-accent-foreground cursor-pointer'>
             <Avatar className='h-8 w-8 rounded-full'>
               <AvatarImage alt='Guest' />
               <AvatarFallback className='rounded-full'>GU</AvatarFallback>
@@ -38,7 +38,7 @@ const UserMenu = memo(function UserMenu() {
             <ChevronsUpDown className='ml-auto size-4' />
           </SidebarMenuButton>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className='bg-background/60 backdrop-blur-xl w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg' side='right' align='end' sideOffset={4}>
+        <DropdownMenuContent className='bg-background/60 backdrop-blur-xl w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-2xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20 ring-0' side='right' align='end' sideOffset={19} alignOffset={-10}>
           <DropdownMenuLabel className='p-0 font-normal'>
             <div className='flex items-center gap-2 px-1 py-1.5 text-left text-sm'>
               <Avatar className='h-8 w-8 rounded-full'>
