@@ -11,7 +11,8 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  //- TEMPORARY REMOVE AFTER TESTING IT IS TEMPORARY!!!!!!!!!!!!!
+  // Proxy configuration required for local development to bypass CORS restrictions
+  // when querying Copernicus EFFIS WMS layers, matching production Nginx routing.
   server: {
     proxy: {
       "/effis-wms": {
