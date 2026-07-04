@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 
 export interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[]
@@ -27,6 +28,7 @@ export function usePWAInstall() {
       setInstallPrompt(null)
       setIsInstalled(true)
       console.log("PWA was installed successfully")
+      toast.success("PWA was installed successfully")
     }
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
@@ -37,8 +39,8 @@ export function usePWAInstall() {
     const iosDevice = /iphone|ipad|ipod/.test(userAgent)
     setIsIOS(iosDevice)
 
-    const standaloneMode = window.matchMedia("(display-mode: standalone)").matches || 
-                           (window.navigator as any).standalone === true
+    const standaloneMode = window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true
     setIsStandalone(standaloneMode)
     if (standaloneMode) {
       setIsInstalled(true)
@@ -56,11 +58,13 @@ export function usePWAInstall() {
       await installPrompt.prompt()
       const { outcome } = await installPrompt.userChoice
       console.log(`User response to install prompt: ${outcome}`)
+      toast(`PWA installation: ${outcome}`)
       if (outcome === "accepted") {
         setInstallPrompt(null)
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Installation prompt failed:", err)
+      toast.error(`PWA installation failed: ${err?.message || err}`)
     }
   }
 

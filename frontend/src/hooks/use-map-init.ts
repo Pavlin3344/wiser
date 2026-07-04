@@ -1,5 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react"
 import maplibregl, { type StyleSpecification } from "maplibre-gl"
+import { toast } from "sonner"
 import { useMapStore } from "@/store/use-map-store"
 import { useUIStore } from "@/store/use-ui-store"
 import { satelliteStyle } from "@/lib/map-config"
@@ -106,8 +107,9 @@ function registerCustomProtocols() {
   protocols.forEach((protocol, idx) => {
     try {
       registerProtocol(protocol, replacements[idx])
-    } catch (e) {
+    } catch (e: any) {
       console.warn(`Protocol ${protocol} registration error:`, e)
+      toast.warning(`Protocol ${protocol} registration error: ${e?.message || e}`)
     }
   })
 }

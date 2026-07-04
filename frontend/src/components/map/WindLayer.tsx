@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import type { Map } from "maplibre-gl"
+import { toast } from "sonner"
 import { useUIStore } from "@/store/use-ui-store"
 import { useSidebar } from "@/components/ui/sidebar"
 import { useFilterStore } from "@/store/use-filter-store"
@@ -192,6 +193,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
   // 15-Minute Local Memory Cache (caching grid matrices by geographic coordinates and time)
   const cachedGridsRef = useRef<CachedWindGrid[]>([])
   const WIND_CACHE_LIFETIME = 15 * 60 * 1000 // 15 mins
+  const WIND_RATELIMIT_COOLDOWN = 15 * 60 * 1000 // 15 mins default rate limit cooldown
 
   // Concurrency Limiter: Ensures we never trigger parallel fetches (max 1 concurrent call per IP)
   const isFetchingRef = useRef(false)
@@ -205,6 +207,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
 
   const [speedRange, setSpeedRange] = useState<{ min: number; max: number } | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
+  const rateLimitResetTimeRef = useRef<number | null>(null)
 
   const particles = useRef<Particle[]>([])
   const particleCount = 1500
@@ -344,6 +347,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
     // Validate that center and zoom are valid numbers before querying API
     if (!center || isNaN(center.lng) || isNaN(center.lat) || typeof currentZoom !== "number" || isNaN(currentZoom)) {
       console.warn("Map center or zoom is invalid, skipping wind data fetch.")
+      toast.warning("Cannot fetch wind data: invalid map center or zoom level")
       return
     }
 
@@ -378,6 +382,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
 
     if (matchingCachedGrid) {
       console.info("Found matching wind grid in memory cache. Skipping API call.")
+      toast.info("Found matching wind grid in memory cache. Skipping API call.")
       gridRef.current = matchingCachedGrid
 
       // Compute speed range for the indicator
@@ -410,9 +415,18 @@ export function WindLayer({ mapRef }: WindLayerProps) {
 
       if (deltaLng < lngSpan * 0.3 && deltaLat < latSpan * 0.3 && zoomDiff < 1.0) {
         console.info("Reusing active wind grid. Center drift and zoom change are minor.")
+        toast.info("Reusing active wind grid. Center drift and zoom change are minor.")
         if (status === "syncing") setStatus("live")
         return
       }
+    }
+
+    // D. Rate Limit Cooldown Check
+    if (rateLimitResetTimeRef.current && Date.now() < rateLimitResetTimeRef.current) {
+      console.info(`Open-Meteo API rate limit is active. Skipping API call. (Resets at ${new Date(rateLimitResetTimeRef.current).toLocaleTimeString()})`)
+      toast.info(`Open-Meteo API rate limit is active. Skipping API call. (Resets at ${new Date(rateLimitResetTimeRef.current).toLocaleTimeString()})`)
+      setStatus("ratelimit")
+      return
     }
 
     if (abortControllerRef.current) {
@@ -454,7 +468,24 @@ export function WindLayer({ mapRef }: WindLayerProps) {
       // Catch 429 Too Many Requests
       if (res.status === 429) {
         console.warn("Open-Meteo API rate limit reached (429). Falling back to simulation.")
+        toast.warning("Wind API rate limit reached. Falling back to simulation mode.")
         setStatus("ratelimit")
+
+        // Read Retry-After header if present, otherwise default to WIND_RATELIMIT_COOLDOWN
+        const retryAfterHeader = res.headers.get("Retry-After")
+        let cooldownMs = WIND_RATELIMIT_COOLDOWN
+        if (retryAfterHeader) {
+          const parsed = parseInt(retryAfterHeader, 10)
+          if (!isNaN(parsed)) {
+            cooldownMs = parsed * 1000
+          } else {
+            const parsedDate = Date.parse(retryAfterHeader)
+            if (!isNaN(parsedDate)) {
+              cooldownMs = Math.max(0, parsedDate - Date.now())
+            }
+          }
+        }
+        rateLimitResetTimeRef.current = Date.now() + cooldownMs
         return
       }
 
@@ -516,6 +547,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
     } catch (err: any) {
       if (err.name === "AbortError") return
       console.warn("Failed to fetch real wind data from Open-Meteo:", err)
+      toast.warning("Failed to fetch wind data from Open-Meteo")
       setStatus("offline")
     } finally {
       isFetchingRef.current = false
@@ -684,6 +716,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
           p.age++
         } catch (err) {
           console.warn("Failed to update particle inside frame:", err)
+          toast.warning("Failed to update particle inside frame")
           // Gracefully reset particle to recover
           const center = map.getCenter()
           p.lng = center?.lng ?? 0

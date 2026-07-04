@@ -1,5 +1,6 @@
 import { useEffect, useRef, type RefObject } from "react"
 import maplibregl from "maplibre-gl"
+import { toast } from "sonner"
 import type { Point } from "geojson"
 import { useMapStore } from "@/store/use-map-store"
 import { useLayerStore } from "@/store/use-layer-store"
@@ -71,10 +72,12 @@ async function fetchEffisInfo(
 
     if (text.includes("ServiceException")) {
       console.warn("WMS Service Exception:", text)
+      toast.warning("WMS Service Exception occurred")
       return
     }
 
     console.info("WMS GetFeatureInfo Response:", text)
+    toast.info("WMS GetFeatureInfo Response:" + text)
 
     if (
       !text.trim() ||
@@ -96,6 +99,7 @@ async function fetchEffisInfo(
     }
 
     console.info("Parsed props:", props)
+    toast.info("Parsed props:" + props)
 
     if (layer === "viirs.hs") {
       const date = props.FIREDATE ? new Date(props.FIREDATE as string).toLocaleDateString() : "Live"
@@ -115,8 +119,9 @@ async function fetchEffisInfo(
         activePopupRef,
       )
     }
-  } catch (err) {
+  } catch (err: any) {
     console.warn("Empty grid location metadata requested or server processing timeout.", err)
+    toast.warning("Failed to retrieve map grid metadata")
   }
 }
 

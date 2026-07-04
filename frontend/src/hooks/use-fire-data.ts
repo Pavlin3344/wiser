@@ -1,5 +1,6 @@
 import { useEffect, type RefObject } from "react"
 import type maplibregl from "maplibre-gl"
+import { toast } from "sonner"
 import type { FeatureCollection } from "geojson"
 import { syncLayers } from "./use-map-layers"
 import { fetchActiveFires } from "@/services/fireService"
@@ -25,6 +26,7 @@ export function useFireData({ mapRef, fireDataRef }: { mapRef: RefObject<maplibr
         })
         .catch((err) => {
           console.warn(`[Wiser] Backend unavailable (${err}). Using EFFIS mock data.`)
+          toast.warning("Backend unavailable. Using EFFIS mock data.")
           // Keep the current mock/stale data in place — do not wipe the map
           syncLayers(map, fireDataRef.current)
         })

@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from "react"
+import { toast } from "sonner"
 
 interface Props {
   children: ReactNode
@@ -28,6 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
   override componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[Wiser] Unhandled render error:", error, info.componentStack)
+    toast.error(`Application error: ${error.message}`)
   }
 
   override render() {

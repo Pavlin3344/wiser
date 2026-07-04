@@ -9,6 +9,7 @@ import { BottomStatusBar } from "@/components/overlays/BottomStatusBar"
 import { MobileNavBar } from "@/components/overlays/MobileNavBar"
 import { ThemeProvider } from "@/components/providers/ThemeProvider"
 import { ErrorBoundary } from "@/components/providers/ErrorBoundary"
+import { Toaster } from "@/components/ui/sonner"
 import { useUIStore } from "@/store/use-ui-store"
 
 interface DashboardLayoutProps {
@@ -35,9 +36,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <MobileNavBar />
             {children}
           </SidebarInset>
+
+          <Toaster position="top-center" />
         </TooltipProvider>
       </SidebarProvider>
     </ThemeProvider>
   )
 }
-

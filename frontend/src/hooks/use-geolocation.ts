@@ -1,11 +1,20 @@
 import { useMapStore } from "@/store/use-map-store"
+import { toast } from "sonner"
 
 export function useGeolocation() {
   const { setFlyToTarget, mapInstance, setUserLocation } = useMapStore()
 
   const findMe = () => {
     if (!navigator.geolocation) {
+      const isHttp = window.location.protocol === "http:" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+
       console.warn("[Wiser] Geolocation is not supported by this browser.")
+      toast.warning("Geolocation Unsupported", {
+        description: isHttp
+          ? "Geolocation requires a secure connection (HTTPS) on deployed servers. Please configure SSL/HTTPS."
+          : "Geolocation is not supported by your browser or current settings.",
+        duration: 8000,
+      })
       return
     }
 
@@ -28,10 +37,38 @@ export function useGeolocation() {
           })
         } else {
           console.warn("[Wiser] Source 'user-location' not initialized yet.")
+          toast.warning("User location map source is not initialized yet")
         }
       },
       (err) => {
         console.warn(`[Wiser] Geolocation error (${err.code}): ${err.message}`)
+        toast.warning(`[Wiser] Geolocation error (${err.code}): ${err.message}`)
+
+        let message = `Unable to retrieve your location (Error ${err.code}: ${err.message}).`
+        let title = "Location Error"
+
+        if (err.code === 1) {
+          // Permission Denied / Insecure origin
+          title = "Permission Denied"
+          const isHttp = window.location.protocol === "http:" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
+
+          if (isHttp) {
+            message = "Location permission denied. Geolocation requires a secure connection (HTTPS) on deployed servers. Please configure SSL/HTTPS."
+          } else {
+            message = "Location permission denied. Please allow location access in your browser settings."
+          }
+        } else if (err.code === 2) {
+          title = "Position Unavailable"
+          message = "Position unavailable. Please check your device's location services or network connection."
+        } else if (err.code === 3) {
+          title = "Timeout"
+          message = "Location request timed out. Please try again."
+        }
+
+        toast.error(title, {
+          description: message,
+          duration: 8000,
+        })
       },
       { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
     )
@@ -39,4 +76,3 @@ export function useGeolocation() {
 
   return { findMe }
 }
-
