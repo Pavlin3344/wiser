@@ -130,4 +130,29 @@ describe("useGeolocation custom hook", () => {
     const state = useMapStore.getState()
     expect(state.userLocation).toBeNull()
   })
+
+  it("should return early without errors/warnings if mapInstance is null on success", () => {
+    useMapStore.setState({ mapInstance: null })
+    const mockGeolocation = {
+      getCurrentPosition: vi.fn().mockImplementation((success) => {
+        success({
+          coords: {
+            latitude: 42.6977,
+            longitude: 23.3219,
+          },
+        })
+      }),
+    }
+    vi.stubGlobal("navigator", { geolocation: mockGeolocation })
+
+    const { result } = renderHook(() => useGeolocation())
+
+    act(() => {
+      result.current.findMe()
+    })
+
+    const state = useMapStore.getState()
+    expect(state.userLocation).toEqual({ lat: 42.6977, lng: 23.3219 })
+    expect(warnSpy).not.toHaveBeenCalled()
+  })
 })

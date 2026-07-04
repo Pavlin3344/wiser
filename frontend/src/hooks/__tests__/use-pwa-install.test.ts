@@ -172,4 +172,12 @@ describe("usePWAInstall custom hook", () => {
 
     expect(errorSpy).toHaveBeenCalledWith("Installation prompt failed:", testError)
   })
+
+  it("should return early from install() if installPrompt is null", async () => {
+    const { result } = renderHook(() => usePWAInstall())
+    await act(async () => {
+      await result.current.install()
+    })
+    expect(result.current.installPrompt).toBeNull()
+  })
 })
