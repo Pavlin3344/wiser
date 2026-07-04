@@ -207,7 +207,11 @@ services:
     logging: *default-logging
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    # v0.55.1: съдържа фикса за Docker containerd image store (google/cadvisor
+    # PR #3709) — v0.49 не можеше да регистрира контейнерите изобщо
+    # ("failed to identify the read-write layer ID", image/overlayfs layerdb).
+    # v0.53 няма публикуван image; v0.54.1 е първият с фикса.
+    image: gcr.io/cadvisor/cadvisor:v0.55.1
     container_name: wiser-cadvisor
     restart: unless-stopped
     mem_limit: 256m
@@ -217,16 +221,14 @@ services:
       - /var/run:/var/run:ro
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
+      - /var/lib/containerd:/var/lib/containerd:ro
       - /dev/disk/:/dev/disk:ro
     command:
       # Само Docker контейнери (без raw systemd cgroups — по-малко RAM/CPU и шум)
       - '--docker_only=true'
       - '--housekeeping_interval=30s'
-      # disk/diskIO са изключени: Docker използва containerd image store
-      # (image/overlayfs), а cadvisor v0.49 търси rw layer-а по стария път
-      # (image/overlay2) и отказва да регистрира контейнерите изобщо
-      # ("failed to identify the read-write layer ID"). Host disk метриките
-      # идват от node-exporter. Останалите са default-disabled за v0.49.
+      # Per-container disk метрики не ползваме (host disk идва от node-exporter);
+      # останалите в списъка са default-disabled — изредени изрично.
       - '--disable_metrics=disk,diskIO,percpu,advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp'
     logging: *default-logging
 
