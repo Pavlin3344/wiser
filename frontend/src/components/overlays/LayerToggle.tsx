@@ -1,10 +1,12 @@
 import { Map as MapIcon } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { useLayerStore } from "@/store/use-layer-store"
 import { useMapStore } from "@/store/use-map-store"
 
 export function LayerToggle() {
-  const { showLabels, setShowLabels, basemap } = useMapStore()
+  const { showLabels, setShowLabels } = useLayerStore()
+  const { basemap } = useMapStore()
 
   if (basemap !== "satellite") return null
 

@@ -24,7 +24,7 @@ export function BottomStatusBar() {
   }, [])
 
   return (
-    <div className='absolute bottom-2 left-2 right-2 h-8 bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20 rounded-full z-20 flex items-center justify-between px-4 pointer-events-auto text-[10px] font-mono text-muted-foreground uppercase tracking-wider'>
+    <div className='absolute bottom-2 left-2 right-2 h-8 bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20 rounded-full z-20 hidden md:flex items-center justify-between px-4 pointer-events-auto text-[10px] font-mono text-muted-foreground uppercase tracking-wider'>
       <div className='absolute top-0 left-0 right-0 h-px bg-linear-to-r from-transparent via-white/10 to-transparent' />
 
       <div className='flex items-center gap-6'>

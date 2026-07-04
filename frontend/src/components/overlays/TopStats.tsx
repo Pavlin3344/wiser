@@ -1,6 +1,6 @@
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
-import { useMapStore } from "@/store/use-map-store"
+import { useDataStore } from "@/store/use-data-store"
 
 const riskStyles = {
   Low: "text-green-500 bg-green-500/10",
@@ -10,13 +10,14 @@ const riskStyles = {
 }
 
 export function TopStats() {
-  const activeFireCount = useMapStore((s) => s.activeFireCount)
-  const overallRiskLevel = useMapStore((s) => s.overallRiskLevel)
+  const activeFireCount = useDataStore((s) => s.activeFireCount)
+  const overallRiskLevel = useDataStore((s) => s.overallRiskLevel)
 
   return (
-    <div className='flex items-center gap-2 pointer-events-none transition-all duration-300 ease-in-out'>
-      <div className='pointer-events-auto'>
+    <div className='hidden sm:flex items-center gap-2 pointer-events-none transition-all duration-300 ease-in-out'>
+      <div className='relative pointer-events-auto'>
         <SidebarTrigger className='bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20 hover:bg-background/80 h-10 w-10 rounded-full cursor-pointer' />
+        <div className='absolute inset-0 rounded-full bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
       </div>
 
       <div className='relative pointer-events-auto bg-background/60 backdrop-blur-xl shadow-lg rounded-full border border-white/10 border-t-white/20 border-l-white/20 flex items-center h-10 px-3 gap-2'>

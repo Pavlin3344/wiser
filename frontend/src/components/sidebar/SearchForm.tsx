@@ -3,7 +3,7 @@ import { Search } from "lucide-react"
 import { SidebarGroup, SidebarGroupContent } from "@/components/ui/sidebar"
 
 export function SearchForm({ onClick, ...props }: React.ComponentProps<"div"> & { onClick?: () => void }) {
-  const isMac = false
+  const isMac = typeof navigator !== "undefined" && /Mac|iPod|iPhone|iPad/.test(navigator.userAgent)
 
   return (
     <div {...props}>

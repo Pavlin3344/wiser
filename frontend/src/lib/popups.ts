@@ -1,39 +1,59 @@
-export const generateGlassPopupHTML = (date: string, title: string, intensity: string, coordinates: number[], dotColor: string, textColor: string) => `
-  <div class="font-sans max-w-56 p-4 rounded-2xl bg-background/60 backdrop-blur-xl shadow-lg border-white/10 border-t-white/20 border-l-white/20">
-  <div class="flex items-center justify-between mb-1.5">
-    <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">${date}</div>
-    <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-background/20 backdrop-blur-sm px-1.5 py-0.5 rounded-xl border border-border/10">EFFIS</div>
-  </div>
-  
-  <div class="font-bold text-sm mb-2 text-foreground leading-tight">${title}</div>
+import { escHtml } from "@/utils/helpers"
 
-  <div class="flex items-center gap-2 mb-3">
-    <div class="w-2.5 h-2.5 rounded-full ${dotColor} border border-white/10 border-t-white/20 border-l-white/20 shadow-sm"></div>
-    <span class="text-xs font-bold capitalize ${textColor}">${intensity} Risk</span>
-  </div>
+export const generateGlassPopupHTML = (
+  date: string,
+  title: string,
+  intensity: string,
+  coordinates: number[],
+  dotColor: string,
+  textColor: string,
+) => `
+  <div class="relative font-sans max-w-56 p-3 bg-background/60 backdrop-blur-xl shadow-lg rounded-2xl border-white/10 border-t-white/20 border-l-white/20">
+    <div class='absolute inset-0 rounded-2xl bg-linear-to-br from-white/5 to-transparent pointer-events-none'></div>
 
-  <div class="text-xs text-muted-foreground border-t border-white/10 pt-2 mt-1">
-    <div class="flex justify-between gap-4 mb-1">
-      <span class="font-semibold text-foreground/70">Lat:</span>
-      <span class="font-mono text-foreground">${coordinates[1].toFixed(4)}°</span>
+    <div class="flex items-center justify-between mb-1.5">
+      <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">${escHtml(date)}</div>
+      <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-background/20 backdrop-blur-sm px-1.5 py-0.5 rounded-xl border border-border/10">EFFIS</div>
     </div>
-    <div class="flex justify-between gap-4">
-      <span class="font-semibold text-foreground/70">Lon:</span>
-      <span class="font-mono text-foreground">${coordinates[0].toFixed(4)}°</span>
+    
+    <div class="font-bold text-sm mb-2 text-foreground leading-tight">${escHtml(title)}</div>
+
+    <div class="flex items-center gap-2 mb-3">
+      <div class="w-2.5 h-2.5 rounded-full ${escHtml(dotColor)} border border-white/10 border-t-white/20 border-l-white/20 shadow-sm"></div>
+      <span class="text-xs font-bold capitalize ${escHtml(textColor)}">${escHtml(intensity)} Risk</span>
     </div>
-  </div>
+
+    <div class="text-xs text-muted-foreground border-t border-white/10 pt-2 mt-1">
+      <div class="flex justify-between gap-4 mb-1">
+        <span class="font-semibold text-foreground/70">Lat:</span>
+        <span class="font-mono text-foreground">${coordinates[1].toFixed(4)}°</span>
+      </div>
+      <div class="flex justify-between gap-4">
+        <span class="font-semibold text-foreground/70">Lon:</span>
+        <span class="font-mono text-foreground">${coordinates[0].toFixed(4)}°</span>
+      </div>
+    </div>
   </div>
 `
 
-export const generateSectorPopupHTML = (sectorId: string, level: string, temp: number, humidity: number, dotColor: string, textColor: string) => `
-  <div class="font-sans max-w-56 p-4 rounded-2xl bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20">
+export const generateSectorPopupHTML = (
+  sectorId: string,
+  level: string,
+  temp: number,
+  humidity: number,
+  dotColor: string,
+  textColor: string,
+) => `
+  <div class="relative font-sans max-w-56 p-3 bg-background/60 backdrop-blur-xl shadow-lg rounded-2xl border border-white/10 border-t-white/20 border-l-white/20">
+    <div class='absolute inset-0 rounded-2xl bg-linear-to-br from-white/5 to-transparent pointer-events-none'></div>
+
     <div class="flex items-center justify-between mb-1.5">
-      <div class="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground">${sectorId}</div>
-      <div class="w-2 h-2 rounded-full ${dotColor} animate-pulse shadow-[0_0_8px_rgba(0,0,0,0.5)]"></div>
+      <div class="text-[10px] font-mono font-bold uppercase tracking-wider text-muted-foreground">${escHtml(sectorId)}</div>
+      <div class="w-2 h-2 rounded-full ${escHtml(dotColor)} animate-pulse shadow-[0_0_8px_rgba(0,0,0,0.5)]"></div>
     </div>
     
-    <div class="font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-1.5 ${textColor}">
-      Sector Status: ${level}
+    <div class="font-bold text-xs uppercase tracking-wider mb-3 flex items-center gap-1.5 ${escHtml(textColor)}">
+      Sector Status: ${escHtml(level)}
     </div>
 
     <div class="grid grid-cols-2 gap-2 text-xs">

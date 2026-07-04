@@ -1,0 +1,25 @@
+{
+  "name": "Wiser Core Risk Map",
+  "short_name": "Wiser Core",
+  "description": "Wildfire Risk Assessment & Detection Map",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0c0a09",
+  "theme_color": "#dc2626",
+  "orientation": "any",
+  "categories": ["weather", "utilities", "maps"],
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "48x48 72x72 96x96 128x128 192x192 256x256 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

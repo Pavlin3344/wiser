@@ -1,6 +1,8 @@
 import { useEffect, type RefObject } from "react"
 import maplibregl from "maplibre-gl"
 import { useMapStore } from "@/store/use-map-store"
+import { useUIStore } from "@/store/use-ui-store"
+import { useFilterStore } from "@/store/use-filter-store"
 import { resolveMapStyle } from "./use-map-init"
 import { initializeLayers, syncLayers } from "./use-map-layers"
 import type { FeatureCollection } from "geojson"
@@ -10,19 +12,33 @@ import type { FeatureCollection } from "geojson"
  * then re-initialises all application layers on top of it.
  */
 export function useMapStyle(mapRef: RefObject<maplibregl.Map | null>, fireDataRef: RefObject<FeatureCollection>): void {
-  const { basemap, theme, mapView } = useMapStore()
+  const { basemap } = useMapStore()
+  const { theme } = useUIStore()
 
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
 
-    map.setStyle(resolveMapStyle(theme, basemap))
+    const updateStyle = () => {
+      map.setStyle(resolveMapStyle(theme, basemap))
 
-    map.once("styledata", () => {
-      initializeLayers(map)
-      syncLayers(map, fireDataRef.current)
-      map.setProjection({ type: mapView === "3d" ? "globe" : "mercator" })
-    })
+      map.once("styledata", () => {
+        initializeLayers(map)
+        syncLayers(map, fireDataRef.current)
+        const currentMapView = useMapStore.getState().mapView
+        map.setProjection({ type: currentMapView === "3d" ? "globe" : "mercator" })
+      })
+    }
+
+    updateStyle()
+
+    if (theme !== "system") return
+
+    const mq = window.matchMedia("(prefers-color-scheme: dark)")
+    mq.addEventListener("change", updateStyle)
+    return () => {
+      mq.removeEventListener("change", updateStyle)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [basemap, theme])
 }
@@ -30,12 +46,21 @@ export function useMapStyle(mapRef: RefObject<maplibregl.Map | null>, fireDataRe
 /**
  * Switches between Mercator and Globe projection and flies to a sane zoom.
  */
+interface MapWithStyle {
+  style?: {
+    stylesheet?: unknown
+  }
+}
+
 export function useMapView(mapRef: RefObject<maplibregl.Map | null>): void {
   const mapView = useMapStore((s) => s.mapView)
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map?.isStyleLoaded()) return
+    if (!map) return
+
+    const style = (map as unknown as MapWithStyle).style
+    if (!style || !style.stylesheet) return
 
     map.stop()
     map.setProjection({ type: mapView === "3d" ? "globe" : "mercator" })
@@ -47,7 +72,7 @@ export function useMapView(mapRef: RefObject<maplibregl.Map | null>): void {
  * Advances currentTime by 1 hour every 500 ms while isPlaying is true.
  */
 export function useTimePlayback(mapRef: RefObject<maplibregl.Map | null>, fireDataRef: RefObject<FeatureCollection>): void {
-  const isPlaying = useMapStore((s) => s.isPlaying)
+  const isPlaying = useFilterStore((s) => s.isPlaying)
 
   useEffect(() => {
     if (!isPlaying) return
@@ -55,7 +80,7 @@ export function useTimePlayback(mapRef: RefObject<maplibregl.Map | null>, fireDa
     const id = setInterval(() => {
       const map = mapRef.current
       if (!map) return
-      const { currentTime, setCurrentTime } = useMapStore.getState()
+      const { currentTime, setCurrentTime } = useFilterStore.getState()
       setCurrentTime((currentTime + 1) % 24)
       syncLayers(map, fireDataRef.current)
     }, 500)

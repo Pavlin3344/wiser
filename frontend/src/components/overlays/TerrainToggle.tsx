@@ -3,10 +3,12 @@ import { Mountain } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 
+import { useLayerStore } from "@/store/use-layer-store"
 import { useMapStore } from "@/store/use-map-store"
 
 export function TerrainToggle() {
-  const { showTerrain, setShowTerrain, basemap } = useMapStore()
+  const { showTerrain, setShowTerrain } = useLayerStore()
+  const { basemap } = useMapStore()
 
   if (basemap !== "satellite") return null
 
