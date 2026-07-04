@@ -12,7 +12,7 @@ import type { FeatureCollection } from "geojson"
  * then re-initialises all application layers on top of it.
  */
 export function useMapStyle(mapRef: RefObject<maplibregl.Map | null>, fireDataRef: RefObject<FeatureCollection>): void {
-  const { basemap, mapView } = useMapStore()
+  const { basemap } = useMapStore()
   const { theme } = useUIStore()
 
   useEffect(() => {
@@ -25,7 +25,8 @@ export function useMapStyle(mapRef: RefObject<maplibregl.Map | null>, fireDataRe
       map.once("styledata", () => {
         initializeLayers(map)
         syncLayers(map, fireDataRef.current)
-        map.setProjection({ type: mapView === "3d" ? "globe" : "mercator" })
+        const currentMapView = useMapStore.getState().mapView
+        map.setProjection({ type: currentMapView === "3d" ? "globe" : "mercator" })
       })
     }
 
@@ -39,18 +40,27 @@ export function useMapStyle(mapRef: RefObject<maplibregl.Map | null>, fireDataRe
       mq.removeEventListener("change", updateStyle)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [basemap, theme, mapView])
+  }, [basemap, theme])
 }
 
 /**
  * Switches between Mercator and Globe projection and flies to a sane zoom.
  */
+interface MapWithStyle {
+  style?: {
+    stylesheet?: unknown
+  }
+}
+
 export function useMapView(mapRef: RefObject<maplibregl.Map | null>): void {
   const mapView = useMapStore((s) => s.mapView)
 
   useEffect(() => {
     const map = mapRef.current
-    if (!map?.isStyleLoaded()) return
+    if (!map) return
+
+    const style = (map as unknown as MapWithStyle).style
+    if (!style || !style.stylesheet) return
 
     map.stop()
     map.setProjection({ type: mapView === "3d" ? "globe" : "mercator" })
