@@ -159,6 +159,30 @@ export function WindLayer({ mapRef }: WindLayerProps) {
   const [mapReady, setMapReady] = useState(false)
 
   const theme = useUIStore((s) => s.theme)
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => {
+    if (theme === "system") {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+    }
+    return theme as "light" | "dark"
+  })
+
+  useEffect(() => {
+    if (theme !== "system") {
+      setResolvedTheme(theme as "light" | "dark")
+      return
+    }
+
+    const updateResolvedTheme = () => {
+      setResolvedTheme(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+    }
+
+    updateResolvedTheme()
+
+    const mq = window.matchMedia("(prefers-color-scheme: dark)")
+    mq.addEventListener("change", updateResolvedTheme)
+    return () => mq.removeEventListener("change", updateResolvedTheme)
+  }, [theme])
+
   const region = useFilterStore((s) => s.region)
   const { open: sidebarOpen, isMobile } = useSidebar()
 
@@ -641,7 +665,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
             ctx.beginPath()
             ctx.moveTo(p.prevX, p.prevY)
             ctx.lineTo(x, y)
-            ctx.strokeStyle = getWindColor(windSpeed, "dark")
+            ctx.strokeStyle = getWindColor(windSpeed, resolvedTheme)
             ctx.lineWidth = windSpeed > 8 ? 1.5 : 1.0
             ctx.stroke()
           }
@@ -714,14 +738,14 @@ export function WindLayer({ mapRef }: WindLayerProps) {
       map.off("resize", handleMapResize)
       map.off("moveend", handleMoveEnd)
     }
-  }, [mapReady, theme, region, mapRef])
+  }, [mapReady, resolvedTheme, region, mapRef])
 
   return (
     <>
       <canvas
         ref={canvasRef}
         className="absolute inset-0 pointer-events-none z-10"
-        style={{ mixBlendMode: theme === "dark" ? "screen" : "multiply" }}
+        style={{ mixBlendMode: resolvedTheme === "dark" ? "screen" : "multiply" }}
       />
       <div
         className={`absolute z-20 flex flex-col gap-1.5 transition-all duration-300 ease-in-out ${isMobile ? "left-[50%] -translate-x-1/2 top-4" : "bottom-12"
