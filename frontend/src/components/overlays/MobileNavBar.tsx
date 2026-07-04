@@ -171,7 +171,7 @@ function MoreTabContent() {
 
 export function MobileNavBar() {
   const { isMobile } = useSidebar()
-  const { activeSidebarTab, setActiveSidebarTab } = useUIStore()
+  const { setActiveSidebarTab } = useUIStore()
   const [activeTab, setActiveTab] = useState<string | null>(null)
 
   if (!isMobile) return null
