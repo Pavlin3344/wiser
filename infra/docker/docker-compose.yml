@@ -194,6 +194,16 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
+    command:
+      # Само Docker контейнери (без raw systemd cgroups — по-малко RAM/CPU и шум)
+      - '--docker_only=true'
+      - '--housekeeping_interval=30s'
+      # disk/diskIO са изключени: Docker използва containerd image store
+      # (image/overlayfs), а cadvisor v0.49 търси rw layer-а по стария път
+      # (image/overlay2) и отказва да регистрира контейнерите изобщо
+      # ("failed to identify the read-write layer ID"). Host disk метриките
+      # идват от node-exporter. Останалите са default-disabled за v0.49.
+      - '--disable_metrics=disk,diskIO,percpu,advtcp,cpu_topology,cpuset,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp'
     logging: *default-logging
 
   postgres-exporter:
