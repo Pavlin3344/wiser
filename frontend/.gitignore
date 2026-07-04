@@ -27,3 +27,7 @@ dist-ssr
 localhost-key.pem
 localhost-cert.pem
 *.pem
+
+# Test coverage
+coverage
+.nyc_output
