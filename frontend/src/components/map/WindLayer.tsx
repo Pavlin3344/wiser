@@ -577,8 +577,8 @@ export function WindLayer({ mapRef }: WindLayerProps) {
         try {
           const isOutsideBulgaria = isBulgaria && !isPointInPolygon([p.lng, p.lat], bulgariaBorder)
 
-          // If particle coordinate is invalid or outside Bulgaria, respawn it immediately
-          if (isOutsideBulgaria || typeof p.lng !== "number" || typeof p.lat !== "number" || isNaN(p.lng) || isNaN(p.lat) || !isFinite(p.lng) || !isFinite(p.lat)) {
+          // If particle coordinate is invalid, outside bounds, or outside Bulgaria, respawn it immediately
+          if (isOutsideBulgaria || typeof p.lng !== "number" || typeof p.lat !== "number" || isNaN(p.lng) || isNaN(p.lat) || !isFinite(p.lng) || !isFinite(p.lat) || p.lat < -85 || p.lat > 85) {
             if (isBulgaria) {
               const [lng, lat] = getRandomPointInBulgaria(bulgariaBorder)
               p.lng = lng
