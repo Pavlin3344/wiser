@@ -1,0 +1,15 @@
+# Secrets — никога в git. Като ignored, git clean / VS Code "Discard All
+# Changes" също не ги трие (без .gitignore запис untracked .env се изтрива!).
+.env
+.env.*
+!.env.example
+*.pem
+
+# Terraform state (за Azure миграцията)
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# OS / editor
+.DS_Store
+Thumbs.db

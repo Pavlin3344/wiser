@@ -3,13 +3,22 @@ global:
 
 route:
   group_by: ['alertname', 'severity']
-  group_wait: 10s
-  group_interval: 10s
-  repeat_interval: 1h
-  receiver: 'alerta'
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+  receiver: 'blackhole'
 
+# Placeholder receiver без интеграции — алармите се гледат в Grafana
+# (Alertmanager datasource). Когато изберем канал (Telegram/email),
+# тук се добавя реален receiver и route по severity.
 receivers:
-  - name: 'alerta'
-    webhook_configs:
-      - url: 'http://alerta:8080/api/webhooks/prometheus'
-        send_resolved: true
+  - name: 'blackhole'
+
+# Критична аларма на даден instance заглушава warning-ите на същия instance,
+# за да не се дублират нотификациите за един и същ проблем.
+inhibit_rules:
+  - source_matchers:
+      - severity = "critical"
+    target_matchers:
+      - severity = "warning"
+    equal: ['instance']

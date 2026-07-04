@@ -13,20 +13,20 @@ groups:
           summary: "High CPU load on {{ $labels.instance }}"
           description: "CPU load is {{ $value | printf \"%.1f\" }}% — above 80% for 2 minutes"
 
-      # CPU над 80% за повече от 5 минути — критично
+      # CPU над 95% за повече от 5 минути — критично (прагове по ADR-0007)
       - alert: CriticalCPULoad
-        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 80
-        for: 2m
+        expr: 100 - (avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[2m])) * 100) > 95
+        for: 5m
         labels:
           severity: critical
           environment: Development
         annotations:
           summary: "Critical CPU load on {{ $labels.instance }}"
-          description: "CPU load is {{ $value | printf \"%.1f\" }}% — above 80% for 5 minutes"
+          description: "CPU load is {{ $value | printf \"%.1f\" }}% — above 95% for 5 minutes"
 
       # RAM над 85%
       - alert: HighMemoryUsage
-        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 85
         for: 2m
         labels:
           severity: warning
@@ -67,3 +67,15 @@ groups:
         annotations:
           summary: "PostgreSQL is down"
           description: "PostgreSQL exporter cannot connect to the database"
+
+      # Dead man's switch — винаги firing. Ако този alert спре да пристига,
+      # значи Prometheus/Alertmanager са down. Закачи външен monitor
+      # (healthchecks.io / Uptime Kuma на друга машина), който пищи при липса.
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+          environment: Development
+        annotations:
+          summary: "Alerting pipeline heartbeat"
+          description: "Always firing by design — absence means the monitoring stack is down"

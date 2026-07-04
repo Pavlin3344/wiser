@@ -1,6 +1,7 @@
 # ================================================================
 # Локален dev стек — само data услугите за Фаза 1.
 # Всички портове на 127.0.0.1 (без Tailscale IP-та на сървъра).
+# Image версиите са пиннати 1:1 с продъкшън docker-compose.yml.
 # Употреба (от onboarding.md):
 #   docker compose -f infra/docker/docker-compose.dev.yml up -d
 # ================================================================
@@ -17,15 +18,34 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ../../db/postgres/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wiser"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  # Миграциите се прилагат от Flyway (V1__init.sql, V2__xxx.sql...),
+  # както на сървъра — вместо /docker-entrypoint-initdb.d.
+  flyway-postgres:
+    image: flyway/flyway:11-alpine
+    container_name: wiser-flyway-postgres
+    restart: "no"
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/wiser
+      FLYWAY_USER: wiser
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      FLYWAY_CONNECT_RETRIES: "30"
+      FLYWAY_BASELINE_ON_MIGRATE: "true"
+      FLYWAY_BASELINE_VERSION: "1"
+    command: migrate
+    volumes:
+      - ../../db/postgres/migrations:/flyway/sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   timescale:
-    image: timescale/timescaledb-ha:pg16
+    image: timescale/timescaledb:2.28.1-pg16
     container_name: wiser-timescale
     restart: unless-stopped
     environment:
@@ -35,16 +55,33 @@ services:
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
-      - timescale_data:/home/postgres/pgdata/data
-      - ../../db/timescale/hypertables:/docker-entrypoint-initdb.d:ro
+      - timescale_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wiser"]
       interval: 10s
       timeout: 5s
       retries: 5
 
+  flyway-timescale:
+    image: flyway/flyway:11-alpine
+    container_name: wiser-flyway-timescale
+    restart: "no"
+    environment:
+      FLYWAY_URL: jdbc:postgresql://timescale:5432/wiser_timeseries
+      FLYWAY_USER: wiser
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      FLYWAY_CONNECT_RETRIES: "30"
+      FLYWAY_BASELINE_ON_MIGRATE: "true"
+      FLYWAY_BASELINE_VERSION: "1"
+    command: migrate
+    volumes:
+      - ../../db/timescale/hypertables:/flyway/sql:ro
+    depends_on:
+      timescale:
+        condition: service_healthy
+
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
     container_name: wiser-minio
     restart: unless-stopped
     environment:
@@ -63,7 +100,7 @@ services:
       retries: 5
 
   minio-init:
-    image: minio/mc:latest
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     container_name: wiser-minio-init
     restart: "no"
     depends_on:
@@ -92,8 +129,9 @@ services:
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
-      # Локален dev: user с локалния хеш + права (вместо споделения definitions.json със сървърния хеш)
-      - ./rabbitmq/definitions.dev.json:/etc/rabbitmq/definitions.json:ro
+      # Definitions вече не съдържат users (креденшълите идват от env),
+      # затова prod и dev споделят един файл.
+      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s

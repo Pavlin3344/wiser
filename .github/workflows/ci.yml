@@ -13,22 +13,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install docker-compose
+      # docker compose v2 е вграден в ubuntu runner-ите — без apt install
+      - name: Validate docker-compose files
         run: |
-          sudo apt-get update
-          sudo apt-get install -y docker-compose
+          docker compose -f infra/docker/docker-compose.yml config --quiet
+          docker compose -f infra/docker/docker-compose.dev.yml config --quiet
+          echo "compose files are valid"
 
-      - name: Validate docker-compose.yml
-        run: |
-          docker-compose -f infra/docker/docker-compose.yml config --quiet
-          echo "docker-compose.yml is valid"
-
+      # Валидираме със същите версии, които вървят на сървъра (не :latest)
       - name: Validate Prometheus config
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/infra/docker/prometheus:/etc/prometheus:ro \
             --entrypoint /bin/promtool \
-            prom/prometheus:latest \
+            prom/prometheus:v2.53.0 \
             check config /etc/prometheus/prometheus.yml
 
       - name: Validate Prometheus rules
@@ -36,7 +34,7 @@ jobs:
           docker run --rm \
             -v ${{ github.workspace }}/infra/docker/prometheus:/etc/prometheus:ro \
             --entrypoint /bin/promtool \
-            prom/prometheus:latest \
+            prom/prometheus:v2.53.0 \
             check rules /etc/prometheus/rules/infrastructure.yml
 
       - name: Validate Alertmanager config
@@ -44,7 +42,7 @@ jobs:
           docker run --rm \
             -v ${{ github.workspace }}/infra/docker/alertmanager:/etc/alertmanager:ro \
             --entrypoint amtool \
-            prom/alertmanager:latest \
+            prom/alertmanager:v0.27.0 \
             check-config /etc/alertmanager/alertmanager.yml
 
   validate-sql:
@@ -55,26 +53,39 @@ jobs:
 
       - name: Check SQL files exist and are non-empty
         run: |
-          test -s db/postgres/migrations/001_init.sql || (echo "PostgreSQL schema is empty!" && exit 1)
-          test -s db/timescale/hypertables/001_init.sql || (echo "TimescaleDB schema is empty!" && exit 1)
+          test -s db/postgres/migrations/V1__init.sql || (echo "PostgreSQL schema is empty!" && exit 1)
+          test -s db/timescale/hypertables/V1__init.sql || (echo "TimescaleDB schema is empty!" && exit 1)
           echo "SQL files OK"
 
       - name: Basic SQL syntax check
         run: |
-          grep -l "CREATE TABLE" db/postgres/migrations/001_init.sql || (echo "No CREATE TABLE found" && exit 1)
-          grep -l "create_hypertable" db/timescale/hypertables/001_init.sql || (echo "No hypertable found" && exit 1)
+          grep -l "CREATE TABLE" db/postgres/migrations/V1__init.sql || (echo "No CREATE TABLE found" && exit 1)
+          grep -l "create_hypertable" db/timescale/hypertables/V1__init.sql || (echo "No hypertable found" && exit 1)
           echo "SQL syntax check OK"
+
+      # Flyway изисква V<число>__<описание>.sql — иначе мълчаливо пропуска файла
+      - name: Check Flyway migration naming
+        run: |
+          bad=$(find db/postgres/migrations db/timescale/hypertables -name "*.sql" ! -regex '.*/V[0-9]+__[A-Za-z0-9_]+\.sql' || true)
+          if [ -n "$bad" ]; then
+            echo "Files not matching Flyway naming (V1__name.sql): $bad"
+            exit 1
+          fi
+          echo "Migration naming OK"
 
   security-scan:
     name: Security scan
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Check for hardcoded secrets
-        run: |
-          ! grep -rn "password=" --include="*.yml" --include="*.yaml" infra/ | grep -v '${' | grep -v '#'
-          echo "No hardcoded secrets found"
+      - name: Scan for secrets (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Ensure .env is not tracked
         run: |
           if git ls-files | grep -q "^\.env$"; then
@@ -88,18 +99,43 @@ jobs:
     needs: [validate-infra, validate-sql, security-scan]
     runs-on: self-hosted
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # Един deploy наведнъж — при бързи последователни push-ове се редят на опашка
+    concurrency:
+      group: production-deploy
+      cancel-in-progress: false
     steps:
-      - name: Pull latest changes
+      # Reset към валидирания commit, не към movable origin/main
+      - name: Sync repo to validated commit
         working-directory: /home/pavlin/wiser-repo
         run: |
           git fetch origin main
-          git reset --hard origin/main
+          git reset --hard ${{ github.sha }}
 
       - name: Apply changes
         working-directory: /home/pavlin/wiser-repo/infra/docker
         run: |
-          docker compose up -d --remove-orphans
+          docker compose up -d --build --remove-orphans
           echo "Deployment complete"
 
-      - name: Show running containers
-        run: docker ps --format "table {{.Names}}\t{{.Status}}"
+      - name: Verify container health
+        working-directory: /home/pavlin/wiser-repo/infra/docker
+        run: |
+          sleep 30
+          unhealthy=$(docker ps --filter "health=unhealthy" --format '{{.Names}}')
+          if [ -n "$unhealthy" ]; then
+            echo "Unhealthy containers after deploy: $unhealthy"
+            docker ps --format "table {{.Names}}\t{{.Status}}"
+            exit 1
+          fi
+          failed_migrations=$(docker ps -a --filter "name=wiser-flyway" --filter "status=exited" --format '{{.Names}} {{.Status}}' | grep -v "Exited (0)" || true)
+          if [ -n "$failed_migrations" ]; then
+            echo "Flyway migration failed: $failed_migrations"
+            docker logs wiser-flyway-postgres --tail 50 || true
+            docker logs wiser-flyway-timescale --tail 50 || true
+            exit 1
+          fi
+          docker ps --format "table {{.Names}}\t{{.Status}}"
+
+      # Frontend build-овете трупат стари image-и по диска
+      - name: Prune dangling images
+        run: docker image prune -f

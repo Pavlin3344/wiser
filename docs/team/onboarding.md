@@ -74,9 +74,8 @@ ssh -L 5432:localhost:5432 -L 5433:localhost:5433 pavlin@100.116.156.92
 
 | Сервиз | URL | За какво е |
 |--------|-----|------------|
-| **Grafana** | http://100.116.156.92:3000 | Метрики и dashboards за сървъра и контейнерите |
+| **Grafana** | http://100.116.156.92:3000 | Метрики, dashboards и infrastructure alerts (Alerting → Alertmanager) |
 | **Kibana** | http://100.116.156.92:5601 | Логове от всички контейнери — search и анализ |
-| **Alerta** | http://100.116.156.92:8080 | Infrastructure alerts — CPU, RAM, disk, container status |
 | **Prometheus** | http://100.116.156.92:9090 | Raw метрики и alert rules (за DevOps) |
 | **RabbitMQ** | http://100.116.156.92:15672 | Message queue management |
 | **MinIO** | http://100.116.156.92:9001 | S3-compatible blob storage UI |

@@ -1,8 +1,16 @@
+# Log rotation по подразбиране — без нея json логовете на Docker растат безкрайно.
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   postgres:
     image: pgrouting/pgrouting:16-3.5-4.0
     container_name: wiser-postgres
     restart: unless-stopped
+    mem_limit: 1g
     environment:
       POSTGRES_DB: wiser
       POSTGRES_USER: wiser
@@ -11,17 +19,42 @@ services:
       - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ../../db/postgres/migrations:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wiser -d wiser"]
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
+
+  # Миграциите се прилагат от Flyway (вместо /docker-entrypoint-initdb.d,
+  # който работи само при празен volume). Файловете са в db/postgres/migrations
+  # с Flyway naming: V1__init.sql, V2__xxx.sql...
+  flyway-postgres:
+    image: flyway/flyway:11-alpine
+    container_name: wiser-flyway-postgres
+    restart: "no"
+    environment:
+      FLYWAY_URL: jdbc:postgresql://postgres:5432/wiser
+      FLYWAY_USER: wiser
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      FLYWAY_CONNECT_RETRIES: "30"
+      # Съществуваща база (инициализирана преди Flyway) се baseline-ва на V1,
+      # така че V1__init.sql не се прилага повторно върху нея.
+      FLYWAY_BASELINE_ON_MIGRATE: "true"
+      FLYWAY_BASELINE_VERSION: "1"
+    command: migrate
+    volumes:
+      - ../../db/postgres/migrations:/flyway/sql:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *default-logging
 
   timescale:
     image: timescale/timescaledb:2.28.1-pg16
     container_name: wiser-timescale
     restart: unless-stopped
+    mem_limit: 1g
     environment:
       POSTGRES_DB: wiser_timeseries
       POSTGRES_USER: wiser
@@ -30,12 +63,31 @@ services:
       - "127.0.0.1:5433:5432"
     volumes:
       - timescale_data:/var/lib/postgresql/data
-      - ../../db/timescale/hypertables:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U wiser -d wiser_timeseries"]
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
+
+  flyway-timescale:
+    image: flyway/flyway:11-alpine
+    container_name: wiser-flyway-timescale
+    restart: "no"
+    environment:
+      FLYWAY_URL: jdbc:postgresql://timescale:5432/wiser_timeseries
+      FLYWAY_USER: wiser
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      FLYWAY_CONNECT_RETRIES: "30"
+      FLYWAY_BASELINE_ON_MIGRATE: "true"
+      FLYWAY_BASELINE_VERSION: "1"
+    command: migrate
+    volumes:
+      - ../../db/timescale/hypertables:/flyway/sql:ro
+    depends_on:
+      timescale:
+        condition: service_healthy
+    logging: *default-logging
 
   minio:
     image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
@@ -56,6 +108,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging: *default-logging
 
   minio-init:
     image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
@@ -71,6 +124,7 @@ services:
       mc mb wiser/processed-products --ignore-existing;
       echo 'MinIO buckets ready.';
       "
+    logging: *default-logging
 
   rabbitmq:
     image: rabbitmq:3-management
@@ -94,7 +148,7 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
+    logging: *default-logging
 
   wiser-frontend:
     build:
@@ -102,13 +156,21 @@ services:
       dockerfile: Dockerfile
     container_name: wiser-frontend
     restart: unless-stopped
+    mem_limit: 128m
     ports:
       - "80:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:80/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
 
   node-exporter:
     image: prom/node-exporter:v1.8.2
     container_name: wiser-node-exporter
     restart: unless-stopped
+    mem_limit: 128m
     pid: host
     volumes:
       - /proc:/host/proc:ro
@@ -118,11 +180,13 @@ services:
       - '--path.procfs=/host/proc'
       - '--path.sysfs=/host/sys'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    logging: *default-logging
 
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.49.1
     container_name: wiser-cadvisor
     restart: unless-stopped
+    mem_limit: 256m
     privileged: true
     volumes:
       - /:/rootfs:ro
@@ -130,16 +194,19 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
+    logging: *default-logging
 
   postgres-exporter:
     image: prometheuscommunity/postgres-exporter:v0.15.0
     container_name: wiser-postgres-exporter
     restart: unless-stopped
+    mem_limit: 128m
     environment:
       DATA_SOURCE_NAME: "postgresql://wiser:${POSTGRES_PASSWORD}@postgres:5432/wiser?sslmode=disable"
     depends_on:
       postgres:
         condition: service_healthy
+    logging: *default-logging
 
   prometheus:
     image: prom/prometheus:v2.53.0
@@ -156,6 +223,12 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
       - '--storage.tsdb.retention.time=90d'
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/-/healthy >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
 
   grafana:
     image: grafana/grafana:11.4.0
@@ -171,6 +244,12 @@ services:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
       - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    logging: *default-logging
 
   alertmanager:
     image: prom/alertmanager:v0.27.0
@@ -181,37 +260,12 @@ services:
       - "127.0.0.1:9093:9093"
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-
-  alerta:
-    image: alerta/alerta-web:9.1.0
-    container_name: wiser-alerta
-    restart: unless-stopped
-    mem_limit: 256m
-    ports:
-      - "100.116.156.92:8080:8080"
-    environment:
-      - DATABASE_URL=mongodb://alerta-mongo:27017/monitoring
-      - WORKERS=4
-      - TIMEOUT=30
-    volumes:
-      - ./alerta/alerta.conf:/app/alerta.conf:ro
-    depends_on:
-      alerta-mongo:
-        condition: service_healthy
-
-  alerta-mongo:
-    image: mongo:6
-    container_name: wiser-alerta-mongo
-    restart: unless-stopped
-    mem_limit: 512m
-    volumes:
-      - alerta_mongo_data:/data/db
     healthcheck:
-      test: ["CMD", "mongosh", "--host", "127.0.0.1", "--port", "27017", "--eval", "db.adminCommand('ping')"]
-      interval: 10s
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9093/-/healthy >/dev/null || exit 1"]
+      interval: 30s
       timeout: 5s
-      retries: 5
-      start_period: 20s
+      retries: 3
+    logging: *default-logging
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
@@ -239,8 +293,8 @@ services:
     mem_limit: 1g
     environment:
       - "LS_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "5044:5044"
+    # Без публикуван порт — filebeat говори с logstash:5044 през docker мрежата.
+    # 0.0.0.0:5044 беше отворен beats endpoint към интернет.
     volumes:
       - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
       - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
@@ -286,5 +340,4 @@ volumes:
   rabbitmq_data:
   prometheus_data:
   grafana_data:
-  alerta_mongo_data:
   elasticsearch_data:

@@ -193,10 +193,8 @@ s3 = boto3.client(
 | Сервиз | URL | Цел |
 |--------|-----|-----|
 | Prometheus | http://100.116.156.92:9090 | Metrics query |
-| Grafana | http://100.116.156.92:3000 | Dashboards |
+| Grafana | http://100.116.156.92:3000 | Dashboards + infrastructure alerts (Alerting → Alertmanager) |
 | Kibana | http://100.116.156.92:5601 | Logs (ELK) |
-| Alerta | http://100.116.156.92:8080 | Infrastructure alerts |
-| Alertmanager | http://100.116.156.92:9093 | Alert routing |
 
 ---
 

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended"],
+  "timezone": "Europe/Sofia",
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "description": "Групирай minor/patch ъпдейти на docker images в един PR",
+      "matchManagers": ["docker-compose", "dockerfile"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "docker images (minor/patch)"
+    },
+    {
+      "description": "Major ъпдейти на бази данни — само ръчно, никога автоматично",
+      "matchManagers": ["docker-compose"],
+      "matchPackageNames": ["pgrouting/pgrouting", "timescale/timescaledb"],
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    }
+  ]
+}

@@ -1,16 +1,5 @@
 {
-"users": [
-  {
-    "name": "wiser",
-    "password_hash": "A9U/tCNrtXaQU/6fN5dl8RYu80IGkt9jAeGUPHyV9MxxM+Ma",
-    "hashing_algorithm": "rabbit_password_hashing_sha256",
-    "tags": "administrator"
-  }
-],
-
-
-
-"vhosts": [{ "name": "wiser" }],
+  "vhosts": [{ "name": "wiser" }],
   "exchanges": [
     { "name": "weather.exchange",    "vhost": "wiser", "type": "direct", "durable": true },
     { "name": "satellite.exchange",  "vhost": "wiser", "type": "direct", "durable": true },

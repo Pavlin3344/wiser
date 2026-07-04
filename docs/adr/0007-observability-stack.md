@@ -1,6 +1,6 @@
 # ADR-0007: Observability stack — Prometheus, Grafana, ELK, Alerta, cAdvisor
 
-- **Status:** Accepted
+- **Status:** Accepted (изменено 2026-07-04: Alerta + MongoDB са премахнати — алармите се гледат в Grafana през Alertmanager datasource; конкретен нотификационен канал ще се избере отделно)
 - **Date:** 2026-06-09
 - **Deciders:** Pavlin
 
