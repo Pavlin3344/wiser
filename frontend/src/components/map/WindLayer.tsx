@@ -203,6 +203,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
   const [speedRange, setSpeedRange] = useState<{ min: number; max: number } | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const rateLimitResetTimeRef = useRef<number | null>(null)
+  const fetchWindDataRef = useRef<(() => void) | null>(null)
 
   const particles = useRef<Particle[]>([])
   const particleCount = 1500
@@ -333,7 +334,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
       }
       // Re-schedule this execution sequentially once the previous connection finishes aborting
       setTimeout(() => {
-        fetchWindData()
+        fetchWindDataRef.current?.()
       }, 200)
       return
     }
@@ -550,6 +551,11 @@ export function WindLayer({ mapRef }: WindLayerProps) {
       isFetchingRef.current = false
     }
   }, [mapRef, status, setSpeedRange, setStatus])
+
+  // Sync ref with the callback to allow recursive scheduling without lexical TDZ errors
+  useEffect(() => {
+    fetchWindDataRef.current = fetchWindData
+  }, [fetchWindData])
 
   useEffect(() => {
     if (!mapReady) return
