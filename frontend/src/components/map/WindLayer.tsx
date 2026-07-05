@@ -142,15 +142,15 @@ function getWindColor(speed: number, theme: "light" | "dark"): string {
   } else {
     // Light theme - darker colors for contrast
     if (speed < 2.0) {
-      return "rgba(70, 130, 180, 0.4)"   // steel blue
+      return "rgba(40, 110, 180, 0.9)"   // Rich royal blue
     } else if (speed < 4.5) {
-      return "rgba(46, 139, 87, 0.6)"    // sea green
+      return "rgba(0, 150, 90, 0.9)"     // Deep emerald green
     } else if (speed < 8.0) {
-      return "rgba(218, 165, 32, 0.75)"  // goldenrod
+      return "rgba(200, 130, 0, 0.95)"   // Warm, solid amber/gold
     } else if (speed < 12.0) {
-      return "rgba(220, 80, 20, 0.85)"   // rust orange
+      return "rgba(210, 60, 10, 0.95)"   // Strong burnt orange
     } else {
-      return "rgba(180, 0, 80, 0.9)"     // deep crimson
+      return "rgba(190, 10, 70, 0.95)"   // Deep crimson/ruby
     }
   }
 }
