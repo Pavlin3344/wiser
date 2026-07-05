@@ -119,7 +119,7 @@ async function fetchEffisInfo(
         activePopupRef,
       )
     }
-  } catch (err: any) {
+  } catch (err) {
     console.warn("Empty grid location metadata requested or server processing timeout.", err)
     toast.warning("Failed to retrieve map grid metadata")
   }

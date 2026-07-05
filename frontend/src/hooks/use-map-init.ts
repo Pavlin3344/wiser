@@ -57,7 +57,7 @@ function registerCustomProtocols() {
       let img: ImageBitmap
       try {
         img = await createImageBitmap(blob)
-      } catch (e) {
+      } catch {
         // Fallback for empty or corrupted tiles
         return { data: await blob.arrayBuffer() }
       }
@@ -107,9 +107,10 @@ function registerCustomProtocols() {
   protocols.forEach((protocol, idx) => {
     try {
       registerProtocol(protocol, replacements[idx])
-    } catch (e: any) {
+    } catch (e) {
       console.warn(`Protocol ${protocol} registration error:`, e)
-      toast.warning(`Protocol ${protocol} registration error: ${e?.message || e}`)
+      const msg = e instanceof Error ? e.message : String(e)
+      toast.warning(`Protocol ${protocol} registration error: ${msg}`)
     }
   })
 }
