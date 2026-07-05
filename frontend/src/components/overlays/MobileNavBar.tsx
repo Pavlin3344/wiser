@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { Map, Flame, LineChart, Bell, MoreHorizontal, Sun, Moon, LifeBuoy, Send, Download, Smartphone, Crosshair, Mountain, Search, X } from "lucide-react"
 
 import { useUIStore } from "@/store/use-ui-store"
+import type { SidebarTab } from "@/types/types"
 import { useSidebar } from "@/components/ui/sidebar"
 import { useMapStore } from "@/store/use-map-store"
 import { usePWAInstall } from "@/hooks/use-pwa-install"
@@ -182,7 +183,7 @@ export function MobileNavBar() {
     } else {
       setActiveTab(tabId)
       if (tabId !== "more") {
-        setActiveSidebarTab(tabId as any)
+        setActiveSidebarTab(tabId as SidebarTab)
       }
     }
   }
