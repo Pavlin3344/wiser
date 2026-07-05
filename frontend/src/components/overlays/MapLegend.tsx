@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/label"
 
 interface MapLegendProps {
   title: string
-  type?: "fwi" | "viirs"
+  type?: "fwi" | "viirs" | "fuel"
 }
 
 const FWI_LEVELS = [
@@ -16,8 +16,21 @@ const FWI_LEVELS = [
 
 const VIIRS_LEVELS = [{ label: "Fire Season (VIIRS Suomi)", color: "#18c118" }]
 
-export function MapLegend({ title, type = "fwi" }: MapLegendProps & { type?: "fwi" | "viirs" }) {
-  const levels = type === "fwi" ? FWI_LEVELS : VIIRS_LEVELS
+const FUEL_LEVELS = [
+  { label: "Short Grass", color: "#00ff55" },
+  { label: "Grass & Understory", color: "#12ba37" },
+  { label: "Tall Grass", color: "#0e7b15" },
+  { label: "Chaparral", color: "#dede0e" },
+  { label: "Brush", color: "#ffff00" },
+  { label: "Dormant Brush", color: "#ffc000" },
+  { label: "Southern Rough", color: "#ff6600" },
+  { label: "Closed Timber Litter", color: "#c57e3f" },
+  { label: "Hardwood Litter", color: "#963c00" },
+  { label: "Timber & Understory", color: "#6d2828" },
+]
+
+export function MapLegend({ title, type = "fwi" }: MapLegendProps & { type?: "fwi" | "viirs" | "fuel" }) {
+  const levels = type === "fwi" ? FWI_LEVELS : type === "viirs" ? VIIRS_LEVELS : FUEL_LEVELS
 
   return (
     <div className='pointer-events-auto w-52'>

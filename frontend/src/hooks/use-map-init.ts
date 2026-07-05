@@ -100,9 +100,9 @@ function registerCustomProtocols() {
     })
   }
 
-  // Register both protocols
-  const protocols = ["effis-fwi", "effis-viirs"]
-  const replacements = ["/", "https://"]
+  // Register all protocols
+  const protocols = ["effis-fwi", "effis-viirs", "effis-fuel"]
+  const replacements = ["/", "https://", "/"]
 
   protocols.forEach((protocol, idx) => {
     try {

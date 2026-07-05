@@ -12,6 +12,7 @@ import { useFireData } from "@/hooks/use-fire-data"
 import { useFlyTo } from "@/hooks/use-fly-to"
 import { useLayerStore } from "@/store/use-layer-store"
 import { WindLayer } from "@/components/map/WindLayer"
+import { FuelLayer } from "@/components/map/FuelLayer"
 
 export function MapContainer() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -48,6 +49,7 @@ export function MapContainer() {
       <div className='relative h-full w-full'>
         <div ref={containerRef} className='h-full w-full' />
         {showWind && <WindLayer mapRef={mapRef} />}
+        <FuelLayer mapRef={mapRef} />
         <MapNavigation mapRef={mapRef} />
       </div>
     </div>
