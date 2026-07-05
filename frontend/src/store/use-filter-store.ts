@@ -40,7 +40,11 @@ export const useFilterStore = create<FilterState>()(
     {
       name: "wiser-filter-storage",
       // Do not persist transient playback state across sessions
-      partialize: ({ currentTime, isPlaying, ...rest }) => rest,
+      partialize: (state) => ({
+        region: state.region,
+        riskLevel: state.riskLevel,
+        selectedDate: state.selectedDate,
+      }),
     },
   ),
 )

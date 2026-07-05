@@ -74,7 +74,11 @@ export const useMapStore = create<MapState>()(
       {
         name: "wiser-system-storage",
         // mapStatus, flyToTarget, userLocation and mapInstance are transient — never persist them
-        partialize: ({ mapStatus, flyToTarget, mapInstance, userLocation, ...rest }) => rest,
+        partialize: (state) => ({
+          camera: state.camera,
+          mapView: state.mapView,
+          basemap: state.basemap,
+        }),
       },
     ),
   ),
