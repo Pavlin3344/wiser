@@ -13,6 +13,7 @@ import { useFlyTo } from "@/hooks/use-fly-to"
 import { useLayerStore } from "@/store/use-layer-store"
 import { WindLayer } from "@/components/map/WindLayer"
 import { FuelLayer } from "@/components/map/FuelLayer"
+import { HumanSettlementLayer } from "@/components/map/HumanSettlementLayer"
 
 export function MapContainer() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -50,6 +51,7 @@ export function MapContainer() {
         <div ref={containerRef} className='h-full w-full' />
         {showWind && <WindLayer mapRef={mapRef} />}
         <FuelLayer mapRef={mapRef} />
+        <HumanSettlementLayer mapRef={mapRef} />
         <MapNavigation mapRef={mapRef} />
       </div>
     </div>

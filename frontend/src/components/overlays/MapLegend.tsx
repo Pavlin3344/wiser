@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/label"
 
 interface MapLegendProps {
   title: string
-  type?: "fwi" | "viirs" | "fuel"
+  type?: "fwi" | "viirs" | "fuel" | "settlement"
 }
 
 const FWI_LEVELS = [
@@ -29,8 +29,12 @@ const FUEL_LEVELS = [
   { label: "Timber & Understory", color: "#6d2828" },
 ]
 
-export function MapLegend({ title, type = "fwi" }: MapLegendProps & { type?: "fwi" | "viirs" | "fuel" }) {
-  const levels = type === "fwi" ? FWI_LEVELS : type === "viirs" ? VIIRS_LEVELS : FUEL_LEVELS
+const SETTLEMENT_LEVELS = [
+  { label: "Built-up / Urban Area", color: "#7b4cd1" },
+]
+
+export function MapLegend({ title, type = "fwi" }: MapLegendProps & { type?: "fwi" | "viirs" | "fuel" | "settlement" }) {
+  const levels = type === "fwi" ? FWI_LEVELS : type === "viirs" ? VIIRS_LEVELS : type === "fuel" ? FUEL_LEVELS : SETTLEMENT_LEVELS
 
   return (
     <div className='pointer-events-auto w-52'>

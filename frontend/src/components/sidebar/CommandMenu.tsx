@@ -11,7 +11,7 @@ import { useFilterStore } from "@/store/use-filter-store"
 export const CommandMenu = React.memo(function CommandMenu({ open, setOpen }: { open: boolean; setOpen: React.Dispatch<React.SetStateAction<boolean>> }) {
   const { theme, setTheme, setActiveSidebarTab } = useUIStore()
   const { mapView, setMapView, basemap, setBasemap } = useMapStore()
-  const { showFires, setShowFires, showRiskGrid, setShowRiskGrid, showWind, setShowWind, showEvac, setShowEvac, showFuel, setShowFuel } = useLayerStore()
+  const { showFires, setShowFires, showRiskGrid, setShowRiskGrid, showWind, setShowWind, showEvac, setShowEvac, showFuel, setShowFuel, showSettlement, setShowSettlement } = useLayerStore()
 
   const { findMe } = useGeolocation()
 
@@ -79,6 +79,10 @@ export const CommandMenu = React.memo(function CommandMenu({ open, setOpen }: { 
               <CommandItem onSelect={() => runCommand(() => setShowFuel(!showFuel))}>
                 <LayersIcon className='mr-2 h-4 w-4 text-emerald-400' />
                 <span>{showFuel ? "Hide" : "Show"} EFFIS Fuel Map</span>
+              </CommandItem>
+              <CommandItem onSelect={() => runCommand(() => setShowSettlement(!showSettlement))}>
+                <LayersIcon className='mr-2 h-4 w-4 text-purple-400' />
+                <span>{showSettlement ? "Hide" : "Show"} Human Settlement Area</span>
               </CommandItem>
               <CommandItem onSelect={() => runCommand(() => setShowFires(!showFires))}>
                 <FlameIcon className='mr-2 h-4 w-4 text-red-500' />

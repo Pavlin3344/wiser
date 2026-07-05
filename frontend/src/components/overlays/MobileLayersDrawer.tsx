@@ -23,6 +23,8 @@ export function MobileLayersDrawer() {
     setShowRiskGrid,
     showFuel,
     setShowFuel,
+    showSettlement,
+    setShowSettlement,
   } = useLayerStore()
 
   return (
@@ -161,6 +163,21 @@ export function MobileLayersDrawer() {
                 />
               </div>
 
+              {/* Human Settlement Toggle */}
+              <div className='flex items-center justify-between py-1'>
+                <div className='flex flex-col gap-0.5'>
+                  <span className='text-xs font-semibold flex items-center gap-1.5'>
+                    <Layers className='size-4 text-destructive' /> Human Settlement
+                  </span>
+                  <span className='text-[11px] text-muted-foreground'>GHSL Built-Up Area Layer</span>
+                </div>
+                <Switch
+                  checked={showSettlement}
+                  onCheckedChange={setShowSettlement}
+                  className='data-[state=checked]:bg-destructive data-[state=checked]:border-destructive'
+                />
+              </div>
+
               {/* Live Data Toggle */}
               <div className='flex items-center justify-between py-1'>
                 <div className='flex flex-col gap-0.5'>
@@ -212,7 +229,7 @@ export function MobileLayersDrawer() {
             </div>
 
             {/* Active Legends Section */}
-            {(showRiskGrid || showFires || showFuel) && (
+            {(showRiskGrid || showFires || showFuel || showSettlement) && (
               <div className='border-t border-white/10 pt-4 space-y-3'>
                 <Label className='text-[10px] uppercase tracking-wider text-muted-foreground font-bold block'>
                   Active Legends
@@ -226,6 +243,11 @@ export function MobileLayersDrawer() {
                   {showFuel && (
                     <div className='w-full shrink-0'>
                       <MapLegend title='Fuel Model (NFFL)' type='fuel' />
+                    </div>
+                  )}
+                  {showSettlement && (
+                    <div className='w-full shrink-0'>
+                      <MapLegend title='Human Settlement' type='settlement' />
                     </div>
                   )}
                   {showFires && (

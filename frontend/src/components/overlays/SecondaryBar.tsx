@@ -19,7 +19,7 @@ import { useLayerStore } from "@/store/use-layer-store"
 
 export function SecondaryBar() {
   const { secondaryBarOpen, setSecondaryBarOpen } = useUIStore()
-  const { showRiskGrid, showFires, showFuel } = useLayerStore()
+  const { showRiskGrid, showFires, showFuel, showSettlement } = useLayerStore()
   const { isMobile } = useSidebar()
 
   return (
@@ -45,6 +45,7 @@ export function SecondaryBar() {
               {showRiskGrid && <MapLegend title='Fire Weather Index' type='fwi' />}
               {showFires && <MapLegend title='Active Fires (VIIRS)' type='viirs' />}
               {showFuel && <MapLegend title='Fuel Model (NFFL)' type='fuel' />}
+              {showSettlement && <MapLegend title='Human Settlement' type='settlement' />}
               <ThemeToggle />
               <LocationToggle />
             </>
