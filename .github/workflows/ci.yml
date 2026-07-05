@@ -47,6 +47,35 @@ jobs:
             --entrypoint amtool \
             prom/alertmanager:v0.27.0 \
             check-config /etc/alertmanager/alertmanager.yml
+  
+  validate-frontend:
+    name: Validate frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run ESLint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: frontend
+        run: npm run test:run
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
 
   validate-sql:
     name: Validate SQL schemas
@@ -104,7 +133,7 @@ jobs:
 
   deploy:
     name: Deploy to Hetzner
-    needs: [validate-infra, validate-sql, security-scan]
+    needs: [validate-infra, validate-sql, validate-frontend, security-scan]
     runs-on: self-hosted
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     # Един deploy наведнъж — при бързи последователни push-ове се редят на опашка
