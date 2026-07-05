@@ -17,7 +17,7 @@ import { useLayerStore } from "@/store/use-layer-store"
 
 export function RiskAssessmentPage() {
   const { selectedDate, setSelectedDate, region, setRegion, riskLevel, setRiskLevel } = useFilterStore()
-  const { showRiskGrid, setShowRiskGrid, showThermal, setShowThermal, showSmoke, setShowSmoke, showWind, setShowWind, showEvac, setShowEvac } = useLayerStore()
+  const { showRiskGrid, setShowRiskGrid, showThermal, setShowThermal, showSmoke, setShowSmoke, showWind, setShowWind, showEvac, setShowEvac, showFuel, setShowFuel, showSettlement, setShowSettlement } = useLayerStore()
   const minDate = subMonths(new Date(), 3)
 
   const uiDate = selectedDate ? new Date(selectedDate) : undefined
@@ -41,6 +41,12 @@ export function RiskAssessmentPage() {
               <Checkbox id='chk-risk' checked={showRiskGrid} onCheckedChange={(c) => setShowRiskGrid(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
               <Label htmlFor='chk-risk' className='text-xs cursor-pointer'>
                 Risk Grid
+              </Label>
+            </div>
+            <div className='flex items-center space-x-2'>
+              <Checkbox id='chk-fuel' checked={showFuel} onCheckedChange={(c) => setShowFuel(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
+              <Label htmlFor='chk-fuel' className='text-xs cursor-pointer'>
+                Fuel Map
               </Label>
             </div>
           </div>
@@ -120,6 +126,13 @@ export function RiskAssessmentPage() {
             <Checkbox id='chk-evac' checked={showEvac} onCheckedChange={(c) => setShowEvac(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
             <Label htmlFor='chk-evac' className='text-xs font-medium cursor-pointer'>
               Evacuation Routes
+            </Label>
+          </div>
+
+          <div className='flex items-center space-x-2'>
+            <Checkbox id='chk-settlement' checked={showSettlement} onCheckedChange={(c) => setShowSettlement(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
+            <Label htmlFor='chk-settlement' className='text-xs font-medium cursor-pointer'>
+              Human Settlement
             </Label>
           </div>
         </div>

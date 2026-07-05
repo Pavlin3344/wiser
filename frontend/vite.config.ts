@@ -36,6 +36,16 @@ export default defineConfig({
           })
         },
       },
+      "/gwis-wms": {
+        target: "https://ies-ows.jrc.ec.europa.eu",
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/gwis-wms/, "/gwis"),
+        configure: (proxy) => {
+          proxy.on("proxyReq", (proxyReq) => {
+            proxyReq.setHeader("Referer", "https://gwis.jrc.ec.europa.eu/")
+          })
+        },
+      },
     },
   },
 })

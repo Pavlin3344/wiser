@@ -19,14 +19,14 @@ import { useLayerStore } from "@/store/use-layer-store"
 
 export function SecondaryBar() {
   const { secondaryBarOpen, setSecondaryBarOpen } = useUIStore()
-  const { showRiskGrid, showFires } = useLayerStore()
+  const { showRiskGrid, showFires, showFuel, showSettlement } = useLayerStore()
   const { isMobile } = useSidebar()
 
   return (
     <div className={`absolute z-10 pointer-events-none flex flex-col gap-2 ${isMobile ? "top-4 right-4" : "top-2 right-2"}`}>
       <Collapsible open={secondaryBarOpen} onOpenChange={setSecondaryBarOpen} className='flex flex-col gap-2'>
         <CollapsibleTrigger asChild className='self-end'>
-          <Button className='size-9 pointer-events-auto cursor-pointer bg-destructive hover:bg-destructive/80 rounded-full shadow-lg border border-white/10 flex items-center justify-center'>
+          <Button className='size-9 pointer-events-auto cursor-pointer bg-destructive hover:bg-destructive/80 rounded-full shadow-lg border border-white/10 border-t-white/20 border-l-white/20 flex items-center justify-center'>
             <ChevronsUpDown className="size-4" />
           </Button>
         </CollapsibleTrigger>
@@ -44,6 +44,8 @@ export function SecondaryBar() {
               <TerrainToggle />
               {showRiskGrid && <MapLegend title='Fire Weather Index' type='fwi' />}
               {showFires && <MapLegend title='Active Fires (VIIRS)' type='viirs' />}
+              {showFuel && <MapLegend title='Fuel Model (NFFL)' type='fuel' />}
+              {showSettlement && <MapLegend title='Human Settlement' type='settlement' />}
               <ThemeToggle />
               <LocationToggle />
             </>

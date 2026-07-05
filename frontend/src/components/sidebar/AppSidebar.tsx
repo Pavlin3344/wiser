@@ -1,7 +1,7 @@
 import React, { memo, useMemo } from "react"
 import { Map, Flame, LineChart, Bell, Command, Settings, ChevronsUpDown, Sparkles, BadgeCheck, CreditCard, LogOut, LifeBuoy, Send, Download, Smartphone } from "lucide-react"
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarBadge, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { SidebarContent, SidebarGroup, SidebarGroupLabel, SidebarMenu, SidebarMenuItem, SidebarMenuButton, Sidebar, SidebarHeader, SidebarFooter, SidebarRail, SidebarGroupContent, useSidebar } from "@/components/ui/sidebar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -29,9 +29,10 @@ const UserMenu = memo(function UserMenu() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <SidebarMenuButton size='lg' className='data-[state=open]:bg-background/20 data-[state=open]:backdrop-blur-xl data-[state=open]:text-sidebar-accent-foreground cursor-pointer'>
-            <Avatar className='h-8 w-8 rounded-full'>
+            <Avatar className='h-8 w-8 rounded-full after:border after:border-border/10 dark:after:border-border'>
               <AvatarImage alt='Guest' />
               <AvatarFallback className='rounded-full'>GU</AvatarFallback>
+              <AvatarBadge className="bg-green-600 dark:bg-green-800" />
             </Avatar>
             <div className='grid flex-1 text-left text-sm leading-tight'>
               <span className='truncate font-medium'>Guest User</span>
@@ -43,9 +44,10 @@ const UserMenu = memo(function UserMenu() {
         <DropdownMenuContent className='bg-background/60 backdrop-blur-xl w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-2xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20 ring-0' side='right' align='end' sideOffset={19} alignOffset={-10}>
           <DropdownMenuLabel className='p-0 font-normal'>
             <div className='flex items-center gap-2 px-1 py-1.5 text-left text-sm'>
-              <Avatar className='h-8 w-8 rounded-full'>
+              <Avatar className='h-8 w-8 rounded-full after:border after:border-border/10 dark:after:border-border'>
                 <AvatarImage alt='Guest User' />
                 <AvatarFallback className='rounded-full'>GU</AvatarFallback>
+                <AvatarBadge className="bg-green-600 dark:bg-green-800" />
               </Avatar>
               <div className='grid flex-1 text-left text-sm leading-tight'>
                 <span className='truncate font-medium'>Guest User</span>
@@ -152,13 +154,13 @@ export function AppSidebar() {
           <SidebarMenu>
             {NAV_ITEMS.map(({ id, label, Icon }) => (
               <SidebarMenuItem key={id}>
-                <SidebarMenuButton 
+                <SidebarMenuButton
                   onClick={() => {
                     setActiveSidebarTab(id)
                     if (isMobile) {
                       setOpenMobile(false)
                     }
-                  }} 
+                  }}
                   isActive={activeSidebarTab === id}
                 >
                   <Icon className={activeSidebarTab === id ? "text-destructive" : ""} />

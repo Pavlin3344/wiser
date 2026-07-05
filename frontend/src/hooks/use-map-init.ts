@@ -53,7 +53,7 @@ function registerCustomProtocols() {
       const res = await fetch(fetchUrl, { signal: abortController.signal })
       if (!res.ok) throw new Error(`Failed to load tile: ${res.status}`)
       const blob = await res.blob()
-      
+
       let img: ImageBitmap
       try {
         img = await createImageBitmap(blob)
@@ -100,9 +100,9 @@ function registerCustomProtocols() {
     })
   }
 
-  // Register both protocols
-  const protocols = ["effis-fwi", "effis-viirs"]
-  const replacements = ["/", "https://"]
+  // Register all protocols
+  const protocols = ["effis-fwi", "effis-viirs", "effis-fuel", "gwis-settlement"]
+  const replacements = ["/", "https://", "/", "/"]
 
   protocols.forEach((protocol, idx) => {
     try {
