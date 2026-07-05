@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useCallback } from "react"
 import type { Map } from "maplibre-gl"
 import { toast } from "sonner"
 import { useUIStore } from "@/store/use-ui-store"
@@ -155,34 +155,31 @@ function getWindColor(speed: number, theme: "light" | "dark"): string {
   }
 }
 
+const WIND_CACHE_LIFETIME = 15 * 60 * 1000 // 15 mins
+const WIND_RATELIMIT_COOLDOWN = 15 * 60 * 1000 // 15 mins default rate limit cooldown
+
 export function WindLayer({ mapRef }: WindLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [mapReady, setMapReady] = useState(false)
 
   const theme = useUIStore((s) => s.theme)
-  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => {
-    if (theme === "system") {
-      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-    }
-    return theme as "light" | "dark"
-  })
+  const [systemTheme, setSystemTheme] = useState<"light" | "dark">(() =>
+    typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
+  )
 
   useEffect(() => {
-    if (theme !== "system") {
-      setResolvedTheme(theme as "light" | "dark")
-      return
-    }
-
-    const updateResolvedTheme = () => {
-      setResolvedTheme(window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
-    }
-
-    updateResolvedTheme()
+    if (theme !== "system") return
 
     const mq = window.matchMedia("(prefers-color-scheme: dark)")
-    mq.addEventListener("change", updateResolvedTheme)
-    return () => mq.removeEventListener("change", updateResolvedTheme)
+    const update = () => {
+      setSystemTheme(mq.matches ? "dark" : "light")
+    }
+
+    mq.addEventListener("change", update)
+    return () => mq.removeEventListener("change", update)
   }, [theme])
+
+  const resolvedTheme = theme === "system" ? systemTheme : (theme as "light" | "dark")
 
   const region = useFilterStore((s) => s.region)
   const { open: sidebarOpen, isMobile } = useSidebar()
@@ -192,8 +189,6 @@ export function WindLayer({ mapRef }: WindLayerProps) {
 
   // 15-Minute Local Memory Cache (caching grid matrices by geographic coordinates and time)
   const cachedGridsRef = useRef<CachedWindGrid[]>([])
-  const WIND_CACHE_LIFETIME = 15 * 60 * 1000 // 15 mins
-  const WIND_RATELIMIT_COOLDOWN = 15 * 60 * 1000 // 15 mins default rate limit cooldown
 
   // Concurrency Limiter: Ensures we never trigger parallel fetches (max 1 concurrent call per IP)
   const isFetchingRef = useRef(false)
@@ -208,6 +203,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
   const [speedRange, setSpeedRange] = useState<{ min: number; max: number } | null>(null)
   const abortControllerRef = useRef<AbortController | null>(null)
   const rateLimitResetTimeRef = useRef<number | null>(null)
+  const fetchWindDataRef = useRef<(() => void) | null>(null)
 
   const particles = useRef<Particle[]>([])
   const particleCount = 1500
@@ -230,7 +226,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
     return () => clearInterval(interval)
   }, [mapRef])
 
-  const resizeCanvas = () => {
+  const resizeCanvas = useCallback(() => {
     const canvas = canvasRef.current
     const map = mapRef.current
     if (!canvas || !map) return
@@ -252,7 +248,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
     }
 
     dimensions.current = { width, height }
-  }
+  }, [mapRef, canvasRef])
 
   const getRandomPointInBulgaria = (polygon: number[][][]): [number, number] => {
     const minLng = 22.357
@@ -270,7 +266,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
     return [25.5, 42.7] // Fallback center of Bulgaria
   }
 
-  const initParticles = (width: number, height: number, map: Map) => {
+  const initParticles = useCallback((width: number, height: number, map: Map) => {
     const arr: Particle[] = []
     const center = map.getCenter()
     const { region } = useFilterStore.getState()
@@ -311,7 +307,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
               life: Math.random() * 80 + 40,
             })
           }
-        } catch (e) {
+        } catch {
           arr.push({
             lng: center?.lng ?? 0,
             lat: center?.lat ?? 0,
@@ -324,10 +320,10 @@ export function WindLayer({ mapRef }: WindLayerProps) {
       }
     }
     particles.current = arr
-  }
+  }, [])
 
   // Fetch real wind data for the current viewport from Open-Meteo
-  const fetchWindData = async () => {
+  const fetchWindData = useCallback(async () => {
     const map = mapRef.current
     if (!map) return
 
@@ -337,7 +333,9 @@ export function WindLayer({ mapRef }: WindLayerProps) {
         abortControllerRef.current.abort()
       }
       // Re-schedule this execution sequentially once the previous connection finishes aborting
-      setTimeout(fetchWindData, 200)
+      setTimeout(() => {
+        fetchWindDataRef.current?.()
+      }, 200)
       return
     }
 
@@ -544,15 +542,20 @@ export function WindLayer({ mapRef }: WindLayerProps) {
 
       setSpeedRange({ min: minSpeed === Infinity ? 0 : minSpeed, max: maxSpeed === -Infinity ? 0 : maxSpeed })
       setStatus("live")
-    } catch (err: any) {
-      if (err.name === "AbortError") return
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return
       console.warn("Failed to fetch real wind data from Open-Meteo:", err)
       toast.warning("Failed to fetch wind data from Open-Meteo")
       setStatus("offline")
     } finally {
       isFetchingRef.current = false
     }
-  }
+  }, [mapRef, status, setSpeedRange, setStatus])
+
+  // Sync ref with the callback to allow recursive scheduling without lexical TDZ errors
+  useEffect(() => {
+    fetchWindDataRef.current = fetchWindData
+  }, [fetchWindData])
 
   useEffect(() => {
     if (!mapReady) return
@@ -771,7 +774,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
       map.off("resize", handleMapResize)
       map.off("moveend", handleMoveEnd)
     }
-  }, [mapReady, resolvedTheme, region, mapRef])
+  }, [mapReady, resolvedTheme, region, mapRef, fetchWindData, initParticles, resizeCanvas])
 
   return (
     <>

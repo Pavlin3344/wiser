@@ -9,7 +9,7 @@ export function useGeolocation() {
       const isHttp = window.location.protocol === "http:" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1"
 
       console.warn("[Wiser] Geolocation is not supported by this browser.")
-      toast.warning("Geolocation Unsupported", {
+      toast.error("Geolocation Unsupported", {
         description: isHttp
           ? "Geolocation requires a secure connection (HTTPS) on deployed servers. Please configure SSL/HTTPS."
           : "Geolocation is not supported by your browser or current settings.",
