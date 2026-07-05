@@ -7,7 +7,9 @@ describe("lib/utils cn helper", () => {
   })
 
   it("should handle conditional class names", () => {
-    expect(cn("px-2", false && "py-2", true && "text-red-500")).toBe("px-2 text-red-500")
+    const isFalse = false
+    const isTrue = true
+    expect(cn("px-2", isFalse && "py-2", isTrue && "text-red-500")).toBe("px-2 text-red-500")
   })
 
   it("should merge tailwind conflicts correctly", () => {
