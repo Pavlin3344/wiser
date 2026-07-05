@@ -20,6 +20,9 @@ export function MobileLayersDrawer() {
     showLabels,
     setShowLabels,
     showRiskGrid,
+    setShowRiskGrid,
+    showFuel,
+    setShowFuel,
   } = useLayerStore()
 
   return (
@@ -128,6 +131,36 @@ export function MobileLayersDrawer() {
                 Map Details
               </Label>
 
+              {/* Risk Grid Toggle */}
+              <div className='flex items-center justify-between py-1'>
+                <div className='flex flex-col gap-0.5'>
+                  <span className='text-xs font-semibold flex items-center gap-1.5'>
+                    <Layers className='size-4 text-destructive' /> Risk Grid
+                  </span>
+                  <span className='text-[11px] text-muted-foreground'>EFFIS Fire Weather Index</span>
+                </div>
+                <Switch
+                  checked={showRiskGrid}
+                  onCheckedChange={setShowRiskGrid}
+                  className='data-[state=checked]:bg-destructive data-[state=checked]:border-destructive'
+                />
+              </div>
+
+              {/* Fuel Map Toggle */}
+              <div className='flex items-center justify-between py-1'>
+                <div className='flex flex-col gap-0.5'>
+                  <span className='text-xs font-semibold flex items-center gap-1.5'>
+                    <Layers className='size-4 text-destructive' /> Fuel Map
+                  </span>
+                  <span className='text-[11px] text-muted-foreground'>EFFIS NFFL Vegetation Classification</span>
+                </div>
+                <Switch
+                  checked={showFuel}
+                  onCheckedChange={setShowFuel}
+                  className='data-[state=checked]:bg-destructive data-[state=checked]:border-destructive'
+                />
+              </div>
+
               {/* Live Data Toggle */}
               <div className='flex items-center justify-between py-1'>
                 <div className='flex flex-col gap-0.5'>
@@ -179,19 +212,24 @@ export function MobileLayersDrawer() {
             </div>
 
             {/* Active Legends Section */}
-            {(showRiskGrid || showFires) && (
+            {(showRiskGrid || showFires || showFuel) && (
               <div className='border-t border-white/10 pt-4 space-y-3'>
                 <Label className='text-[10px] uppercase tracking-wider text-muted-foreground font-bold block'>
                   Active Legends
                 </Label>
-                <div className='flex flex-col sm:flex-row gap-3 items-start justify-start w-full overflow-x-auto pb-2'>
+                <div className='flex flex-col gap-3 items-start justify-start w-full overflow-y-auto pb-2'>
                   {showRiskGrid && (
-                    <div className='w-full sm:w-auto shrink-0'>
+                    <div className='w-full shrink-0'>
                       <MapLegend title='Fire Weather Index' type='fwi' />
                     </div>
                   )}
+                  {showFuel && (
+                    <div className='w-full shrink-0'>
+                      <MapLegend title='Fuel Model (NFFL)' type='fuel' />
+                    </div>
+                  )}
                   {showFires && (
-                    <div className='w-full sm:w-auto shrink-0'>
+                    <div className='w-full shrink-0'>
                       <MapLegend title='Active Fires (VIIRS)' type='viirs' />
                     </div>
                   )}

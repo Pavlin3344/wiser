@@ -116,6 +116,7 @@ describe("Zustand global stores", () => {
         showSmoke: true,
         showWind: false,
         showEvac: false,
+        showFuel: false,
       })
     })
 
@@ -126,6 +127,7 @@ describe("Zustand global stores", () => {
       expect(state.showRiskGrid).toBe(true)
       expect(state.showThermal).toBe(true)
       expect(state.showWind).toBe(false)
+      expect(state.showFuel).toBe(false)
     })
 
     it("should support toggling each layer", () => {
@@ -138,6 +140,7 @@ describe("Zustand global stores", () => {
       store.setShowSmoke(false)
       store.setShowWind(true)
       store.setShowEvac(true)
+      store.setShowFuel(true)
 
       const state = useLayerStore.getState()
       expect(state.showFires).toBe(true)
@@ -148,6 +151,7 @@ describe("Zustand global stores", () => {
       expect(state.showSmoke).toBe(false)
       expect(state.showWind).toBe(true)
       expect(state.showEvac).toBe(true)
+      expect(state.showFuel).toBe(true)
     })
   })
 

@@ -31,6 +31,9 @@ interface LayerState {
 
   showEvac: boolean
   setShowEvac: (show: boolean) => void
+
+  showFuel: boolean
+  setShowFuel: (show: boolean) => void
 }
 
 export const useLayerStore = create<LayerState>()(
@@ -59,6 +62,9 @@ export const useLayerStore = create<LayerState>()(
 
       showEvac: false,
       setShowEvac: (showEvac) => set({ showEvac }),
+
+      showFuel: false,
+      setShowFuel: (showFuel) => set({ showFuel }),
     }),
     { name: "wiser-layer-storage" },
   ),
