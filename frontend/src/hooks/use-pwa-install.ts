@@ -12,9 +12,23 @@ export interface BeforeInstallPromptEvent extends Event {
 
 export function usePWAInstall() {
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [isInstalled, setIsInstalled] = useState(false)
-  const [isIOS, setIsIOS] = useState(false)
-  const [isStandalone, setIsStandalone] = useState(false)
+  const [isIOS] = useState(() => {
+    if (typeof window === "undefined") return false
+    const userAgent = window.navigator.userAgent.toLowerCase()
+    return /iphone|ipad|ipod/.test(userAgent)
+  })
+
+  const [isStandalone] = useState(() => {
+    if (typeof window === "undefined") return false
+    return window.matchMedia("(display-mode: standalone)").matches ||
+      ("standalone" in window.navigator && (window.navigator as Navigator & { standalone?: boolean }).standalone === true)
+  })
+
+  const [isInstalled, setIsInstalled] = useState(() => {
+    if (typeof window === "undefined") return false
+    return window.matchMedia("(display-mode: standalone)").matches ||
+      ("standalone" in window.navigator && (window.navigator as Navigator & { standalone?: boolean }).standalone === true)
+  })
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -34,18 +48,6 @@ export function usePWAInstall() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
     window.addEventListener("appinstalled", handleAppInstalled)
 
-    // Check device types & display modes
-    const userAgent = window.navigator.userAgent.toLowerCase()
-    const iosDevice = /iphone|ipad|ipod/.test(userAgent)
-    setIsIOS(iosDevice)
-
-    const standaloneMode = window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true
-    setIsStandalone(standaloneMode)
-    if (standaloneMode) {
-      setIsInstalled(true)
-    }
-
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
       window.removeEventListener("appinstalled", handleAppInstalled)
@@ -62,9 +64,10 @@ export function usePWAInstall() {
       if (outcome === "accepted") {
         setInstallPrompt(null)
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("Installation prompt failed:", err)
-      toast.error(`PWA installation failed: ${err?.message || err}`)
+      const msg = err instanceof Error ? err.message : String(err)
+      toast.error(`PWA installation failed: ${msg}`)
     }
   }
 
