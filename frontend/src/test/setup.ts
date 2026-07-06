@@ -18,6 +18,18 @@ Object.defineProperty(window, "matchMedia", {
 
 // Mock maplibre-gl since WebGL cannot run headlessly in JSDOM environments
 vi.mock("maplibre-gl", () => {
+  class LngLatMock {
+    lng: number
+    lat: number
+    constructor(lng: number, lat: number) {
+      this.lng = lng
+      this.lat = lat
+    }
+    distanceTo() {
+      return 1000 // default mock distance in meters
+    }
+  }
+
   const MapMock = vi.fn().mockImplementation(() => ({
     on: vi.fn(),
     off: vi.fn(),
@@ -34,6 +46,10 @@ vi.mock("maplibre-gl", () => {
     flyTo: vi.fn(),
     fitBounds: vi.fn(),
     getCanvasContainer: vi.fn(() => document.createElement("div")),
+    project: vi.fn(() => ({ x: 100, y: 100 })),
+    unproject: vi.fn(() => new LngLatMock(0, 0)),
+    getCenter: vi.fn(() => new LngLatMock(0, 0)),
+    getContainer: vi.fn(() => ({ clientWidth: 1000, clientHeight: 1000 })),
   }))
 
   const NavigationControlMock = vi.fn()
@@ -57,5 +73,6 @@ vi.mock("maplibre-gl", () => {
     NavigationControl: NavigationControlMock,
     Marker: MarkerMock,
     Popup: PopupMock,
+    LngLat: LngLatMock,
   };
 })
