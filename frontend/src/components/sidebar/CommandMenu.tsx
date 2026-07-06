@@ -8,12 +8,91 @@ import { useLayerStore } from "@/store/use-layer-store"
 import { useMapStore } from "@/store/use-map-store"
 import { useFilterStore } from "@/store/use-filter-store"
 
+interface PhotonFeature {
+  type: string
+  geometry: {
+    type: "Point"
+    coordinates: [number, number]
+  }
+  properties: {
+    name?: string
+    city?: string
+    town?: string
+    state?: string
+    country?: string
+    osm_id?: number
+  }
+}
+
+const formatLocation = (feature: PhotonFeature) => {
+  const { name, city, town, state, country } = feature.properties
+  const parts: string[] = []
+  if (name) parts.push(name)
+
+  const cityOrTown = city || town
+  if (cityOrTown && cityOrTown !== name) {
+    parts.push(cityOrTown)
+  }
+
+  if (state && state !== name && state !== cityOrTown) {
+    parts.push(state)
+  }
+
+  if (country) {
+    parts.push(country)
+  }
+
+  return parts.join(", ")
+}
+
 export const CommandMenu = React.memo(function CommandMenu({ open, setOpen }: { open: boolean; setOpen: React.Dispatch<React.SetStateAction<boolean>> }) {
   const { theme, setTheme, setActiveSidebarTab } = useUIStore()
-  const { mapView, setMapView, basemap, setBasemap } = useMapStore()
+  const { mapView, setMapView, basemap, setBasemap, setFlyToTarget } = useMapStore()
   const { showFires, setShowFires, showRiskGrid, setShowRiskGrid, showWind, setShowWind, showEvac, setShowEvac, showFuel, setShowFuel, showSettlement, setShowSettlement } = useLayerStore()
 
   const { findMe } = useGeolocation()
+
+  const [search, setSearch] = React.useState("")
+  const [results, setResults] = React.useState<PhotonFeature[]>([])
+  const [loading, setLoading] = React.useState(false)
+
+  const triggerSearch = React.useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setResults([])
+      return
+    }
+    setLoading(true)
+    try {
+      const response = await fetch(
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(query)}&limit=3`
+      )
+      const data = await response.json()
+      if (data && data.features) {
+        setResults(data.features)
+      }
+    } catch (error) {
+      console.error("Photon geocoding error:", error)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  React.useEffect(() => {
+    if (!search.trim()) {
+      setResults([])
+      return
+    }
+    const timer = setTimeout(() => {
+      triggerSearch(search)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search, triggerSearch])
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && search.trim()) {
+      triggerSearch(search)
+    }
+  }
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -43,9 +122,46 @@ export const CommandMenu = React.memo(function CommandMenu({ open, setOpen }: { 
       >
         <Command className='bg-transparent overflow-hidden relative rounded-2xl'>
           <div className='absolute inset-0 rounded-2xl bg-linear-to-br from-white/5 to-transparent pointer-events-none z-10' />
-          <CommandInput placeholder='Type a command or search map features...' />
+          <CommandInput
+            placeholder='Type a command or search map features...'
+            value={search}
+            onValueChange={setSearch}
+            onKeyDown={handleKeyDown}
+          />
           <CommandList className='relative z-0'>
             <CommandEmpty>No features found.</CommandEmpty>
+
+            {loading && (
+              <div className='py-2 px-4 text-xs text-muted-foreground animate-pulse'>
+                Searching locations...
+              </div>
+            )}
+
+            {results.length > 0 && (
+              <>
+                <CommandGroup heading='Locations (Photon)'>
+                  {results.map((feature, idx) => {
+                    const label = formatLocation(feature)
+                    return (
+                      <CommandItem
+                        key={`${feature.properties.osm_id || idx}-${idx}`}
+                        value={`${label} ${search} ${feature.properties.osm_id || idx}`.toLowerCase()}
+                        onSelect={() => {
+                          const [lng, lat] = feature.geometry.coordinates
+                          runCommand(() => {
+                            setFlyToTarget({ lat, lng, zoom: 12 })
+                          })
+                        }}
+                      >
+                        <MapPinIcon className='mr-2 h-4 w-4 text-rose-500' />
+                        <span>{label}</span>
+                      </CommandItem>
+                    )
+                  })}
+                </CommandGroup>
+                <CommandSeparator className='bg-white/5' />
+              </>
+            )}
 
             <CommandGroup heading='Views & Dashboards'>
               <CommandItem onSelect={() => runCommand(() => setActiveSidebarTab("risk"))}>

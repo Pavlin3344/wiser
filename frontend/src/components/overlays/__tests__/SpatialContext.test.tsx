@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, act } from "@testing-library/react"
-import { SpatialContext } from "../SpatialContext"
+import { SpatialContext } from "@/components/overlays/SpatialContext"
 import { useFilterStore } from "@/store/use-filter-store"
 import { useMapStore } from "@/store/use-map-store"
 import { vi } from "vitest"

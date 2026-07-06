@@ -102,41 +102,12 @@ export function SpatialContext() {
             <Breadcrumb>
                 <BreadcrumbList className="flex items-center gap-1 sm:gap-1.5 text-xs text-muted-foreground font-medium">
                     {region === "world" ? (
-                        <>
-                            <BreadcrumbItem>
-                                <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground">
-                                    <Globe className="h-3.5 w-3.5 text-destructive" />
-                                    <span>World</span>
-                                </BreadcrumbPage>
-                            </BreadcrumbItem>
-
-                            <BreadcrumbSeparator />
-
-                            <BreadcrumbItem>
-                                <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground">
-                                    <Globe className="h-3.5 w-3.5 text-destructive" />
-                                    <span>Europe</span>
-                                </BreadcrumbPage>
-                            </BreadcrumbItem>
-
-                            <BreadcrumbSeparator />
-
-                            <BreadcrumbItem>
-                                <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground">
-                                    <Globe className="h-3.5 w-3.5 text-destructive" />
-                                    <span>Bulgaria</span>
-                                </BreadcrumbPage>
-                            </BreadcrumbItem>
-
-                            <BreadcrumbSeparator />
-
-                            <BreadcrumbItem>
-                                <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground">
-                                    <Globe className="h-3.5 w-3.5 text-destructive" />
-                                    <span>Sofia</span>
-                                </BreadcrumbPage>
-                            </BreadcrumbItem>
-                        </>
+                        <BreadcrumbItem>
+                            <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground">
+                                <Globe className="h-3.5 w-3.5 text-destructive" />
+                                <span>World</span>
+                            </BreadcrumbPage>
+                        </BreadcrumbItem>
                     ) : (
                         <>
                             <BreadcrumbItem>
