@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react"
 import { Crosshair, Mountain, Search } from "lucide-react"
 
 import { useMapStore } from "@/store/use-map-store"
+import { MapScale } from "@/components/overlays/MapScale"
 
 export function BottomStatusBar() {
   const coordsRef = useRef<HTMLSpanElement>(null)
@@ -38,6 +39,8 @@ export function BottomStatusBar() {
           <span ref={elevationRef}>0m ASL</span>
         </div>
       </div>
+
+      <MapScale variant='inline' />
 
       <div className='flex items-center gap-6'>
         <div className='flex items-center gap-1.5'>

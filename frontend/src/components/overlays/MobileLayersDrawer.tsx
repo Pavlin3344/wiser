@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label"
 import { useMapStore } from "@/store/use-map-store"
 import { useLayerStore } from "@/store/use-layer-store"
 import { MapLegend } from "@/components/overlays/MapLegend"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 export function MobileLayersDrawer() {
   const [isOpen, setIsOpen] = useState(false)
@@ -30,14 +31,20 @@ export function MobileLayersDrawer() {
   return (
     <>
       {/* Floating Google Maps-like Layers Button */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className='relative size-9 flex items-center justify-center bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20 rounded-full text-foreground hover:bg-muted/80 transition-all duration-200 cursor-pointer pointer-events-auto'
-        title='Map Layers'
-      >
-        <div className='absolute inset-0 rounded-full bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
-        <Layers className='size-4 text-destructive' />
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={() => setIsOpen(true)}
+            className='relative size-9 flex items-center justify-center bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20 rounded-full text-foreground hover:bg-muted/80 transition-all duration-200 cursor-pointer pointer-events-auto'
+          >
+            <div className='absolute inset-0 rounded-full bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
+            <Layers className='size-4 text-destructive' />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side='left' sideOffset={8}>
+          Map Layers
+        </TooltipContent>
+      </Tooltip>
 
       {/* Bottom Sheet Drawer */}
       <Sheet open={isOpen} onOpenChange={setIsOpen}>

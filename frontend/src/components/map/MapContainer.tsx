@@ -14,6 +14,7 @@ import { useLayerStore } from "@/store/use-layer-store"
 import { WindLayer } from "@/components/map/WindLayer"
 import { FuelLayer } from "@/components/map/FuelLayer"
 import { HumanSettlementLayer } from "@/components/map/HumanSettlementLayer"
+import { MapScale } from "@/components/overlays/MapScale"
 
 export function MapContainer() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -53,6 +54,7 @@ export function MapContainer() {
         <FuelLayer mapRef={mapRef} />
         <HumanSettlementLayer mapRef={mapRef} />
         <MapNavigation mapRef={mapRef} />
+        <MapScale variant='floating' className='absolute bottom-20 left-1/2 translate-x-[-50%] z-10 md:hidden' />
       </div>
     </div>
   )
