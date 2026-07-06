@@ -28,26 +28,14 @@ function getDecimalRoundNum(d: number): number {
 export function MapScale({ className, maxWidth = 80, variant = "inline" }: MapScaleProps) {
   const map = useMapStore((s) => s.mapInstance)
   const [scaleData, setScaleData] = useState<{ label: string; width: number } | null>(null)
-  const [unit, setUnit] = useState<"metric" | "imperial">(() => {
-    // Try to load initial unit preference from localStorage
-    try {
-      const saved = localStorage.getItem("wiser-scale-unit")
-      if (saved === "metric" || saved === "imperial") return saved
-    } catch {
-      // Ignore storage errors
-    }
-    return "metric"
-  })
+  
+  const unit = useMapStore((s) => s.scaleUnit)
+  const setScaleUnit = useMapStore((s) => s.setScaleUnit)
 
   // Save preference when user toggles
   const handleToggle = () => {
     const nextUnit = unit === "metric" ? "imperial" : "metric"
-    setUnit(nextUnit)
-    try {
-      localStorage.setItem("wiser-scale-unit", nextUnit)
-    } catch {
-      // Ignore storage errors
-    }
+    setScaleUnit(nextUnit)
   }
 
   useEffect(() => {

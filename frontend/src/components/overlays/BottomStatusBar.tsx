@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react"
 
-import { Crosshair, Mountain, Search } from "lucide-react"
+import { Camera, Crosshair, Mountain, Search } from "lucide-react"
 
 import { useMapStore } from "@/store/use-map-store"
 import { MapScale } from "@/components/overlays/MapScale"
@@ -9,19 +9,74 @@ export function BottomStatusBar() {
   const coordsRef = useRef<HTMLSpanElement>(null)
   const elevationRef = useRef<HTMLSpanElement>(null)
   const zoomRef = useRef<HTMLSpanElement>(null)
+  const cameraDistanceRef = useRef<HTMLSpanElement>(null)
 
   useEffect(() => {
-    const unsub = useMapStore.subscribe(
+    const formatDistance = (meters: number, unit: "metric" | "imperial"): string => {
+      if (unit === "metric") {
+        if (meters < 1000) {
+          return `CAMERA: ${Math.round(meters)}m`
+        } else {
+          return `CAMERA: ${(Math.round(meters / 1000))}km`
+        }
+      } else {
+        const feet = meters * 3.28084
+        if (feet < 5280) {
+          return `CAMERA: ${Math.round(feet)}ft`
+        } else {
+          return `CAMERA: ${(Math.round(feet / 5280))}mi`
+        }
+      }
+    }
+
+    // Set initial values from store state immediately
+    const initialState = useMapStore.getState()
+    const currentStatus = initialState.mapStatus
+    const unit = initialState.scaleUnit
+
+    if (coordsRef.current) {
+      coordsRef.current.textContent = `${currentStatus.lat.toFixed(4)}° N, ${currentStatus.lng.toFixed(4)}° E`
+    }
+    if (elevationRef.current) {
+      elevationRef.current.textContent = `${currentStatus.elevation}m ASL`
+    }
+    if (zoomRef.current) {
+      zoomRef.current.textContent = `ZOOM: ${currentStatus.zoom.toFixed(1)}`
+    }
+    if (cameraDistanceRef.current) {
+      cameraDistanceRef.current.textContent = formatDistance(currentStatus.cameraDistance, unit)
+    }
+
+    const unsubStatus = useMapStore.subscribe(
       (s) => s.mapStatus,
-      ({ lat, lng, elevation, zoom }) => {
+      ({ lat, lng, elevation, zoom, cameraDistance }) => {
         if (coordsRef.current) coordsRef.current.textContent = `${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E`
 
         if (elevationRef.current) elevationRef.current.textContent = `${elevation}m ASL`
 
         if (zoomRef.current) zoomRef.current.textContent = `ZOOM: ${zoom.toFixed(1)}`
+
+        if (cameraDistanceRef.current) {
+          const unit = useMapStore.getState().scaleUnit
+          cameraDistanceRef.current.textContent = formatDistance(cameraDistance, unit)
+        }
       },
     )
-    return unsub
+
+    const unsubUnit = useMapStore.subscribe(
+      (s) => s.scaleUnit,
+      (unit) => {
+        if (cameraDistanceRef.current) {
+          const cameraDistance = useMapStore.getState().mapStatus.cameraDistance
+          cameraDistanceRef.current.textContent = formatDistance(cameraDistance, unit)
+        }
+      },
+    )
+
+    return () => {
+      unsubStatus()
+      unsubUnit()
+    }
   }, [])
 
   return (
@@ -44,6 +99,11 @@ export function BottomStatusBar() {
 
       <div className='flex items-center gap-6'>
         <div className='flex items-center gap-1.5'>
+          <Camera className='size-3 text-destructive' />
+          <span ref={cameraDistanceRef}>CAMERA: 0m</span>
+        </div>
+
+        <div className='flex items-center gap-1.5'>
           <Search className='size-3 text-destructive' />
           <span ref={zoomRef}>ZOOM: 7.0</span>
         </div>
@@ -55,3 +115,4 @@ export function BottomStatusBar() {
     </div>
   )
 }
+

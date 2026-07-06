@@ -192,15 +192,51 @@ export function useMapEvents(mapRef: RefObject<maplibregl.Map | null>): void {
     }
     map.on("mousemove", onMouseMove)
 
-    const onZoom = () => {
-      useMapStore.getState().setMapStatus({ zoom: map.getZoom() })
-    }
-    map.on("zoom", onZoom)
+    const onMove = () => {
+      const zoom = map.getZoom()
+      const bearing = map.getBearing()
+      const pitch = map.getPitch()
+      const pitchInRadians = (pitch * Math.PI) / 180
 
-    const onRotate = () => {
-      useMapStore.getState().setMapStatus({ bearing: map.getBearing() })
+      // Calculate meters per pixel at the map center using map projection
+      // (identical to how MapScale calculates visual distance)
+      let metersPerPixel = 1
+      const center = map.getCenter()
+      if (
+        center &&
+        typeof map.project === "function" &&
+        typeof map.unproject === "function" &&
+        typeof center.distanceTo === "function"
+      ) {
+        const centerPx = map.project(center)
+        if (centerPx) {
+          const edge = map.unproject([centerPx.x + 100, centerPx.y])
+          if (edge) {
+            const distance = center.distanceTo(edge)
+            if (!isNaN(distance) && distance > 0) {
+              metersPerPixel = distance / 100
+            }
+          }
+        }
+      }
+
+      // Calculate camera altitude in meters above sea level
+      const cameraToCenterDistance = map.transform?.cameraToCenterDistance || 0
+      const cameraAltitude = Math.cos(pitchInRadians) * cameraToCenterDistance * metersPerPixel
+
+      const centerElevation = typeof map.queryTerrainElevation === "function"
+        ? (map.queryTerrainElevation(center) || 0)
+        : 0
+      const cameraDistance = Math.max(0, cameraAltitude - centerElevation)
+
+      useMapStore.getState().setMapStatus({
+        zoom,
+        bearing,
+        cameraDistance,
+      })
     }
-    map.on("rotate", onRotate)
+    map.on("move", onMove)
+    onMove()
 
     const onMoveEnd = () => {
       useMapStore.getState().setCamera({
@@ -223,8 +259,7 @@ export function useMapEvents(mapRef: RefObject<maplibregl.Map | null>): void {
       map.off("click", "fire-points", onClickFire)
       map.off("click", onClickMap)
       map.off("mousemove", onMouseMove)
-      map.off("zoom", onZoom)
-      map.off("rotate", onRotate)
+      map.off("move", onMove)
       map.off("moveend", onMoveEnd)
     }
   }, [mapRef])

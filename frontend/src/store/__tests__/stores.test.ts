@@ -166,7 +166,8 @@ describe("Zustand global stores", () => {
         flyToTarget: null,
         mapView: "2d",
         basemap: "topographic",
-        mapStatus: { lat: 42.0, lng: 25.5, zoom: 7, elevation: 0, bearing: 0 },
+        scaleUnit: "metric",
+        mapStatus: { lat: 42.0, lng: 25.5, zoom: 7, elevation: 0, bearing: 0, cameraDistance: 0 },
         mapInstance: null,
         userLocation: null,
       })
@@ -178,6 +179,7 @@ describe("Zustand global stores", () => {
       expect(state.flyToTarget).toBeNull()
       expect(state.mapView).toBe("2d")
       expect(state.basemap).toBe("topographic")
+      expect(state.scaleUnit).toBe("metric")
       expect(state.mapInstance).toBeNull()
       expect(state.userLocation).toBeNull()
     })
@@ -205,6 +207,12 @@ describe("Zustand global stores", () => {
       expect(state.userLocation).toEqual(mockUserLocation)
     })
 
+    it("should update scaleUnit", () => {
+      const store = useMapStore.getState()
+      store.setScaleUnit("imperial")
+      expect(useMapStore.getState().scaleUnit).toBe("imperial")
+    })
+
     it("should partially update mapStatus", () => {
       const store = useMapStore.getState()
       store.setMapStatus({ lat: 43.5, zoom: 9 })
@@ -216,6 +224,7 @@ describe("Zustand global stores", () => {
         zoom: 9,
         elevation: 0,
         bearing: 0,
+        cameraDistance: 0,
       })
     })
 
@@ -227,13 +236,15 @@ describe("Zustand global stores", () => {
           flyToTarget: { lat: 42.1, lng: 24.5, zoom: 12 },
           mapView: "3d" as const,
           basemap: "satellite" as const,
-          mapStatus: { lat: 43.5, lng: 25.5, zoom: 9, elevation: 0, bearing: 0 },
+          scaleUnit: "metric" as const,
+          mapStatus: { lat: 43.5, lng: 25.5, zoom: 9, elevation: 0, bearing: 0, cameraDistance: 0 },
           mapInstance: {} as any,
           userLocation: { lat: 42.6, lng: 23.3 },
           setCamera: () => {},
           setFlyToTarget: () => {},
           setMapView: () => {},
           setBasemap: () => {},
+          setScaleUnit: () => {},
           setMapStatus: () => {},
           setMapInstance: () => {},
           setUserLocation: () => {},
@@ -243,6 +254,7 @@ describe("Zustand global stores", () => {
           camera: { lng: 23.3, lat: 42.7, zoom: 10, pitch: 15, bearing: 45 },
           mapView: "3d",
           basemap: "satellite",
+          scaleUnit: "metric",
         }))
         expect((partial as any).mapStatus).toBeUndefined()
         expect((partial as any).flyToTarget).toBeUndefined()
