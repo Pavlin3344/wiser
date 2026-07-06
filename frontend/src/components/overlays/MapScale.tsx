@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { type PointLike } from "maplibre-gl"
 import { useMapStore } from "@/store/use-map-store"
 import { cn } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface MapScaleProps {
   className?: string
@@ -118,42 +119,54 @@ export function MapScale({ className, maxWidth = 80, variant = "inline" }: MapSc
 
   if (variant === "floating") {
     return (
-      <button
-        onClick={handleToggle}
-        className={cn(
-          "pointer-events-auto flex flex-col items-center justify-center bg-background/60 backdrop-blur-xl border border-white/10 border-t-white/20 border-l-white/20 shadow-lg px-3 py-1.5 rounded-full cursor-pointer select-none transition-all hover:bg-muted/80 active:scale-95 duration-150",
-          className
-        )}
-        title={`Scale: Click to toggle units (currently ${unit})`}
-      >
-        <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest leading-none mb-1">
-          {scaleData.label}
-        </span>
-        <div
-          className="h-1 border-x border-b border-muted-foreground/60 transition-all duration-75"
-          style={{ width: `${scaleData.width}px` }}
-        />
-      </button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            onClick={handleToggle}
+            className={cn(
+              "pointer-events-auto flex flex-col items-center justify-center bg-background/60 backdrop-blur-xl border border-white/10 border-t-white/20 border-l-white/20 shadow-lg px-3 py-1.5 rounded-full cursor-pointer select-none transition-all hover:bg-muted/80 active:scale-95 duration-150",
+              className
+            )}
+          >
+            <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest leading-none mb-1">
+              {scaleData.label}
+            </span>
+            <div
+              className="h-1 border-x border-b border-muted-foreground/60 transition-all duration-75"
+              style={{ width: `${scaleData.width}px` }}
+            />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side='top' sideOffset={8}>
+          Scale: Click to toggle units (currently {unit})
+        </TooltipContent>
+      </Tooltip>
     )
   }
 
   // Inline variant
   return (
-    <button
-      onClick={handleToggle}
-      className={cn(
-        "flex flex-col items-center justify-center cursor-pointer select-none transition-opacity hover:opacity-80 active:scale-95 duration-150 py-0.5",
-        className
-      )}
-      title={`Scale: Click to toggle units (currently ${unit})`}
-    >
-      <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest leading-none mb-1">
-        {scaleData.label}
-      </span>
-      <div
-        className="h-1 border-x border-b border-muted-foreground/50 transition-all duration-75"
-        style={{ width: `${scaleData.width}px` }}
-      />
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          onClick={handleToggle}
+          className={cn(
+            "flex flex-col items-center justify-center cursor-pointer select-none transition-opacity hover:opacity-80 active:scale-95 duration-150 py-0.5",
+            className
+          )}
+        >
+          <span className="text-[9px] font-mono text-muted-foreground uppercase tracking-widest leading-none mb-1">
+            {scaleData.label}
+          </span>
+          <div
+            className="h-1 border-x border-b border-muted-foreground/50 transition-all duration-75"
+            style={{ width: `${scaleData.width}px` }}
+          />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side='top' sideOffset={8}>
+        Scale: Click to toggle units (currently {unit})
+      </TooltipContent>
+    </Tooltip>
   )
 }

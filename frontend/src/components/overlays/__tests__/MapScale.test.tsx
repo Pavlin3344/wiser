@@ -3,6 +3,7 @@ import { MapScale } from "../MapScale"
 import { useMapStore } from "@/store/use-map-store"
 import { vi } from "vitest"
 import type maplibregl from "maplibre-gl"
+import { TooltipProvider } from "@/components/ui/tooltip"
 
 describe("MapScale Component", () => {
   let moveCallback: () => void = () => {}
@@ -34,7 +35,11 @@ describe("MapScale Component", () => {
 
   it("renders metric scale by default", async () => {
     await act(async () => {
-      render(<MapScale variant="inline" />)
+      render(
+        <TooltipProvider>
+          <MapScale variant="inline" />
+        </TooltipProvider>
+      )
     })
     // 1200 meters -> multiplier = 1000, r = 1.2 -> rRound = 1 -> 1000m (1 km)
     expect(screen.getByText("1 km")).toBeInTheDocument()
@@ -42,7 +47,11 @@ describe("MapScale Component", () => {
 
   it("toggles unit when clicked", async () => {
     await act(async () => {
-      render(<MapScale variant="inline" />)
+      render(
+        <TooltipProvider>
+          <MapScale variant="inline" />
+        </TooltipProvider>
+      )
     })
     const button = screen.getByRole("button")
     expect(screen.getByText("1 km")).toBeInTheDocument()
@@ -64,7 +73,11 @@ describe("MapScale Component", () => {
 
   it("re-calculates scale when map move event fires", async () => {
     await act(async () => {
-      render(<MapScale variant="inline" />)
+      render(
+        <TooltipProvider>
+          <MapScale variant="inline" />
+        </TooltipProvider>
+      )
     })
     expect(screen.getByText("1 km")).toBeInTheDocument()
 
@@ -87,7 +100,11 @@ describe("MapScale Component", () => {
   it("renders floating variant with glassmorphic container", async () => {
     let result: any
     await act(async () => {
-      result = render(<MapScale variant="floating" />)
+      result = render(
+        <TooltipProvider>
+          <MapScale variant="floating" />
+        </TooltipProvider>
+      )
     })
     const button = screen.getByRole("button")
     expect(button).toHaveClass("bg-background/60", "backdrop-blur-xl")
