@@ -26,18 +26,6 @@ export function SecondaryBar() {
   return (
     <div className={`absolute z-10 pointer-events-none flex flex-col gap-2 ${isMobile ? "top-4 right-4" : "top-2 right-2"}`}>
       <Collapsible open={secondaryBarOpen} onOpenChange={setSecondaryBarOpen} className='flex flex-col gap-2'>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <CollapsibleTrigger asChild className='self-end'>
-              <Button className='size-9 pointer-events-auto cursor-pointer bg-destructive hover:bg-destructive/80 rounded-full shadow-lg border border-white/10 border-t-white/20 border-l-white/20 flex items-center justify-center'>
-                <ChevronsUpDown className="size-4" />
-              </Button>
-            </CollapsibleTrigger>
-          </TooltipTrigger>
-          <TooltipContent side='left' sideOffset={8}>
-            {secondaryBarOpen ? "Collapse controls" : "Expand controls"}
-          </TooltipContent>
-        </Tooltip>
         <CollapsibleContent className='flex flex-col items-end gap-2 pointer-events-auto max-h-[calc(100svh-14rem)] overflow-y-auto no-scrollbar rounded-2xl data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up data-[state=closed]:overflow-hidden'>
           {isMobile ? (
             <>
@@ -59,6 +47,18 @@ export function SecondaryBar() {
             </>
           )}
         </CollapsibleContent>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <CollapsibleTrigger asChild className='self-end'>
+              <Button className='size-9 pointer-events-auto cursor-pointer bg-destructive hover:bg-destructive/80 rounded-full shadow-lg border border-white/10 border-t-white/20 border-l-white/20 flex items-center justify-center'>
+                <ChevronsUpDown className="size-4" />
+              </Button>
+            </CollapsibleTrigger>
+          </TooltipTrigger>
+          <TooltipContent side='left' sideOffset={8}>
+            {secondaryBarOpen ? "Collapse controls" : "Expand controls"}
+          </TooltipContent>
+        </Tooltip>
       </Collapsible>
 
       {isMobile && (
