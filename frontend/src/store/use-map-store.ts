@@ -19,7 +19,9 @@ export interface MapStatus {
   zoom: number
   elevation: number
   bearing: number
+  cameraDistance: number
 }
+
 
 interface MapState {
   camera: Camera
@@ -33,6 +35,9 @@ interface MapState {
 
   basemap: "topographic" | "satellite"
   setBasemap: (map: "topographic" | "satellite") => void
+
+  scaleUnit: "metric" | "imperial"
+  setScaleUnit: (unit: "metric" | "imperial") => void
 
   /** Updated every mousemove/zoom — consume via useMapStore.subscribe(),
    *  NOT via useMapStore() hook, to avoid re-renders. */
@@ -62,7 +67,10 @@ export const useMapStore = create<MapState>()(
         basemap: "topographic",
         setBasemap: (basemap) => set({ basemap }),
 
-        mapStatus: { lat: 42.0, lng: 25.5, zoom: 7, elevation: 0, bearing: 0 },
+        scaleUnit: "metric",
+        setScaleUnit: (scaleUnit) => set({ scaleUnit }),
+
+        mapStatus: { lat: 42.0, lng: 25.5, zoom: 7, elevation: 0, bearing: 0, cameraDistance: 0 },
         setMapStatus: (partial) => set((s) => ({ mapStatus: { ...s.mapStatus, ...partial } })),
 
         mapInstance: null,
@@ -78,6 +86,7 @@ export const useMapStore = create<MapState>()(
           camera: state.camera,
           mapView: state.mapView,
           basemap: state.basemap,
+          scaleUnit: state.scaleUnit,
         }),
       },
     ),
