@@ -78,8 +78,8 @@ export function MapScale({ className, maxWidth = 80, variant = "inline" }: MapSc
       const distanceInMeters = center.distanceTo(edge)
       if (isNaN(distanceInMeters) || distanceInMeters <= 0) return
 
-      let label = ""
-      let barWidth = maxWidth
+      let label: string
+      let barWidth: number
 
       if (unit === "metric") {
         const cleanMeters = getDecimalRoundNum(distanceInMeters)
