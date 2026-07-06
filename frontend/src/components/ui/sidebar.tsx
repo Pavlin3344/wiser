@@ -234,7 +234,7 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
           <span className='sr-only'>Toggle Sidebar</span>
         </Button>
       </TooltipTrigger>
-      <TooltipContent side='right' align='center' sideOffset={8}>
+      <TooltipContent side='bottom' align='start' sideOffset={0}>
         {state === "expanded" ? "Collapse Sidebar" : "Expand Sidebar"}
       </TooltipContent>
     </Tooltip>
