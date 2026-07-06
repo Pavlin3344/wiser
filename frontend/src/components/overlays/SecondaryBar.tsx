@@ -26,7 +26,7 @@ export function SecondaryBar() {
   return (
     <div className={`absolute z-10 pointer-events-none flex flex-col gap-2 ${isMobile ? "top-4 right-4" : "top-2 right-2"}`}>
       <Collapsible open={secondaryBarOpen} onOpenChange={setSecondaryBarOpen} className='flex flex-col gap-2'>
-        <CollapsibleContent className='flex flex-col items-end gap-2 pointer-events-auto max-h-[calc(100svh-14rem)] overflow-y-auto no-scrollbar rounded-2xl data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up data-[state=closed]:overflow-hidden'>
+        <CollapsibleContent className='flex flex-col items-end gap-2 pointer-events-auto max-h-[calc(100svh-14rem)] overflow-y-auto no-scrollbar rounded-2xl p-px -m-px data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up data-[state=closed]:overflow-hidden'>
           {isMobile ? (
             <>
               <LocationToggle />
