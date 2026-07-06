@@ -30,7 +30,7 @@ export function SecondaryBar() {
             <ChevronsUpDown className="size-4" />
           </Button>
         </CollapsibleTrigger>
-        <CollapsibleContent className='flex flex-col items-end gap-2 pointer-events-auto max-h-[calc(100svh-14rem)] overflow-y-auto no-scrollbar'>
+        <CollapsibleContent className='flex flex-col items-end gap-2 pointer-events-auto max-h-[calc(100svh-14rem)] overflow-y-auto no-scrollbar data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up data-[state=closed]:overflow-hidden'>
           {isMobile ? (
             <>
               <LocationToggle />
