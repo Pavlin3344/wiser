@@ -15,7 +15,6 @@ export function AlertsPage() {
   const [mutedAlerts, setMutedAlerts] = useState<Record<string, boolean>>({})
   const [dispatchedAlerts, setDispatchedAlerts] = useState<Record<string, boolean>>({})
 
-  // Map the features into readable alert objects
   const fireAlerts = mockFireData.features.map((feature, index) => {
     const coords = feature.geometry.type === "Point" ? (feature.geometry.coordinates as [number, number]) : [0, 0]
     const props = feature.properties || {}
@@ -38,7 +37,6 @@ export function AlertsPage() {
     }
   })
 
-  // Add a mock system telemetry alert to make the alerts list look richer and more operational
   const allAlerts = [
     ...fireAlerts,
     {
@@ -98,21 +96,26 @@ export function AlertsPage() {
         return "bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/25 animate-pulse"
       case "high":
         return "bg-orange-500/10 border-orange-500/30 text-orange-500 hover:bg-orange-500/25"
-      default:
+      case "moderate":
         return "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/25"
+      default:
+        return "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/25"
     }
   }
 
   return (
-    <SidebarGroup className="flex-1 flex flex-col min-h-0">
-      <div className="flex items-center justify-between px-4 pb-2 border-b border-border/10">
-        <SidebarGroupLabel className="p-0">System Alerts</SidebarGroupLabel>
-        <Badge variant="outline" className="h-5 px-1.5 text-[10px] bg-destructive/10 border-destructive text-destructive font-mono animate-pulse">
-          {allAlerts.length} LIVE
-        </Badge>
-      </div>
+    <SidebarGroup className="min-h-0">
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 no-scrollbar max-h-[calc(100vh-28rem)]">
+      <SidebarGroupLabel>
+        <div className="w-full flex items-center justify-between">
+          <span>System Alerts</span>
+          <Badge variant="outline" className="text-[10px] bg-destructive/10 border-destructive text-destructive">
+            <span className="animate-pulse">{allAlerts.length} LIVE</span>
+          </Badge>
+        </div>
+      </SidebarGroupLabel>
+
+      <div className="overflow-y-auto px-2 pt-3 space-y-2 no-scrollbar rounded-2xl max-h-[calc(100vh-28rem)]">
         {allAlerts.map((alert) => {
           const isDispatched = dispatchedAlerts[alert.id]
           const isMuted = mutedAlerts[alert.id]
@@ -123,57 +126,54 @@ export function AlertsPage() {
               key={alert.id}
               onClick={() => handleFlyTo(alert)}
               className={`
-                group relative flex flex-col gap-2 p-3 text-left transition-all duration-300 cursor-pointer
+                group/alert relative flex flex-col gap-2 p-3 text-left transition-all duration-300 cursor-pointer
                 bg-background/20 hover:bg-background/40 backdrop-blur-md rounded-2xl
-                border border-white/10 hover:border-white/20
+                border border-white/10 border-t-white/20 border-l-white/20
                 shadow-sm hover:shadow-md
                 ${isDispatched ? "ring-1 ring-emerald-500/40 border-emerald-500/30" : ""}
               `}
             >
-              {/* Pulsing state ring */}
-              {!isDispatched && alert.intensity === "critical" && (
-                <div className="absolute top-3 right-3 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                </div>
-              )}
-
               <div className="flex gap-2.5 items-start">
                 <div className={`p-2 rounded-xl shrink-0 ${severityStyles}`}>
                   {alert.type === "fire" ? (
-                    <Flame className="size-4 animate-pulse text-red-500" />
+                    <Flame className="size-3 animate-pulse text-red-500" />
                   ) : (
-                    <AlertTriangle className="size-4 text-amber-500" />
+                    <AlertTriangle className="size-3 text-amber-500" />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider truncate">
                       {alert.sector}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">•</span>
-                    <span className="text-[10px] text-muted-foreground">{alert.time}</span>
+                    <span className="text-[9px] text-muted-foreground">•</span>
+                    <span className="text-[9px] text-muted-foreground truncate">{alert.time}</span>
                   </div>
-                  <p className="text-xs font-bold text-foreground leading-snug truncate group-hover:text-destructive transition-colors">
+                  <p className="text-xs font-bold text-foreground truncate group-hover/alert:text-destructive transition-colors">
                     {alert.title}
                   </p>
                 </div>
               </div>
 
-              {/* Action Toolbar on Hover/Focus */}
               <div className="flex items-center justify-between mt-1 pt-2 border-t border-white/5">
                 <div className="flex items-center gap-1.5">
-                  <Badge variant="outline" className={`capitalize h-4 px-1 text-[9px] font-bold border-none rounded-md ${severityStyles}`}>
+                  <Badge variant="outline" className={`capitalize h-4 px-1 text-[9px] font-bold border-none rounded-full ${severityStyles}`}>
                     {alert.intensity}
                   </Badge>
+                  {!isDispatched && alert.intensity === "critical" && (
+                    <div className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    </div>
+                  )}
                   {isDispatched && (
-                    <Badge variant="outline" className="h-4 px-1 text-[9px] font-bold bg-emerald-500/10 border-none text-emerald-500 rounded-md flex items-center gap-0.5 animate-in fade-in zoom-in-95 duration-200">
+                    <Badge variant="outline" className="h-4 px-1 text-[9px] font-bold bg-emerald-500/10 border-none text-emerald-500 rounded-full flex items-center gap-0.5 animate-in fade-in zoom-in-95 duration-200">
                       <CheckCircle2 className="size-2.5" /> Dispatched
                     </Badge>
                   )}
                 </div>
 
-                <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 opacity-60 group-hover/alert:opacity-100 transition-opacity">
                   <Button
                     size="icon"
                     variant="ghost"
