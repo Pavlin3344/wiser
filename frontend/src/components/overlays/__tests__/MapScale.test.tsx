@@ -1,12 +1,12 @@
 import { render, screen, fireEvent, act } from "@testing-library/react"
-import { MapScale } from "../MapScale"
-import { useMapStore } from "@/store/use-map-store"
 import { vi } from "vitest"
 import type maplibregl from "maplibre-gl"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { MapScale } from "@/components/overlays/MapScale"
+import { useMapStore } from "@/store/use-map-store"
 
 describe("MapScale Component", () => {
-  let moveCallback: () => void = () => {}
+  let moveCallback: () => void = () => { }
   const mockMap = {
     getCenter: vi.fn().mockReturnValue({
       lng: 0,

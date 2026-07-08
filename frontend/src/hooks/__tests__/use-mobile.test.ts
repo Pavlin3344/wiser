@@ -1,6 +1,6 @@
+import { type Mock, vi } from "vitest"
 import { renderHook, act } from "@testing-library/react"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { type Mock, vi } from "vitest"
 
 describe("useIsMobile custom hook", () => {
   let addListenerMock: Mock

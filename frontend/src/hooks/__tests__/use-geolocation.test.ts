@@ -1,6 +1,6 @@
+import type maplibregl from "maplibre-gl"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { renderHook, act } from "@testing-library/react"
-import type maplibregl from "maplibre-gl"
 import { useGeolocation } from "@/hooks/use-geolocation"
 import { useMapStore } from "@/store/use-map-store"
 import { toast } from "sonner"

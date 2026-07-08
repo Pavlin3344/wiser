@@ -2,7 +2,7 @@ import { useEffect, type RefObject } from "react"
 import type maplibregl from "maplibre-gl"
 import { toast } from "sonner"
 import type { FeatureCollection } from "geojson"
-import { syncLayers } from "./use-map-layers"
+import { syncLayers } from "@/hooks/use-map-layers"
 import { fetchActiveFires } from "@/services/fireService"
 import { useDataStore } from "@/store/use-data-store"
 

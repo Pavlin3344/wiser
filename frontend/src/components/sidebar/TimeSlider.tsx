@@ -1,6 +1,6 @@
-import { useFilterStore } from "@/store/use-filter-store"
 import { Pause, Play } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { useFilterStore } from "@/store/use-filter-store"
 
 export function TimeSlider() {
   const { currentTime, setCurrentTime, isPlaying, setIsPlaying } = useFilterStore()
