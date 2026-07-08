@@ -1,5 +1,55 @@
 import { render, screen, fireEvent, act } from "@testing-library/react"
 import { vi } from "vitest"
+import React from "react"
+
+const DropdownContext = React.createContext({
+  open: false,
+  setOpen: (open: boolean | ((prev: boolean) => boolean)) => {
+    void open
+  }
+})
+const mockReact = React
+
+vi.mock("@/components/ui/dropdown-menu", () => {
+  const React = mockReact
+  return {
+    DropdownMenu: ({ children }: any) => {
+      const [open, setOpen] = React.useState(false)
+      return (
+        <DropdownContext.Provider value={{ open, setOpen }}>
+          <div data-testid="dropdown-menu">{children}</div>
+        </DropdownContext.Provider>
+      )
+    },
+    DropdownMenuTrigger: ({ children, ...props }: any) => {
+      const { setOpen } = React.useContext(DropdownContext)
+      return (
+        <div data-testid="dropdown-menu-trigger" onClick={() => setOpen((prev: boolean) => !prev)} {...props}>
+          {children}
+        </div>
+      )
+    },
+    DropdownMenuContent: ({ children, ...props }: any) => {
+      const { open } = React.useContext(DropdownContext)
+      if (!open) return null
+      return <div data-testid="dropdown-menu-content" {...props}>{children}</div>
+    },
+    DropdownMenuGroup: ({ children, ...props }: any) => <div data-testid="dropdown-menu-group" {...props}>{children}</div>,
+    DropdownMenuItem: ({ children, onClick, className, ...props }: any) => {
+      const { setOpen } = React.useContext(DropdownContext)
+      const handleClick = (e: any) => {
+        if (onClick) onClick(e)
+        setOpen(false)
+      }
+      return (
+        <button onClick={handleClick} role="menuitem" className={className} {...props}>
+          {children}
+        </button>
+      )
+    },
+  }
+})
+
 import { SpatialContext } from "@/components/overlays/SpatialContext"
 import { useFilterStore } from "@/store/use-filter-store"
 import { useMapStore } from "@/store/use-map-store"
@@ -17,6 +67,10 @@ describe("SpatialContext Component", () => {
   })
 
   it("renders World page by default when region is world", async () => {
+    useMapStore.setState({
+      mapStatus: { lat: 20.0, lng: 0.0, zoom: 2.0, elevation: 0, bearing: 0, cameraDistance: 0 },
+    })
+
     await act(async () => {
       render(<SpatialContext />)
     })
@@ -27,7 +81,9 @@ describe("SpatialContext Component", () => {
   })
 
   it("renders World > Europe > Bulgaria hierarchy when region is bulgaria", async () => {
-    useFilterStore.setState({ region: "bulgaria" })
+    useMapStore.setState({
+      mapStatus: { lat: 42.0, lng: 25.5, zoom: 7.0, elevation: 0, bearing: 0, cameraDistance: 0 },
+    })
 
     await act(async () => {
       render(<SpatialContext />)
@@ -36,6 +92,20 @@ describe("SpatialContext Component", () => {
     expect(screen.getByText("World")).toBeInTheDocument()
     expect(screen.getByText("Europe")).toBeInTheDocument()
     expect(screen.getByText("Bulgaria")).toBeInTheDocument()
+  })
+
+  it("renders World > Europe hierarchy when region is europe", async () => {
+    useMapStore.setState({
+      mapStatus: { lat: 48.0, lng: 15.0, zoom: 4.0, elevation: 0, bearing: 0, cameraDistance: 0 },
+    })
+
+    await act(async () => {
+      render(<SpatialContext />)
+    })
+
+    expect(screen.getByText("World")).toBeInTheDocument()
+    expect(screen.getByText("Europe")).toBeInTheDocument()
+    expect(screen.queryByText("Bulgaria")).not.toBeInTheDocument()
   })
 
   it("renders Sofia leaf when region is bulgaria and zoom is high near Sofia coords", async () => {
@@ -49,9 +119,9 @@ describe("SpatialContext Component", () => {
     })
 
     expect(screen.getByText("World")).toBeInTheDocument()
-    expect(screen.getByText("Europe")).toBeInTheDocument()
-    expect(screen.getByText("Bulgaria")).toBeInTheDocument()
-    expect(screen.getByText("Sofia (Zoom 10.5)")).toBeInTheDocument()
+    expect(screen.queryByText("Europe")).not.toBeInTheDocument()
+    expect(screen.queryByText("Bulgaria")).not.toBeInTheDocument()
+    expect(screen.getByText("Sofia")).toBeInTheDocument()
   })
 
   it("triggers map navigation when clicking World breadcrumb link", async () => {
@@ -82,7 +152,7 @@ describe("SpatialContext Component", () => {
       fireEvent.click(europeBtn)
     })
 
-    expect(useFilterStore.getState().region).toBe("world")
+    expect(useFilterStore.getState().region).toBe("europe")
     expect(useMapStore.getState().flyToTarget).toEqual({ lat: 48.0, lng: 15.0, zoom: 4.0 })
   })
 
@@ -96,7 +166,12 @@ describe("SpatialContext Component", () => {
       render(<SpatialContext />)
     })
 
-    const bulgariaBtn = screen.getByRole("button", { name: /^Bulgaria$/i })
+    const toggleBtn = screen.getByRole("button", { name: /Toggle menu/i })
+    await act(async () => {
+      fireEvent.click(toggleBtn)
+    })
+
+    const bulgariaBtn = screen.getByRole("menuitem", { name: /^Bulgaria$/i })
     await act(async () => {
       fireEvent.click(bulgariaBtn)
     })

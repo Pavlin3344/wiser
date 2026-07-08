@@ -3,7 +3,9 @@ import { Globe, Compass, MapPin, Navigation } from "lucide-react"
 
 import { useFilterStore } from "@/store/use-filter-store"
 import { useMapStore, type MapStatus } from "@/store/use-map-store"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
+import { Button } from "@/components/ui/button"
+import { Breadcrumb, BreadcrumbEllipsis, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 const BULGARIAN_CITIES = [
     { name: "Sofia", lat: 42.6977, lng: 23.3219 },
@@ -17,7 +19,7 @@ const BULGARIAN_CITIES = [
 ]
 
 export function SpatialContext() {
-    const { setRegion } = useFilterStore()
+    const { region, setRegion } = useFilterStore()
     const { setFlyToTarget } = useMapStore()
 
     const [dynamicLocation, setDynamicLocation] = useState<{
@@ -30,6 +32,18 @@ export function SpatialContext() {
     useEffect(() => {
         const updateDynamicLocation = (status: MapStatus) => {
             const { lat, lng, zoom } = status
+
+            let detectedRegion: "world" | "europe" | "bulgaria" = "world"
+            if (zoom >= 6.0 && lat >= 41.0 && lat <= 44.5 && lng >= 22.0 && lng <= 29.0) {
+                detectedRegion = "bulgaria"
+            } else if (zoom >= 3.5 && lat >= 34.0 && lat <= 71.0 && lng >= -15.0 && lng <= 45.0) {
+                detectedRegion = "europe"
+            }
+
+            if (useFilterStore.getState().region !== detectedRegion) {
+                setRegion(detectedRegion)
+            }
+
             if (zoom >= 9.5) {
                 let closestCity = null
                 let minDistance = 0.4
@@ -59,6 +73,7 @@ export function SpatialContext() {
                 updateDynamicLocation(status)
             }
         )
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 
     const handleWorldClick = () => {
@@ -67,7 +82,7 @@ export function SpatialContext() {
     }
 
     const handleEuropeClick = () => {
-        setRegion("world")
+        setRegion("europe")
         setFlyToTarget({ lat: 48.0, lng: 15.0, zoom: 4.0 })
     }
 
@@ -89,7 +104,6 @@ export function SpatialContext() {
     return (
         <div className="w-fit relative pointer-events-auto bg-background/60 backdrop-blur-xl shadow-lg rounded-full border border-white/10 border-t-white/20 border-l-white/20 flex items-center h-10 px-3 transition-all duration-300 ease-in-out hover:bg-background/80">
             <div className="absolute inset-0 rounded-full bg-linear-to-br from-white/5 to-transparent pointer-events-none" />
-
             <Breadcrumb>
                 <BreadcrumbList className="flex items-center gap-1 sm:gap-1.5 text-xs text-muted-foreground font-medium">
                     <BreadcrumbItem>
@@ -103,43 +117,30 @@ export function SpatialContext() {
                             </button>
                         </BreadcrumbLink>
                     </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-
-                    <BreadcrumbItem>
-                        <BreadcrumbLink asChild>
-                            <button
-                                onClick={handleEuropeClick}
-                                className="cursor-pointer flex items-center gap-1 hover:text-foreground transition-colors"
-                            >
-                                <Compass className="h-3.5 w-3.5 transition-transform hover:scale-110" />
-                                <span>Europe</span>
-                            </button>
-                        </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-
-                    {!dynamicLocation ? (
-                        <BreadcrumbItem>
-                            <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground">
-                                <MapPin className="h-3.5 w-3.5 text-destructive" />
-                                <span>Bulgaria</span>
-                            </BreadcrumbPage>
-                        </BreadcrumbItem>
-                    ) : (
+                    {dynamicLocation ? (
                         <>
+                            <BreadcrumbSeparator />
                             <BreadcrumbItem>
-                                <BreadcrumbLink asChild>
-                                    <button
-                                        onClick={handleBulgariaClick}
-                                        className="cursor-pointer flex items-center gap-1 hover:text-foreground transition-colors"
-                                    >
-                                        <MapPin className="h-3.5 w-3.5 transition-transform hover:scale-110" />
-                                        <span>Bulgaria</span>
-                                    </button>
-                                </BreadcrumbLink>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button size="icon-sm" variant="ghost">
+                                            <BreadcrumbEllipsis />
+                                            <span className="sr-only">Toggle menu</span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" sideOffset={14} className="bg-background/60 backdrop-blur-xl shadow-lg rounded-2xl border border-white/10 border-t-white/20 border-l-white/20">
+                                        <DropdownMenuGroup>
+                                            <DropdownMenuItem onClick={handleEuropeClick} className="cursor-pointer">
+                                                Europe
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem onClick={handleBulgariaClick} className="cursor-pointer">
+                                                Bulgaria
+                                            </DropdownMenuItem>
+                                        </DropdownMenuGroup>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </BreadcrumbItem>
                             <BreadcrumbSeparator />
-
                             <BreadcrumbItem>
                                 <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground select-none">
                                     <Navigation
@@ -151,11 +152,48 @@ export function SpatialContext() {
                                         className="cursor-pointer hover:text-destructive transition-colors text-left"
                                     >
                                         {dynamicLocation.city
-                                            ? `${dynamicLocation.city} (Zoom ${dynamicLocation.zoom.toFixed(1)})`
+                                            ? `${dynamicLocation.city}`
                                             : `${dynamicLocation.lat.toFixed(2)}°N, ${dynamicLocation.lng.toFixed(2)}°E`}
                                     </button>
                                 </BreadcrumbPage>
                             </BreadcrumbItem>
+                        </>
+                    ) : (
+                        <>
+                            {(region === "europe" || region === "bulgaria") && (
+                                <>
+                                    <BreadcrumbSeparator />
+                                    <BreadcrumbItem>
+                                        {region === "europe" ? (
+                                            <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground">
+                                                <Compass className="h-3.5 w-3.5 text-destructive" />
+                                                <span>Europe</span>
+                                            </BreadcrumbPage>
+                                        ) : (
+                                            <BreadcrumbLink asChild>
+                                                <button
+                                                    onClick={handleEuropeClick}
+                                                    className="cursor-pointer flex items-center gap-1 hover:text-foreground transition-colors"
+                                                >
+                                                    <Compass className="h-3.5 w-3.5 transition-transform hover:scale-110" />
+                                                    <span>Europe</span>
+                                                </button>
+                                            </BreadcrumbLink>
+                                        )}
+                                    </BreadcrumbItem>
+                                </>
+                            )}
+                            {region === "bulgaria" && (
+                                <>
+                                    <BreadcrumbSeparator />
+                                    <BreadcrumbItem>
+                                        <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground">
+                                            <MapPin className="h-3.5 w-3.5 text-destructive" />
+                                            <span>Bulgaria</span>
+                                        </BreadcrumbPage>
+                                    </BreadcrumbItem>
+                                </>
+                            )}
                         </>
                     )}
                 </BreadcrumbList>
