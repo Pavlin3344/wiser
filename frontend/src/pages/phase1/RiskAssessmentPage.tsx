@@ -64,7 +64,7 @@ export function RiskAssessmentPage() {
               <SelectItem value='world' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
                 World
               </SelectItem>
-              <SelectItem value='europe' disabled className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
+              <SelectItem value='europe' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>
                 Europe
               </SelectItem>
               <SelectItem value='bulgaria' className='text-xs cursor-pointer focus:bg-destructive/80 focus:text-destructive transition-colors'>

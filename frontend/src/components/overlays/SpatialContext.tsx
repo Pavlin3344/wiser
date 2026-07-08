@@ -3,31 +3,17 @@ import { Globe, Compass, MapPin, Navigation } from "lucide-react"
 
 import { useFilterStore } from "@/store/use-filter-store"
 import { useMapStore, type MapStatus } from "@/store/use-map-store"
-import {
-    Breadcrumb,
-    BreadcrumbItem,
-    BreadcrumbLink,
-    BreadcrumbList,
-    BreadcrumbPage,
-    BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
-
-const BULGARIAN_CITIES = [
-    { name: "Sofia", lat: 42.6977, lng: 23.3219 },
-    { name: "Plovdiv", lat: 42.1354, lng: 24.7453 },
-    { name: "Varna", lat: 43.2141, lng: 27.9147 },
-    { name: "Burgas", lat: 42.5048, lng: 27.4626 },
-    { name: "Ruse", lat: 43.8356, lng: 25.9657 },
-    { name: "Stara Zagora", lat: 42.4258, lng: 25.6345 },
-    { name: "Pleven", lat: 43.4170, lng: 24.6067 },
-    { name: "Veliko Tarnovo", lat: 43.0757, lng: 25.6172 },
-]
+import { Button } from "@/components/ui/button"
+import { Breadcrumb, BreadcrumbEllipsis, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 export function SpatialContext() {
-    const { region, setRegion } = useFilterStore()
+    const { setRegion } = useFilterStore()
     const { setFlyToTarget } = useMapStore()
 
-    const [dynamicLocation, setDynamicLocation] = useState<{
+    const [spatialLocation, setSpatialLocation] = useState<{
+        continent: string | null
+        country: string | null
         city: string | null
         zoom: number
         lat: number
@@ -35,39 +21,69 @@ export function SpatialContext() {
     } | null>(null)
 
     useEffect(() => {
-        const updateDynamicLocation = (status: MapStatus) => {
+        let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+        const updateLocation = (status: MapStatus) => {
             const { lat, lng, zoom } = status
-            if (zoom >= 9.5) {
-                let closestCity = null
-                let minDistance = 0.4 // Max threshold of ~40-50km
-                for (const city of BULGARIAN_CITIES) {
-                    const dist = Math.sqrt(Math.pow(lat - city.lat, 2) + Math.pow(lng - city.lng, 2))
-                    if (dist < minDistance) {
-                        minDistance = dist
-                        closestCity = city
-                    }
+
+            if (zoom < 3.0) {
+                if (debounceTimer) {
+                    clearTimeout(debounceTimer)
                 }
-                setDynamicLocation({
-                    city: closestCity ? closestCity.name : null,
-                    zoom,
-                    lat,
-                    lng,
-                })
-            } else {
-                setDynamicLocation(null)
+                setSpatialLocation(null)
+                return
             }
+
+            setSpatialLocation(prev => ({
+                continent: prev ? prev.continent : null,
+                country: prev ? prev.country : null,
+                city: prev ? prev.city : null,
+                zoom,
+                lat,
+                lng,
+            }))
+
+            if (debounceTimer) {
+                clearTimeout(debounceTimer)
+            }
+
+            debounceTimer = setTimeout(async () => {
+                try {
+                    const response = await fetch(
+                        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=en`
+                    )
+                    if (response.ok) {
+                        const data = await response.json()
+                        setSpatialLocation({
+                            continent: data.continent || null,
+                            country: data.countryName || null,
+                            city: data.city || data.locality || data.principalSubdivision || null,
+                            zoom,
+                            lat,
+                            lng,
+                        })
+                    }
+                } catch (error) {
+                    console.error("Error geocoding:", error)
+                }
+            }, 600)
         }
 
-        // Set initial status immediately
-        updateDynamicLocation(useMapStore.getState().mapStatus)
+        updateLocation(useMapStore.getState().mapStatus)
 
-        // Subscribe to status updates to avoid re-rendering layout tree on zoom/moves
-        return useMapStore.subscribe(
+        const unsubscribe = useMapStore.subscribe(
             (s) => s.mapStatus,
             (status) => {
-                updateDynamicLocation(status)
+                updateLocation(status)
             }
         )
+
+        return () => {
+            if (debounceTimer) {
+                clearTimeout(debounceTimer)
+            }
+            unsubscribe()
+        }
     }, [])
 
     const handleWorldClick = () => {
@@ -75,107 +91,144 @@ export function SpatialContext() {
         setFlyToTarget({ lat: 20.0, lng: 0.0, zoom: 2.2 })
     }
 
-    const handleEuropeClick = () => {
-        setRegion("world")
-        setFlyToTarget({ lat: 48.0, lng: 15.0, zoom: 4.0 })
+    const handleContinentClick = () => {
+        if (spatialLocation) {
+            if (spatialLocation.continent?.toLowerCase() === "europe") {
+                setRegion("europe")
+            } else {
+                setRegion("world")
+            }
+            setFlyToTarget({ lat: spatialLocation.lat, lng: spatialLocation.lng, zoom: 4.0 })
+        }
     }
 
-    const handleBulgariaClick = () => {
-        setRegion("bulgaria")
-        setFlyToTarget({ lat: 42.7, lng: 25.3, zoom: 7.3 })
+    const handleCountryClick = () => {
+        if (spatialLocation) {
+            if (spatialLocation.country?.toLowerCase() === "bulgaria") {
+                setRegion("bulgaria")
+            } else if (spatialLocation.continent?.toLowerCase() === "europe") {
+                setRegion("europe")
+            } else {
+                setRegion("world")
+            }
+            setFlyToTarget({ lat: spatialLocation.lat, lng: spatialLocation.lng, zoom: 7.0 })
+        }
     }
 
     const handleLeafClick = () => {
-        if (dynamicLocation) {
+        if (spatialLocation) {
             setFlyToTarget({
-                lat: dynamicLocation.lat,
-                lng: dynamicLocation.lng,
-                zoom: Math.min(12, dynamicLocation.zoom + 1),
+                lat: spatialLocation.lat,
+                lng: spatialLocation.lng,
+                zoom: Math.min(12, spatialLocation.zoom + 1),
             })
         }
     }
 
     return (
-        <div className="relative pointer-events-auto bg-background/60 backdrop-blur-xl shadow-lg rounded-full border border-white/10 border-t-white/20 border-l-white/20 flex items-center h-10 px-4 transition-all duration-300 ease-in-out hover:bg-background/80">
+        <div className="w-fit relative pointer-events-auto bg-background/60 backdrop-blur-xl shadow-lg rounded-full border border-white/10 border-t-white/20 border-l-white/20 flex items-center h-10 px-3 transition-all duration-300 ease-in-out hover:bg-background/80">
             <div className="absolute inset-0 rounded-full bg-linear-to-br from-white/5 to-transparent pointer-events-none" />
-
             <Breadcrumb>
                 <BreadcrumbList className="flex items-center gap-1 sm:gap-1.5 text-xs text-muted-foreground font-medium">
-                    {region === "world" ? (
-                        <BreadcrumbItem>
+                    <BreadcrumbItem>
+                        {spatialLocation ? (
+                            <BreadcrumbLink asChild>
+                                <button
+                                    onClick={handleWorldClick}
+                                    className="cursor-pointer flex items-center gap-1 hover:text-foreground transition-colors"
+                                >
+                                    <Globe className="h-3.5 w-3.5 transition-transform hover:scale-110" />
+                                    <span>World</span>
+                                </button>
+                            </BreadcrumbLink>
+                        ) : (
                             <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground">
                                 <Globe className="h-3.5 w-3.5 text-destructive" />
                                 <span>World</span>
                             </BreadcrumbPage>
-                        </BreadcrumbItem>
-                    ) : (
+                        )}
+                    </BreadcrumbItem>
+
+                    {spatialLocation && spatialLocation.continent && spatialLocation.zoom < 9.5 && (
                         <>
-                            <BreadcrumbItem>
-                                <BreadcrumbLink asChild>
-                                    <button
-                                        onClick={handleWorldClick}
-                                        className="cursor-pointer flex items-center gap-1 hover:text-foreground transition-colors"
-                                    >
-                                        <Globe className="h-3.5 w-3.5 transition-transform hover:scale-110" />
-                                        <span>World</span>
-                                    </button>
-                                </BreadcrumbLink>
-                            </BreadcrumbItem>
                             <BreadcrumbSeparator />
-
                             <BreadcrumbItem>
-                                <BreadcrumbLink asChild>
-                                    <button
-                                        onClick={handleEuropeClick}
-                                        className="cursor-pointer flex items-center gap-1 hover:text-foreground transition-colors"
-                                    >
-                                        <Compass className="h-3.5 w-3.5 transition-transform hover:scale-110" />
-                                        <span>Europe</span>
-                                    </button>
-                                </BreadcrumbLink>
-                            </BreadcrumbItem>
-                            <BreadcrumbSeparator />
-
-                            {!dynamicLocation ? (
-                                <BreadcrumbItem>
+                                {spatialLocation.zoom < 6.0 ? (
                                     <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground">
-                                        <MapPin className="h-3.5 w-3.5 text-destructive" />
-                                        <span>Bulgaria</span>
+                                        <Compass className="h-3.5 w-3.5 text-destructive" />
+                                        <span>{spatialLocation.continent}</span>
                                     </BreadcrumbPage>
-                                </BreadcrumbItem>
-                            ) : (
-                                <>
-                                    <BreadcrumbItem>
-                                        <BreadcrumbLink asChild>
-                                            <button
-                                                onClick={handleBulgariaClick}
-                                                className="cursor-pointer flex items-center gap-1 hover:text-foreground transition-colors"
-                                            >
-                                                <MapPin className="h-3.5 w-3.5 transition-transform hover:scale-110" />
-                                                <span>Bulgaria</span>
-                                            </button>
-                                        </BreadcrumbLink>
-                                    </BreadcrumbItem>
-                                    <BreadcrumbSeparator />
+                                ) : (
+                                    <BreadcrumbLink asChild>
+                                        <button
+                                            onClick={handleContinentClick}
+                                            className="cursor-pointer flex items-center gap-1 hover:text-foreground transition-colors"
+                                        >
+                                            <Compass className="h-3.5 w-3.5 transition-transform hover:scale-110" />
+                                            <span>{spatialLocation.continent}</span>
+                                        </button>
+                                    </BreadcrumbLink>
+                                )}
+                            </BreadcrumbItem>
+                        </>
+                    )}
 
-                                    <BreadcrumbItem>
-                                        <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground select-none">
-                                            <Navigation
-                                                className="h-3.5 w-3.5 text-destructive animate-pulse cursor-pointer"
-                                                onClick={handleLeafClick}
-                                            />
-                                            <button
-                                                onClick={handleLeafClick}
-                                                className="cursor-pointer hover:text-destructive transition-colors text-left"
-                                            >
-                                                {dynamicLocation.city
-                                                    ? `${dynamicLocation.city} (Zoom ${dynamicLocation.zoom.toFixed(1)})`
-                                                    : `${dynamicLocation.lat.toFixed(2)}°N, ${dynamicLocation.lng.toFixed(2)}°E`}
-                                            </button>
-                                        </BreadcrumbPage>
-                                    </BreadcrumbItem>
-                                </>
-                            )}
+                    {spatialLocation && spatialLocation.country && spatialLocation.zoom >= 6.0 && spatialLocation.zoom < 9.5 && (
+                        <>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground">
+                                    <MapPin className="h-3.5 w-3.5 text-destructive" />
+                                    <span>{spatialLocation.country}</span>
+                                </BreadcrumbPage>
+                            </BreadcrumbItem>
+                        </>
+                    )}
+
+                    {spatialLocation && spatialLocation.zoom >= 9.5 && (
+                        <>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button size="icon-sm" variant="ghost">
+                                            <BreadcrumbEllipsis />
+                                            <span className="sr-only">Toggle menu</span>
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" sideOffset={14} className="bg-background/60 backdrop-blur-xl shadow-lg rounded-2xl border border-white/10 border-t-white/20 border-l-white/20">
+                                        <DropdownMenuGroup>
+                                            {spatialLocation.continent && (
+                                                <DropdownMenuItem onClick={handleContinentClick} className="cursor-pointer">
+                                                    {spatialLocation.continent}
+                                                </DropdownMenuItem>
+                                            )}
+                                            {spatialLocation.country && (
+                                                <DropdownMenuItem onClick={handleCountryClick} className="cursor-pointer">
+                                                    {spatialLocation.country}
+                                                </DropdownMenuItem>
+                                            )}
+                                        </DropdownMenuGroup>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </BreadcrumbItem>
+                            <BreadcrumbSeparator />
+                            <BreadcrumbItem>
+                                <BreadcrumbPage className="flex items-center gap-1.5 font-semibold text-foreground select-none">
+                                    <Navigation
+                                        className="h-3.5 w-3.5 text-destructive animate-pulse cursor-pointer"
+                                        onClick={handleLeafClick}
+                                    />
+                                    <button
+                                        onClick={handleLeafClick}
+                                        className="cursor-pointer hover:text-destructive transition-colors text-left"
+                                    >
+                                        {spatialLocation.city
+                                            ? spatialLocation.city
+                                            : `${spatialLocation.lat.toFixed(2)}°N, ${spatialLocation.lng.toFixed(2)}°E`}
+                                    </button>
+                                </BreadcrumbPage>
+                            </BreadcrumbItem>
                         </>
                     )}
                 </BreadcrumbList>

@@ -1,5 +1,6 @@
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
+import { SpatialContext } from "@/components/overlays/SpatialContext"
 import { useDataStore } from "@/store/use-data-store"
 
 const riskStyles = {
@@ -19,6 +20,8 @@ export function TopStats() {
         <SidebarTrigger className='bg-background/60 backdrop-blur-xl shadow-lg border border-white/10 border-t-white/20 border-l-white/20 hover:bg-background/80 h-10 w-10 rounded-full cursor-pointer' />
         <div className='absolute inset-0 rounded-full bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
       </div>
+
+      <SpatialContext />
 
       <div className='relative pointer-events-auto bg-background/60 backdrop-blur-xl shadow-lg rounded-full border border-white/10 border-t-white/20 border-l-white/20 flex items-center h-10 px-3 gap-2'>
         <div className='absolute inset-0 rounded-full bg-linear-to-br from-white/5 to-transparent pointer-events-none' />
