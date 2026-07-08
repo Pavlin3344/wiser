@@ -64,30 +64,26 @@ export function AlertsPage() {
 
   const toggleMute = (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    setMutedAlerts(prev => {
-      const updated = { ...prev, [id]: !prev[id] }
-      if (updated[id]) {
-        toast.info("Audio notifications muted for this alert")
-      } else {
-        toast.info("Audio notifications unmuted for this alert")
-      }
-      return updated
-    })
+    const isNowMuted = !mutedAlerts[id]
+    setMutedAlerts(prev => ({ ...prev, [id]: isNowMuted }))
+    if (isNowMuted) {
+      toast.info("Audio notifications muted for this alert")
+    } else {
+      toast.info("Audio notifications unmuted for this alert")
+    }
   }
 
   const handleDispatch = (id: string, title: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    setDispatchedAlerts(prev => {
-      const updated = { ...prev, [id]: !prev[id] }
-      if (updated[id]) {
-        toast.success(`Emergency dispatched for: ${title}`, {
-          icon: <ShieldAlert className="text-destructive size-4" />,
-        })
-      } else {
-        toast.info(`Emergency response stand-down for: ${title}`)
-      }
-      return updated
-    })
+    const isNowDispatched = !dispatchedAlerts[id]
+    setDispatchedAlerts(prev => ({ ...prev, [id]: isNowDispatched }))
+    if (isNowDispatched) {
+      toast.success(`Emergency dispatched for: ${title}`, {
+        icon: <ShieldAlert className="text-destructive size-4" />,
+      })
+    } else {
+      toast.info(`Emergency response stand-down for: ${title}`)
+    }
   }
 
   const getIntensityStyles = (intensity: string) => {
