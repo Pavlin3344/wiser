@@ -29,7 +29,6 @@ export function BottomStatusBar() {
       }
     }
 
-    // Set initial values from store state immediately
     const initialState = useMapStore.getState()
     const currentStatus = initialState.mapStatus
     const unit = initialState.scaleUnit
@@ -110,7 +109,7 @@ export function BottomStatusBar() {
 
         <div className='text-border'>|</div>
 
-        <span className='font-semibold text-destructive'>Wiser System Core v1.0</span>
+        <span className='font-semibold text-destructive'>Wiser Core v1.0</span>
       </div>
     </div>
   )
