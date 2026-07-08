@@ -179,7 +179,7 @@ export function AppSidebar() {
               {/* Native install option for Android / Chrome */}
               {installPrompt && (
                 <SidebarMenuItem>
-                  <SidebarMenuButton onClick={install} size='sm' className='text-destructive! hover:text-destructive! hover:bg-destructive/10 cursor-pointer font-semibold animate-pulse'>
+                  <SidebarMenuButton onClick={install} size='sm' className='text-destructive! hover:text-destructive! hover:bg-destructive/10 cursor-pointer font-semibold'>
                     <Download />
                     <span>Install Wiser</span>
                   </SidebarMenuButton>
@@ -191,7 +191,7 @@ export function AppSidebar() {
                 <SidebarMenuItem>
                   <Dialog>
                     <DialogTrigger asChild>
-                      <SidebarMenuButton size='sm' className='text-destructive! hover:text-destructive! hover:bg-destructive/10 cursor-pointer font-semibold animate-pulse'>
+                      <SidebarMenuButton size='sm' className='text-destructive! hover:text-destructive! hover:bg-destructive/10 cursor-pointer font-semibold'>
                         <Smartphone />
                         <span>Install on iOS</span>
                       </SidebarMenuButton>

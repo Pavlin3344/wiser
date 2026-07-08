@@ -1,9 +1,9 @@
+import type { RefObject } from "react"
+import type maplibregl from "maplibre-gl"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { renderHook, act } from "@testing-library/react"
 import { useFlyTo } from "@/hooks/use-fly-to"
 import { useMapStore } from "@/store/use-map-store"
-import type { RefObject } from "react"
-import type maplibregl from "maplibre-gl"
 
 describe("useFlyTo custom hook", () => {
   let mapMock: any

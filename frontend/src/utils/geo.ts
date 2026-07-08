@@ -1,4 +1,4 @@
-import bulgariaBorderData from "../mocks/bulgaria-border.json"
+import bulgariaBorderData from "@/mocks/bulgaria-border.json"
 
 export const bulgariaBorder = bulgariaBorderData.geometry.coordinates as number[][][];
 
@@ -9,7 +9,7 @@ export const bulgariaBorder = bulgariaBorderData.geometry.coordinates as number[
 export function isPointInPolygon(point: [number, number], polygon: number[][][]): boolean {
   const [lng, lat] = point;
   let inside = false;
-  
+
   // Check if inside the exterior ring (index 0)
   const exterior = polygon[0];
   if (!exterior) return false;
@@ -18,14 +18,14 @@ export function isPointInPolygon(point: [number, number], polygon: number[][][])
     const yi = exterior[i][1];
     const xj = exterior[j][0];
     const yj = exterior[j][1];
-    
+
     const intersect = ((yi > lat) !== (yj > lat)) &&
       (lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi);
     if (intersect) inside = !inside;
   }
-  
+
   if (!inside) return false;
-  
+
   // Check if the point falls inside any holes (indices 1+)
   for (let h = 1; h < polygon.length; h++) {
     const hole = polygon[h];
@@ -35,14 +35,14 @@ export function isPointInPolygon(point: [number, number], polygon: number[][][])
       const yi = hole[i][1];
       const xj = hole[j][0];
       const yj = hole[j][1];
-      
+
       const intersect = ((yi > lat) !== (yj > lat)) &&
         (lng < ((xj - xi) * (lat - yi)) / (yj - yi) + xi);
       if (intersect) insideHole = !insideHole;
     }
     if (insideHole) return false; // If inside a hole, it is outside the polygon
   }
-  
+
   return true;
 }
 

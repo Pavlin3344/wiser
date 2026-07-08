@@ -2,8 +2,9 @@ import { useEffect, type RefObject } from "react"
 import type maplibregl from "maplibre-gl"
 import { toast } from "sonner"
 import type { FeatureCollection } from "geojson"
-import { syncLayers } from "./use-map-layers"
+import { syncLayers } from "@/hooks/use-map-layers"
 import { fetchActiveFires } from "@/services/fireService"
+import { useDataStore } from "@/store/use-data-store"
 
 /** How often to re-fetch active fire data from the backend (ms). */
 const POLL_INTERVAL_MS = 5 * 60 * 1_000 // 5 minutes
@@ -23,12 +24,14 @@ export function useFireData({ mapRef, fireDataRef }: { mapRef: RefObject<maplibr
         .then((data) => {
           fireDataRef.current = data
           syncLayers(map, data)
+          useDataStore.getState().setActiveFireCount(data.features.length)
         })
         .catch((err) => {
           console.warn(`[Wiser] Backend unavailable (${err}). Using EFFIS mock data.`)
           toast.warning("Backend unavailable. Using EFFIS mock data.")
           // Keep the current mock/stale data in place — do not wipe the map
           syncLayers(map, fireDataRef.current)
+          useDataStore.getState().setActiveFireCount(fireDataRef.current.features.length)
         })
     }
 

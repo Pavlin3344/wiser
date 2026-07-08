@@ -1,10 +1,10 @@
+import type { RefObject } from "react"
+import type { FeatureCollection } from "geojson"
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { renderHook, act } from "@testing-library/react"
 import { useFireData } from "@/hooks/use-fire-data"
 import { fetchActiveFires } from "@/services/fireService"
 import { syncLayers } from "@/hooks/use-map-layers"
-import type { RefObject } from "react"
-import type { FeatureCollection } from "geojson"
 
 // Mock dependencies
 vi.mock("@/services/fireService", () => ({
@@ -22,8 +22,8 @@ describe("useFireData custom hook", () => {
 
   beforeEach(() => {
     vi.useFakeTimers()
-    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {})
-    
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => { })
+
     // Mock map instance
     mapMock = {
       loaded: vi.fn().mockReturnValue(true),
@@ -66,7 +66,7 @@ describe("useFireData custom hook", () => {
 
     // Simulate map load event
     const loadCallback = mapMock.once.mock.calls[0][1]
-    
+
     const mockFetchedData: FeatureCollection = {
       type: "FeatureCollection",
       features: [
@@ -176,7 +176,7 @@ describe("useFireData custom hook", () => {
     unmount()
 
     expect(mapMock.off).toHaveBeenCalledWith("load", expect.any(Function))
-    
+
     // Timer advancement should not call fetchActiveFires anymore
     act(() => {
       vi.advanceTimersByTime(5 * 60 * 1000)
