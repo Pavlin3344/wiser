@@ -19,10 +19,10 @@ Checked = built and verified working against the real local stack. See `NOTES.md
 - [x] `ZoneController` — `GET /zones/risk`
 - [x] `PolygonSerializer` — GeoJSON output for `Polygon` fields
 - [x] `Alert` entity
-- [ ] `AlertRepository`
-- [ ] `AlertController` — `GET /api/alerts`
-- [ ] `CriticalInfrastructure` entity + repository + controller — `GET /api/critical-infrastructure`
-- [ ] `Road` entity + repository + controller — `GET /api/roads` (+ `LineStringSerializer`)
+- [x] `AlertRepository`
+- [x] `AlertController` — `GET /api/alerts`
+- [x] `CriticalInfrastructure` entity + repository + controller — `GET /api/critical-infrastructure`
+- [x] `Road` entity + repository + controller — `GET /api/roads` (+ `LineStringSerializer`)
 
 ## backend/ingestion
 
@@ -34,6 +34,14 @@ Checked = built and verified working against the real local stack. See `NOTES.md
 - [ ] EFFIS/ECMWF downloader → `weather.exchange`/`weather.ingest` — **blocked**: need to confirm `maps.effis.emergency.copernicus.eu` is reachable from your machine
 - [ ] Sentinel-2 fetcher → MinIO + `satellite.exchange`/`satellite.ingest` — **blocked**: need your Copernicus Data Space OAuth Client ID/Secret
 - [ ] `@Scheduled` triggers (EFFIS: daily, Sentinel-2: ~every 2-3 days)
+
+### NASA FIRMS active-fire ingestion (new scope, 2026-07-27)
+
+- [x] `ActiveFire` entity (ingestion's own copy, PostGIS Point + attributes)
+- [x] `FireDetectionProvider` interface (abstraction over "a source of fire detections") + `FirmsFireDetectionProvider` implementation (only implementation for now)
+- [x] Spatial dedup query on the repository (`ST_Equals`-based)
+- [x] `FireIngestionService` — hourly `@Scheduled` poll + manual trigger endpoint (`POST /import/fire-detections`). Verified: runs cleanly, logs a clear warning and no-ops with the placeholder key.
+- [ ] **Blocked**: need a real FIRMS `MAP_KEY` — register at https://firms.modaps.eosdis.nasa.gov/api/area/ ; using a placeholder env var until then
 
 ## backend/alerts (Phase 2 — lower priority per team docs, stretch goal for this review)
 
