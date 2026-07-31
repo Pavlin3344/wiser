@@ -43,8 +43,11 @@ Checked = built and verified working against the real local stack. See `NOTES.md
 
 ## backend/alerts (Phase 2 — lower priority per team docs, stretch goal for this review)
 
-- [ ] Service scaffold
-- [ ] Alert-generation logic (not yet designed — Phase 2 per `docs/team/connection-guide.md`)
+- [x] Service scaffold (port 8082)
+- [x] `ActiveFire` + `CriticalInfrastructure` entities (read-only copies) + `Alert` entity (writable)
+- [x] `CriticalInfrastructureRepository.findWithinDistance` — native `ST_DWithin` query on `geography` (real-world meters, not degrees)
+- [x] `AlertGenerationService` — hourly job: for each fire, find nearby critical infrastructure (default 5km, configurable), create an `Alert` if one doesn't already exist for that fire+target pair, with distance-based severity (critical/high/medium). Manual trigger: `POST /generate-alerts`. Not an official team spec — Phase 2 alert design isn't finalized per `docs/team/connection-guide.md`, so this is a clearly-scoped prototype, not a contract implementation.
+- **Live-verified**: 133 real alerts generated from real fires + real infrastructure (87 medium, 36 high, 10 critical), visible via `api`'s existing `GET /api/alerts`; reran with 0 new alerts confirming dedup works.
 
 ## Infra gap found (flagging for the team, not fixed in shared config)
 

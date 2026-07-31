@@ -49,3 +49,15 @@ Plain-English notes per component: what it does, why it exists, what it talks to
 **`MinioConfig`**: Configures a single AWS SDK v2 `S3Client` bean pointed at MinIO instead of real AWS — MinIO speaks the S3 API, so the same client works, it just needs `pathStyleAccessEnabled` (MinIO addresses buckets as part of the URL path, not as a subdomain like real AWS S3 does) and a dummy region (AWS SDK requires one; MinIO ignores it).
 
 **`SentinelFetcherService` / `SentinelFetcherController`**: Fetches a real Sentinel-2 scene and hands it to the Data Engineer's NDVI worker. Three steps: (1) get an OAuth2 access token from Copernicus Data Space's identity provider using the client-credentials grant; (2) call their Sentinel Hub Process API with a bounding box, date range, and a small script (`evalscript`) telling it to return raw B04 (red) and B08 (near-infrared) band values as a 2-band GeoTIFF, rather than a human-viewing image; (3) upload that GeoTIFF to MinIO and publish a `satellite.ingest` message pointing at it. Scheduled every ~3 days (matches how often a new Sentinel-2 overpass is available), plus a manual `POST /import/sentinel-scene` trigger. Uses the exact same bbox/tile the Data Engineer's own test fixture uses, so a real run lands in the same place their worker has already been tested against.
+
+## backend/alerts
+
+**Service scaffold** (port 8082): A third independent Spring Boot app. Exists to demonstrate the "alert" half of FireWatch's value proposition — detecting fires isn't useful on its own without flagging when one threatens something. The team hasn't formally designed Phase 2 alert logic yet, so this is a deliberately simple, clearly-labeled prototype rather than a spec implementation.
+
+**`ActiveFire` / `CriticalInfrastructure` entities** (read-only copies): Same pattern as elsewhere — this service only reads fires and infrastructure, never writes them, so no `@GeneratedValue` or setters needed.
+
+**`CriticalInfrastructureRepository.findWithinDistance`**: A native SQL query (not JPQL) using `ST_DWithin` on `geography`, because a real-world "within 5km" check needs a geography cast, and casting isn't something JPQL's `function()` escape can express for a plain SQL type cast — this needed dropping to native SQL. Also hit a real Hibernate/PostgreSQL quirk: `:point::geography` gets misparsed as one giant parameter name (the `::` operator collides with named-parameter syntax), fixed by using `CAST(:point AS geography)` instead.
+
+**`Alert` entity**: Writable version of `Alert` (unlike `api`'s read-only copy) — this service is the one creating rows here.
+
+**`AlertGenerationService` / `AlertGenerationController`**: Hourly job — for every active fire, finds critical infrastructure within a configurable radius (default 5km) and creates an `Alert` if one doesn't already exist for that exact fire+target pair (the dedup check), with severity tiered by distance. The message text's distance figure is computed with a plain Haversine formula in Java rather than a second DB round-trip — it's just human-readable text, the accurate threshold check already happened in Postgres.
