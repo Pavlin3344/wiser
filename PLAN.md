@@ -30,10 +30,9 @@ Checked = built and verified working against the real local stack. See `NOTES.md
 - [x] `CriticalInfrastructure` entity (ingestion's own copy) + repository
 - [x] `OsmImportService` + `OsmImportController` — `POST /import/critical-infrastructure` (Overpass API → Bulgaria hospitals/schools/kindergartens). Verified live: 591 real records (232 schools, 198 hospitals, 161 kindergartens) after `overpass-api.de` recovered from its outage.
 - [x] Roads import — `osm2pgrouting` CLI (via Docker) against a Bulgaria OSM extract, filtered to highway ways first to avoid OOM on the full country. Verified: 864,030 real road segments in `roads`, with routing topology (source/target/cost/reverse_cost). Documented in `db/postgres/scripts/README.md`, not custom code.
-- [ ] RabbitMQ publisher service (shared plumbing for both downloaders below)
 - [ ] EFFIS/ECMWF downloader → `weather.exchange`/`weather.ingest` — **blocked**: need to confirm `maps.effis.emergency.copernicus.eu` is reachable from your machine
-- [ ] Sentinel-2 fetcher → MinIO + `satellite.exchange`/`satellite.ingest` — Copernicus OAuth Client ID/Secret now in `.env`, ready to build
-- [ ] `@Scheduled` triggers (EFFIS: daily, Sentinel-2: ~every 2-3 days)
+- [x] `MinioConfig` — S3Client bean pointed at MinIO (path-style access, since MinIO isn't virtual-hosted-style)
+- [x] `SentinelFetcherService` + `SentinelFetcherController` — OAuth2 (Copernicus CDSE) → Sentinel Hub Process API (real Sentinel-2 L2A GeoTIFF, B04+B08) → MinIO upload → `satellite.exchange`/`satellite.ingest` publish. `@Scheduled` every ~3 days + manual trigger (`POST /import/sentinel-scene`). **Live-verified**: real 1.3MiB GeoTIFF landed in MinIO (`satellite-imagery/sentinel2/2026-07-31/T34TGN.tif`), 1 message confirmed in the `satellite.ingest` queue. Uses the same bbox/tile as the Data Engineer's own NDVI test fixture (`data/processing/ndvi/mock_publisher.py`) so real output lands exactly where their worker was already tested against.
 
 ### NASA FIRMS active-fire ingestion (new scope, 2026-07-27)
 
@@ -46,6 +45,10 @@ Checked = built and verified working against the real local stack. See `NOTES.md
 
 - [ ] Service scaffold
 - [ ] Alert-generation logic (not yet designed — Phase 2 per `docs/team/connection-guide.md`)
+
+## Infra gap found (flagging for the team, not fixed in shared config)
+
+`infra/docker/rabbitmq/rabbitmq.conf` sets `load_definitions`, and when that's set, RabbitMQ **skips seeding the default user from `RABBITMQ_DEFAULT_USER`/`RABBITMQ_DEFAULT_PASS`** entirely — regardless of whether `definitions.json` itself defines any users. Since `definitions.json` deliberately has no `users` section (comment: "credentials come from env"), a fresh `rabbitmq_data` volume boots with **no user at all**, and every login fails with "invalid credentials". Worked around locally with `rabbitmqctl add_user`/`set_permissions` (not committed - a manual step against the running container, lost if the volume is recreated). Whoever owns `infra/docker/rabbitmq/` should decide the real fix (likely: define users directly in `definitions.json`, accepting that credential in git, or find RabbitMQ's supported way to combine definitions-import with env-var user seeding).
 
 ## Out of scope for this review
 
