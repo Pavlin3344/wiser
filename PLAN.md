@@ -32,7 +32,7 @@ Checked = built and verified working against the real local stack. See `NOTES.md
 - [x] Roads import — `osm2pgrouting` CLI (via Docker) against a Bulgaria OSM extract, filtered to highway ways first to avoid OOM on the full country. Verified: 864,030 real road segments in `roads`, with routing topology (source/target/cost/reverse_cost). Documented in `db/postgres/scripts/README.md`, not custom code.
 - [ ] RabbitMQ publisher service (shared plumbing for both downloaders below)
 - [ ] EFFIS/ECMWF downloader → `weather.exchange`/`weather.ingest` — **blocked**: need to confirm `maps.effis.emergency.copernicus.eu` is reachable from your machine
-- [ ] Sentinel-2 fetcher → MinIO + `satellite.exchange`/`satellite.ingest` — **blocked**: need your Copernicus Data Space OAuth Client ID/Secret
+- [ ] Sentinel-2 fetcher → MinIO + `satellite.exchange`/`satellite.ingest` — Copernicus OAuth Client ID/Secret now in `.env`, ready to build
 - [ ] `@Scheduled` triggers (EFFIS: daily, Sentinel-2: ~every 2-3 days)
 
 ### NASA FIRMS active-fire ingestion (new scope, 2026-07-27)
@@ -40,8 +40,7 @@ Checked = built and verified working against the real local stack. See `NOTES.md
 - [x] `ActiveFire` entity (ingestion's own copy, PostGIS Point + attributes)
 - [x] `FireDetectionProvider` interface (abstraction over "a source of fire detections") + `FirmsFireDetectionProvider` implementation (only implementation for now)
 - [x] Spatial dedup query on the repository (`ST_Equals`-based)
-- [x] `FireIngestionService` — hourly `@Scheduled` poll + manual trigger endpoint (`POST /import/fire-detections`). Verified: runs cleanly, logs a clear warning and no-ops with the placeholder key.
-- [ ] **Blocked**: need a real FIRMS `MAP_KEY` — register at https://firms.modaps.eosdis.nasa.gov/api/area/ ; using a placeholder env var until then
+- [x] `FireIngestionService` — hourly `@Scheduled` poll + manual trigger endpoint (`POST /import/fire-detections`). **Live-verified with a real FIRMS_MAP_KEY**: 4 real MODIS_NRT detections imported on first run, confirmed via `GET /api/active-fires` (real Bulgaria coordinates, timestamps, confidence, FRP).
 
 ## backend/alerts (Phase 2 — lower priority per team docs, stretch goal for this review)
 
