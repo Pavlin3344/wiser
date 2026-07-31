@@ -1,7 +1,9 @@
 # FireWatch Backend — Build Plan
 
-Tracks every component across `backend/api` and `backend/ingestion` for the team review.
+Tracks every component across `backend/api`, `backend/ingestion`, and `backend/alerts` for the team review.
 Checked = built and verified working against the real local stack. See `NOTES.md` for what each piece does and why.
+
+**Status: everything on this plan is built and live-verified.** All three services run, all five external integrations (Overpass, osm2pgrouting, FIRMS, Copernicus/Sentinel-2, EFFIS) have been tested against the real thing with real data, not mocks.
 
 ## Database (Postgres/PostGIS)
 
@@ -30,7 +32,7 @@ Checked = built and verified working against the real local stack. See `NOTES.md
 - [x] `CriticalInfrastructure` entity (ingestion's own copy) + repository
 - [x] `OsmImportService` + `OsmImportController` — `POST /import/critical-infrastructure` (Overpass API → Bulgaria hospitals/schools/kindergartens). Verified live: 591 real records (232 schools, 198 hospitals, 161 kindergartens) after `overpass-api.de` recovered from its outage.
 - [x] Roads import — `osm2pgrouting` CLI (via Docker) against a Bulgaria OSM extract, filtered to highway ways first to avoid OOM on the full country. Verified: 864,030 real road segments in `roads`, with routing topology (source/target/cost/reverse_cost). Documented in `db/postgres/scripts/README.md`, not custom code.
-- [ ] EFFIS/ECMWF downloader → `weather.exchange`/`weather.ingest` — **blocked**: need to confirm `maps.effis.emergency.copernicus.eu` is reachable from your machine
+- [x] `EffisDownloaderService` + `EffisDownloaderController` — WMS `GetMap` request for the `mf010.fwi` layer (confirmed via live `GetCapabilities` — the ADR frames this conceptually as ECMWF, but the layer actually served right now is Meteo France's), `FORMAT=image/tiff` returns raw float32 FWI values per pixel (confirmed live, not a color visualization). Parses the raster via TwelveMonkeys ImageIO, computes lat/lon per pixel from the request bbox, classifies into class 1-6, publishes one batched message to `weather.exchange`/`weather.ingest`. Daily `@Scheduled` + manual trigger (`POST /import/weather`). **Live-verified**: 2772 real grid points (66×42, every pixel valid) published in exact contract shape, confirmed by peeking the real queued message.
 - [x] `MinioConfig` — S3Client bean pointed at MinIO (path-style access, since MinIO isn't virtual-hosted-style)
 - [x] `SentinelFetcherService` + `SentinelFetcherController` — OAuth2 (Copernicus CDSE) → Sentinel Hub Process API (real Sentinel-2 L2A GeoTIFF, B04+B08) → MinIO upload → `satellite.exchange`/`satellite.ingest` publish. `@Scheduled` every ~3 days + manual trigger (`POST /import/sentinel-scene`). **Live-verified**: real 1.3MiB GeoTIFF landed in MinIO (`satellite-imagery/sentinel2/2026-07-31/T34TGN.tif`), 1 message confirmed in the `satellite.ingest` queue. Uses the same bbox/tile as the Data Engineer's own NDVI test fixture (`data/processing/ndvi/mock_publisher.py`) so real output lands exactly where their worker was already tested against.
 
