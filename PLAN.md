@@ -28,8 +28,8 @@ Checked = built and verified working against the real local stack. See `NOTES.md
 
 - [x] Service scaffold (pom.xml, application.properties, main class, RabbitMQ + JPA + S3 deps)
 - [x] `CriticalInfrastructure` entity (ingestion's own copy) + repository
-- [x] `OsmImportService` + `OsmImportController` — `POST /import/critical-infrastructure` (Overpass API → Bulgaria hospitals/schools/kindergartens). Code complete; live run pending `overpass-api.de` recovering from a server-side outage.
-- [ ] Roads import — via `osm2pgrouting` CLI against a Bulgaria OSM extract (not custom code — see NOTES.md)
+- [x] `OsmImportService` + `OsmImportController` — `POST /import/critical-infrastructure` (Overpass API → Bulgaria hospitals/schools/kindergartens). Verified live: 591 real records (232 schools, 198 hospitals, 161 kindergartens) after `overpass-api.de` recovered from its outage.
+- [x] Roads import — `osm2pgrouting` CLI (via Docker) against a Bulgaria OSM extract, filtered to highway ways first to avoid OOM on the full country. Verified: 864,030 real road segments in `roads`, with routing topology (source/target/cost/reverse_cost). Documented in `db/postgres/scripts/README.md`, not custom code.
 - [ ] RabbitMQ publisher service (shared plumbing for both downloaders below)
 - [ ] EFFIS/ECMWF downloader → `weather.exchange`/`weather.ingest` — **blocked**: need to confirm `maps.effis.emergency.copernicus.eu` is reachable from your machine
 - [ ] Sentinel-2 fetcher → MinIO + `satellite.exchange`/`satellite.ingest` — **blocked**: need your Copernicus Data Space OAuth Client ID/Secret
