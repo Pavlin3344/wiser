@@ -55,6 +55,19 @@ Checked = built and verified working against the real local stack. See `NOTES.md
 
 `infra/docker/rabbitmq/rabbitmq.conf` sets `load_definitions`, and when that's set, RabbitMQ **skips seeding the default user from `RABBITMQ_DEFAULT_USER`/`RABBITMQ_DEFAULT_PASS`** entirely — regardless of whether `definitions.json` itself defines any users. Since `definitions.json` deliberately has no `users` section (comment: "credentials come from env"), a fresh `rabbitmq_data` volume boots with **no user at all**, and every login fails with "invalid credentials". Worked around locally with `rabbitmqctl add_user`/`set_permissions` (not committed - a manual step against the running container, lost if the volume is recreated). Whoever owns `infra/docker/rabbitmq/` should decide the real fix (likely: define users directly in `definitions.json`, accepting that credential in git, or find RabbitMQ's supported way to combine definitions-import with env-var user seeding).
 
+## Tests (added 2026-08-03)
+
+Not full coverage — targeted at the highest-risk/most subtle logic, per priority:
+
+- [x] **FIRMS dedup** (`ActiveFireRepositoryTest`, `FireIngestionServiceTest` in `backend/ingestion`) — real Postgres/PostGIS via Testcontainers (`ST_Equals` is a real PostGIS function, a mock would prove nothing). Covers the repository query directly across all 4 dimensions, and the exact scenario a reviewer will ask about: rerunning identical detections through the service inserts once, not twice.
+- [x] **Alert severity tiering** (`AlertGenerationServiceTest` in `backend/alerts`) — pure unit test, no Spring context, table-driven over the distance boundaries (999.9/1000/2499.9/2500m) since those boundary values are what a reviewer will ask about. Required making `severityFor` package-private (was `private`) — logic unchanged.
+- [x] **GeoJSON serializers** (`PointSerializerTest`, `PolygonSerializerTest`, `LineStringSerializerTest` in `backend/api`) — each serializer registered standalone via a Jackson `SimpleModule`, exact JSON string assertions. `PolygonSerializerTest` includes a test that builds a `Polygon` *with* a hole and asserts the output still has one ring — documents the exterior-ring-only limitation as intentional, not an untested gap.
+- [x] **Controller response shapes** (one `@WebMvcTest` class per controller in `backend/api`) — repository mocked via `@MockitoBean`, asserts status/content-type/JSON shape including that GeoJSON serialization actually fires through the real MVC pipeline. `Alert`/`CriticalInfrastructure`/`Road` have no setters (intentionally read-only from `api`'s side), so their test fixtures use Spring's `ReflectionTestUtils` rather than adding setters that would exist purely for tests.
+
+**Running the suite**: `backend/ingestion`'s dedup tests need Docker (Testcontainers pulls `postgis/postgis:16-3.5` on first run). `backend/api`'s pre-existing `ApiApplicationTests.contextLoads` (from the original Spring Initializr scaffold, not touched by this round) needs the real local dev stack up and `POSTGRES_PASSWORD` set — same requirement as running the app itself — so a plain `mvn test` with no env var and no dev stack running will fail on that one specific pre-existing test; every test added in this round runs standalone.
+
+Explicitly not covered: EFFIS raster parsing, the Sentinel-2/OAuth flow, RabbitMQ message publishing, the OSM importer, and the `osm2pgrouting` pipeline — all already verified live against the real external services (see sections above), but not via automated tests. Worth flagging if asked: these were judged lower-risk (straightforward request/response code) relative to the spatial-query and boundary logic above.
+
 ## Out of scope for this review
 
 Auth, retry/dead-letter handling beyond what RabbitMQ gives for free, real notification delivery (email/push).
