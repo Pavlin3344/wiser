@@ -50,7 +50,9 @@ public class AlertGenerationService {
         return created;
     }
 
-    private String severityFor(double meters) {
+    // Package-private (not private) so AlertGenerationServiceTest can exercise the distance
+    // boundaries directly, without mocking three repositories to reach this through generateAlerts().
+    String severityFor(double meters) {
         if (meters < 1000) {
             return "critical";
         }
