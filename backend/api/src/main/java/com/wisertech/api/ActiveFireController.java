@@ -22,7 +22,7 @@ public class ActiveFireController {
         return activeFireRepository.findAll();
     }
     @PostMapping("/api/active-fires")
-public ActiveFire createActiveFire(@RequestBody CreateActiveFireRequest request) {  // NEW: void → ActiveFire
+public ActiveFire createActiveFire(@RequestBody CreateActiveFireRequest request) {  
     GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(),4326);
     Point point = geometryFactory.createPoint(new Coordinate(request.getLongitude(), request.getLatitude()));
 
