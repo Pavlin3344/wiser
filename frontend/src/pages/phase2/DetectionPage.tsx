@@ -1,4 +1,6 @@
-import { Satellite, Radar, Activity, Crosshair } from "lucide-react"
+import { useState } from "react"
+import { Satellite, Radar, Activity, Crosshair, Loader2 } from "lucide-react"
+import { toast } from "sonner"
 
 import { SidebarGroup, SidebarGroupLabel } from "@/components/ui/sidebar"
 import { Label } from "@/components/ui/label"
@@ -7,7 +9,76 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 
+import { mockFireData } from "@/mocks/fire-data"
+import { useMapStore } from "@/store/use-map-store"
+import { useLayerStore } from "@/store/use-layer-store"
+import { useDataStore } from "@/store/use-data-store"
+import { syncLayers } from "@/hooks/use-map-layers"
+
 export function DetectionPage() {
+  const [scanning, setScanning] = useState(false)
+  const [scanStep, setScanStep] = useState("")
+  const [scanCount, setScanCount] = useState(0)
+
+  const activeFireCount = useDataStore((s) => s.activeFireCount)
+  const setActiveFireCount = useDataStore((s) => s.setActiveFireCount)
+  const { mapInstance, setFlyToTarget } = useMapStore()
+  const { setShowFires } = useLayerStore()
+
+  const handleDeepScan = () => {
+    setScanning(true)
+    setScanStep("Reading VIIRS telemetry...")
+
+    setTimeout(() => {
+      setScanStep("Calibrating thermal spectrum...")
+    }, 700)
+
+    setTimeout(() => {
+      setScanStep("Analyzing anomaly matrix...")
+    }, 1400)
+
+    setTimeout(() => {
+      const randomOffsetLat = (Math.random() - 0.5) * 1.5
+      const randomOffsetLng = (Math.random() - 0.5) * 2.5
+      const newLat = 42.5 + randomOffsetLat
+      const newLng = 25.3 + randomOffsetLng
+
+      const newAnomaly = {
+        type: "Feature" as const,
+        geometry: {
+          type: "Point" as const,
+          coordinates: [newLng, newLat] as [number, number],
+        },
+        properties: {
+          intensity: Math.random() > 0.6 ? "critical" : "high",
+          title: `Auto-Scan Detection #${mockFireData.features.length + 1}`,
+          date: new Date().toISOString(),
+        },
+      }
+
+      mockFireData.features.push(newAnomaly)
+
+      if (mapInstance) {
+        syncLayers(mapInstance, mockFireData)
+      }
+
+      const updatedCount = mockFireData.features.length
+      setActiveFireCount(updatedCount)
+      setScanCount(prev => prev + 1)
+
+      setShowFires(true)
+
+      setFlyToTarget({ lat: newLat, lng: newLng, zoom: 11 })
+
+      toast.success("Thermal scan complete!", {
+        description: `New active anomaly detected at ${newLat.toFixed(4)}° N, ${newLng.toFixed(4)}° E`,
+      })
+
+      setScanning(false)
+      setScanStep("")
+    }, 2200)
+  }
+
   return (
     <>
       <SidebarGroup>
@@ -73,23 +144,49 @@ export function DetectionPage() {
       <SidebarGroup className='mt-4 border-t border-white/10 pt-4'>
         <SidebarGroupLabel>Live Telemetry</SidebarGroupLabel>
         <div className='px-4 py-2 space-y-3'>
-          <div className='bg-background/20 backdrop-blur-xl rounded-xl p-3 space-y-2'>
+          <div className='bg-background/20 backdrop-blur-xl rounded-xl p-3 space-y-2 relative overflow-hidden'>
             <div className='flex items-center justify-between'>
               <span className='text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1'>
                 <Activity className='size-3' /> Latest Scan
               </span>
-              <span className='text-[10px] text-muted-foreground'>Just now</span>
+              <span className='text-[10px] text-muted-foreground'>
+                {scanning ? "Scanning..." : "Just now"}
+              </span>
             </div>
             <div className='flex items-center justify-between'>
-              <span className='text-xs font-medium'>Anomalies Found</span>
-              <Badge variant='outline' className='h-5 px-1.5 text-[10px] border-destructive text-destructive bg-destructive/10'>
-                +3 New
+              <span className='text-xs font-medium'>Anomalies Total</span>
+              <Badge variant='outline' className='h-5 px-1.5 text-[10px] border-destructive text-destructive bg-destructive/10 font-mono'>
+                {activeFireCount} Total
               </Badge>
             </div>
+            {scanCount > 0 && (
+              <div className="text-[9px] text-emerald-500 font-semibold animate-bounce mt-1">
+                +{scanCount} new hotspot{scanCount > 1 ? "s" : ""} active
+              </div>
+            )}
           </div>
 
-          <Button className='w-full text-xs h-9 bg-destructive hover:bg-destructive/90 text-primary-foreground font-semibold'>
-            <Crosshair className='size-3.5' /> Run Deep Scan
+          <Button
+            onClick={handleDeepScan}
+            disabled={scanning}
+            className={`
+              w-full text-xs h-9 bg-destructive hover:bg-destructive/90 text-primary-foreground font-semibold cursor-pointer
+              transition-all duration-300
+              ${scanning ? "opacity-90 pl-2 bg-destructive/80" : ""}
+            `}
+          >
+            {scanning ? (
+              <>
+                <Loader2 className='size-3.5 animate-spin mr-1.5' />
+                <span className="text-[10px] font-semibold tracking-wide animate-pulse">
+                  {scanStep}
+                </span>
+              </>
+            ) : (
+              <>
+                <Crosshair className='size-3.5' /> Run Deep Scan
+              </>
+            )}
           </Button>
         </div>
       </SidebarGroup>

@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class HealthController {
     @GetMapping("/api/health")
     public String health() {
-        return "Vinkata e GEI";
+        return "Hello";
     }
     
 }

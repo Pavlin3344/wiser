@@ -110,7 +110,7 @@ export function BottomStatusBar() {
 
         <div className='text-border'>|</div>
 
-        <span className='font-semibold text-destructive'>Wiser System Core v1.0</span>
+        <span className='font-semibold text-destructive'>Wiser Core v1.0</span>
       </div>
     </div>
   )

@@ -1,11 +1,11 @@
 import { useEffect, type RefObject } from "react"
 import maplibregl from "maplibre-gl"
+import type { FeatureCollection } from "geojson"
 import { useMapStore } from "@/store/use-map-store"
 import { useUIStore } from "@/store/use-ui-store"
 import { useFilterStore } from "@/store/use-filter-store"
-import { resolveMapStyle } from "./use-map-init"
-import { initializeLayers, syncLayers } from "./use-map-layers"
-import type { FeatureCollection } from "geojson"
+import { resolveMapStyle } from "@/hooks/use-map-init"
+import { initializeLayers, syncLayers } from "@/hooks/use-map-layers"
 
 /**
  * Reloads the map style whenever basemap or theme changes,
