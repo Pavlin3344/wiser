@@ -176,7 +176,6 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/wiser
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      FIRMS_MAP_KEY: ${FIRMS_MAP_KEY}
     depends_on:
       postgres:
         condition: service_healthy

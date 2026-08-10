@@ -29,6 +29,7 @@ export function BottomStatusBar() {
       }
     }
 
+    // Set initial values from store state immediately
     const initialState = useMapStore.getState()
     const currentStatus = initialState.mapStatus
     const unit = initialState.scaleUnit
