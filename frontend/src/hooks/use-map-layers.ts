@@ -3,7 +3,6 @@ import maplibregl from "maplibre-gl"
 import type { FeatureCollection } from "geojson"
 import { useLayerStore } from "@/store/use-layer-store"
 import { useFilterStore } from "@/store/use-filter-store"
-import { mockEvacuationRoutes } from "@/mocks/evacuation-data"
 import { mockFireData } from "@/mocks/fire-data"
 import { useMapStore } from "@/store/use-map-store"
 import { isPointInPolygon, bulgariaBorder } from "@/utils/geo"
@@ -41,7 +40,9 @@ export function initializeLayers(map: maplibregl.Map): void {
   })
   addSource("effis-fwi", { type: "raster", tiles: getFwiTilesUrl(selectedDate), tileSize: 256, attribution: "Copernicus EFFIS" })
   addSource("effis-viirs", { type: "raster", tiles: EFFIS_VIIRS_TILES, tileSize: 256, attribution: "Copernicus EFFIS" })
-  addSource("evac-routes", { type: "geojson", data: mockEvacuationRoutes as FeatureCollection })
+  // Starts empty on purpose - routes only ever come from the backend, which computes
+  // them from the real road network and excludes roads running beside active fires.
+  addSource("evac-routes", { type: "geojson", data: { type: "FeatureCollection", features: [] } })
   addSource("active-fires", { type: "geojson", data: mockFireData as FeatureCollection })
   addSource("user-location", {
     type: "geojson",
@@ -55,11 +56,29 @@ export function initializeLayers(map: maplibregl.Map): void {
   addLayer({ id: "effis-fwi-layer", type: "raster", source: "effis-fwi", paint: { "raster-opacity": 0.7 } })
   addLayer({ id: "effis-viirs-layer", type: "raster", source: "effis-viirs", paint: { "raster-opacity": 0.8 }, layout: { visibility: "none" } })
 
+  // Drawn as a solid casing under a bright core so the corridor stays legible over
+  // satellite imagery, where a thin dashed line disappears into the terrain.
+  addLayer({
+    id: "evac-routes-casing",
+    type: "line",
+    source: "evac-routes",
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": "#0f172a",
+      "line-width": ["interpolate", ["linear"], ["zoom"], 6, 4, 14, 10],
+      "line-opacity": 0.7,
+    },
+  })
+
   addLayer({
     id: "evac-routes-line",
     type: "line",
     source: "evac-routes",
-    paint: { "line-color": "#3b82f6", "line-width": 3, "line-dasharray": [2, 2] },
+    layout: { "line-cap": "round", "line-join": "round" },
+    paint: {
+      "line-color": "#22d3ee",
+      "line-width": ["interpolate", ["linear"], ["zoom"], 6, 2, 14, 6],
+    },
   })
 
   addLayer({
@@ -116,13 +135,13 @@ export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): vo
 
   setVis("effis-fwi-layer", showRiskGrid)
   setVis("effis-viirs-layer", showFires)
+  setVis("evac-routes-casing", showEvac)
   setVis("evac-routes-line", showEvac)
   setVis("fire-points", showFires)
   setVis("country-borders", showLabels)
   setVis("place-labels", showLabels)
 
   let filteredFireData = fireData
-  let filteredEvacData = mockEvacuationRoutes as FeatureCollection
 
   if (region === "bulgaria") {
     // Filter fire data points to be within Bulgaria
@@ -136,25 +155,13 @@ export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): vo
         return false
       }),
     }
-
-    // Filter evacuation routes to only show corridors intersecting Bulgaria
-    filteredEvacData = {
-      ...mockEvacuationRoutes,
-      features: mockEvacuationRoutes.features.filter((f) => {
-        if (f.geometry.type === "LineString") {
-          const coords = f.geometry.coordinates as [number, number][]
-          return coords.some((pt) => isPointInPolygon(pt, bulgariaBorder))
-        }
-        return false
-      }),
-    }
   }
 
   const src = map.getSource("active-fires") as maplibregl.GeoJSONSource | undefined
   src?.setData(filteredFireData)
 
-  const evacSrc = map.getSource("evac-routes") as maplibregl.GeoJSONSource | undefined
-  evacSrc?.setData(filteredEvacData)
+  // Evacuation routes are owned by useEvacuationRoutes, which fetches them per user
+  // position - re-syncing layers must not overwrite what it loaded.
 
   // Restore user location data if available
   const { userLocation } = useMapStore.getState()
