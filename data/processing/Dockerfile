@@ -9,6 +9,12 @@ ARG ENTRYPOINT_FILE=worker.py
 # depth below /app has to match the repository layout for that lookup to work.
 WORKDIR /app/data/processing
 
+# rasterio's bundled GDAL links against system libexpat, which the slim image omits;
+# without it `import rasterio` dies with "libexpat.so.1: cannot open shared object file".
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends libexpat1 \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY ${WORKER}/requirements.txt ./${WORKER}/requirements.txt
 RUN pip install --no-cache-dir -r ./${WORKER}/requirements.txt
 
