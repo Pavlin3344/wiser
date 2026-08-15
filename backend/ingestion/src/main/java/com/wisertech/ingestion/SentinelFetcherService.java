@@ -22,6 +22,7 @@ import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
 import software.amazon.awssdk.core.sync.RequestBody;
@@ -82,6 +83,8 @@ public class SentinelFetcherService {
     }
 
     @Scheduled(fixedRate = 259_200_000) // ~3 days, matches the contract's "new overpass" rhythm
+    // A retry re-uploads the same object key, so replaying after a failure is harmless.
+    @Retryable(includes = IOException.class, maxRetries = 2, delay = 5000, multiplier = 2, maxDelay = 30_000)
     public void fetchLatest() throws IOException, InterruptedException {
         String token = fetchAccessToken();
         byte[] tiff = fetchGeoTiff(token);

@@ -7,6 +7,10 @@ export const satelliteStyle: StyleSpecification = {
       type: "raster",
       tiles: ["https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
       tileSize: 256,
+      // Esri only guarantees high-res imagery up to ~z17 outside urban areas; requesting
+      // deeper zooms returns a "Map data not yet available" placeholder tile. Capping the
+      // source here makes MapLibre overzoom (upscale) the z17 tile instead of fetching that.
+      maxzoom: 17,
       attribution: "&copy; Esri",
     },
     "vector-overlays": {

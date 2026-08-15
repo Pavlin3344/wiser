@@ -10,7 +10,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 // instead of mocking three repositories to reach it through generateAlerts().
 class AlertGenerationServiceTest {
 
-    private final AlertGenerationService service = new AlertGenerationService(null, null, null, 5000.0);
+    private final AlertGenerationService service = new AlertGenerationService(null, null, null, null, 5000.0);
 
     @ParameterizedTest(name = "{0}m -> {1}")
     @CsvSource({

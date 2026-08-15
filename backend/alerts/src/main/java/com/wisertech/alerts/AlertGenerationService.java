@@ -1,5 +1,6 @@
 package com.wisertech.alerts;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.locationtech.jts.geom.Point;
@@ -17,22 +18,25 @@ public class AlertGenerationService {
     private final ActiveFireRepository activeFireRepository;
     private final CriticalInfrastructureRepository criticalInfrastructureRepository;
     private final AlertRepository alertRepository;
+    private final NotificationService notificationService;
     private final double proximityMeters;
 
     public AlertGenerationService(
             ActiveFireRepository activeFireRepository,
             CriticalInfrastructureRepository criticalInfrastructureRepository,
             AlertRepository alertRepository,
+            NotificationService notificationService,
             @Value("${alerts.proximity-meters}") double proximityMeters) {
         this.activeFireRepository = activeFireRepository;
         this.criticalInfrastructureRepository = criticalInfrastructureRepository;
         this.alertRepository = alertRepository;
+        this.notificationService = notificationService;
         this.proximityMeters = proximityMeters;
     }
 
     @Scheduled(fixedRate = 3_600_000) // hourly, matches the fire ingestion cadence
     public int generateAlerts() {
-        int created = 0;
+        List<Alert> created = new ArrayList<>();
         for (ActiveFire fire : activeFireRepository.findAll()) {
             List<CriticalInfrastructure> nearby = criticalInfrastructureRepository.findWithinDistance(fire.getGeom(), proximityMeters);
             for (CriticalInfrastructure infra : nearby) {
@@ -42,12 +46,16 @@ public class AlertGenerationService {
                 double distanceMeters = haversineMeters(fire.getGeom(), infra.getGeom());
                 String name = infra.getName() != null ? infra.getName() : "unnamed";
                 String message = "Fire detected %.0fm from %s (%s)".formatted(distanceMeters, name, infra.getType());
-                alertRepository.save(new Alert(fire.getId(), "proximity", severityFor(distanceMeters), infra.getType(), infra.getId(), message));
-                created++;
+                created.add(alertRepository.save(new Alert(fire.getId(), "proximity", severityFor(distanceMeters), infra.getType(), infra.getId(), message)));
             }
         }
-        log.info("Alert generation run complete: {} new alerts created.", created);
-        return created;
+        log.info("Alert generation run complete: {} new alerts created.", created.size());
+        // One digest per run, not one email per alert - a single large fire can sit near
+        // dozens of facilities at once.
+        if (!created.isEmpty()) {
+            notificationService.notifyNewAlerts(created);
+        }
+        return created.size();
     }
 
     // Package-private (not private) so AlertGenerationServiceTest can exercise the distance

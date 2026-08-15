@@ -30,3 +30,20 @@ scrape_configs:
   - job_name: 'cadvisor'
     static_configs:
       - targets: ['cadvisor:8080']
+
+  # Spring Boot services expose Micrometer metrics on the actuator path rather than
+  # the Prometheus default of /metrics.
+  - job_name: 'wiser-backend'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['wiser-backend:8080']
+
+  - job_name: 'wiser-alerts'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['wiser-alerts:8082']
+
+  - job_name: 'wiser-ingestion'
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ['wiser-ingestion:8081']

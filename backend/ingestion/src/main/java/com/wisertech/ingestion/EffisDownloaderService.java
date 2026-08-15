@@ -28,6 +28,7 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -65,6 +66,8 @@ public class EffisDownloaderService {
     }
 
     @Scheduled(fixedRate = 86_400_000) // daily - EFFIS only updates FWI once a day
+    // Publishing is the last step, so a retry after a failed fetch cannot double-publish.
+    @Retryable(includes = IOException.class, maxRetries = 2, delay = 5000, multiplier = 2, maxDelay = 30_000)
     public int fetchLatest() throws IOException, InterruptedException {
         byte[] tiff = fetchFwiRaster();
         List<Map<String, Object>> points = extractGridPoints(tiff);

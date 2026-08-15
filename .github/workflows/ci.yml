@@ -77,6 +77,30 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+  validate-backend:
+    name: Validate backend
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [api, alerts, ingestion]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          java-version: 25
+          distribution: temurin
+          cache: maven
+          cache-dependency-path: backend/${{ matrix.service }}/pom.xml
+
+      # api and ingestion tests use Testcontainers, which needs the Docker daemon
+      # the ubuntu runner already provides.
+      - name: Run tests
+        working-directory: backend/${{ matrix.service }}
+        run: ./mvnw -B test
+
   validate-sql:
     name: Validate SQL schemas
     runs-on: ubuntu-latest
@@ -133,7 +157,7 @@ jobs:
 
   deploy:
     name: Deploy to Hetzner
-    needs: [validate-infra, validate-sql, validate-frontend, security-scan]
+    needs: [validate-infra, validate-sql, validate-frontend, validate-backend, security-scan]
     runs-on: self-hosted
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     # Един deploy наведнъж — при бързи последователни push-ове се редят на опашка

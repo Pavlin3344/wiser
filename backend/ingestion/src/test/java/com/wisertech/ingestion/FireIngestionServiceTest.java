@@ -1,11 +1,21 @@
 package com.wisertech.ingestion;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import java.time.Instant;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import tools.jackson.databind.json.JsonMapper;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
@@ -37,6 +47,13 @@ class FireIngestionServiceTest {
     @Autowired
     private ActiveFireRepository activeFireRepository;
 
+    private final RabbitTemplate rabbitTemplate = mock(RabbitTemplate.class);
+
+    private FireIngestionService serviceFor(FireDetectionProvider provider) {
+        return new FireIngestionService(provider, activeFireRepository, rabbitTemplate,
+                JsonMapper.builder().build(), new SimpleMeterRegistry());
+    }
+
     @Test
     void ingestLatest_rerunWithIdenticalDetections_insertsNothingTheSecondTime() throws Exception {
         ActiveFire detection = new ActiveFire(
@@ -48,7 +65,7 @@ class FireIngestionServiceTest {
         // Same provider, called twice - simulates two hourly polls finding the same hotspot
         // still inside FIRMS's lookback window.
         FireDetectionProvider stubProvider = () -> List.of(detection);
-        FireIngestionService service = new FireIngestionService(stubProvider, activeFireRepository);
+        FireIngestionService service = serviceFor(stubProvider);
 
         int firstRun = service.ingestLatest();
         int secondRun = service.ingestLatest();
@@ -58,6 +75,27 @@ class FireIngestionServiceTest {
         assertThat(activeFireRepository.count()).isEqualTo(1);
     }
 
+    // The API service turns this message into an SSE push, so a run that imported
+    // nothing must stay silent rather than waking every connected dashboard.
+    @Test
+    void ingestLatest_publishesOnlyWhenSomethingWasImported() throws Exception {
+        ActiveFire detection = new ActiveFire(
+                "MODIS_NRT",
+                Instant.parse("2026-08-01T12:00:00Z"),
+                (short) 75,
+                22.5,
+                GEOMETRY_FACTORY.createPoint(new Coordinate(23.32, 42.70)));
+        FireIngestionService service = serviceFor(() -> List.of(detection));
+
+        service.ingestLatest();
+        verify(rabbitTemplate).send(eq("fire.exchange"), eq("fire.detections"), any(Message.class));
+
+        // The second run is an exact duplicate, so the total stays at one publish.
+        service.ingestLatest();
+        verify(rabbitTemplate, times(1))
+                .send(eq("fire.exchange"), eq("fire.detections"), any(Message.class));
+    }
+
     @Test
     void ingestLatest_newDetectionAfterExistingOne_isImported() throws Exception {
         ActiveFire first = new ActiveFire("MODIS_NRT", Instant.parse("2026-08-01T12:00:00Z"), (short) 75, 22.5,
@@ -65,10 +103,10 @@ class FireIngestionServiceTest {
         ActiveFire second = new ActiveFire("MODIS_NRT", Instant.parse("2026-08-01T13:00:00Z"), (short) 60, 18.0,
                 GEOMETRY_FACTORY.createPoint(new Coordinate(24.10, 42.50)));
 
-        FireIngestionService service = new FireIngestionService(() -> List.of(first), activeFireRepository);
+        FireIngestionService service = serviceFor(() -> List.of(first));
         service.ingestLatest();
 
-        FireIngestionService secondPoll = new FireIngestionService(() -> List.of(second), activeFireRepository);
+        FireIngestionService secondPoll = serviceFor(() -> List.of(second));
         int imported = secondPoll.ingestLatest();
 
         assertThat(imported).isEqualTo(1);

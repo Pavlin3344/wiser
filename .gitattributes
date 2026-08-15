@@ -1,0 +1,4 @@
+# The Maven wrapper runs inside Linux build containers, so it must stay LF even when
+# checked out on Windows - CRLF makes /bin/sh fail with "illegal option".
+mvnw text eol=lf
+*.sh text eol=lf

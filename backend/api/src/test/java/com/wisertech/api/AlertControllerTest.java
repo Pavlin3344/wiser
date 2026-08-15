@@ -5,10 +5,15 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import static org.mockito.ArgumentMatchers.any;
+
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -32,12 +37,13 @@ class AlertControllerTest {
         ReflectionTestUtils.setField(alert, "alertType", "proximity");
         ReflectionTestUtils.setField(alert, "severity", "critical");
         ReflectionTestUtils.setField(alert, "message", "Fire detected 500m from Test Hospital (hospital)");
-        when(alertRepository.findAll()).thenReturn(List.of(alert));
+        Page<Alert> page = new PageImpl<>(List.of(alert));
+        when(alertRepository.findAll(any(Pageable.class))).thenReturn(page);
 
         mockMvc.perform(get("/api/alerts"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].alertType").value("proximity"))
-                .andExpect(jsonPath("$[0].severity").value("critical"))
-                .andExpect(jsonPath("$[0].message").value("Fire detected 500m from Test Hospital (hospital)"));
+                .andExpect(jsonPath("$.content[0].alertType").value("proximity"))
+                .andExpect(jsonPath("$.content[0].severity").value("critical"))
+                .andExpect(jsonPath("$.content[0].message").value("Fire detected 500m from Test Hospital (hospital)"));
     }
 }

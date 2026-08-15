@@ -13,4 +13,6 @@ WORKDIR /app
 COPY --from=build /app/target/*.jar app.jar
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-jar", "app.jar"]
+# Without MaxRAMPercentage the JVM sizes its heap from the host's memory, not the
+# container's mem_limit, and gets OOM-killed on a memory-tight host.
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]

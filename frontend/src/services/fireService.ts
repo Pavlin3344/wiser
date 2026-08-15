@@ -1,5 +1,8 @@
 import type { FeatureCollection } from "geojson"
 
+/** Server-Sent Events endpoint pushing active fire updates as they are ingested. */
+export const FIRE_STREAM_URL = "/api/v1/fires/stream"
+
 /**
  * Fetches real active fire data from the backend.
  */

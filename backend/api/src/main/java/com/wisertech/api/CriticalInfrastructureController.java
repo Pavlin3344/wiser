@@ -1,7 +1,8 @@
 package com.wisertech.api;
 
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -14,7 +15,7 @@ public class CriticalInfrastructureController {
     }
 
     @GetMapping("/api/critical-infrastructure")
-    public List<CriticalInfrastructure> getCriticalInfrastructure() {
-        return criticalInfrastructureRepository.findAll();
+    public Page<CriticalInfrastructure> getCriticalInfrastructure(@PageableDefault(size = 100) Pageable pageable) {
+        return criticalInfrastructureRepository.findAll(pageable);
     }
 }

@@ -17,7 +17,11 @@ import org.locationtech.jts.geom.PrecisionModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.resilience.annotation.Retryable;
 import org.springframework.stereotype.Component;
+
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
 
 @Component
 public class FirmsFireDetectionProvider implements FireDetectionProvider {
@@ -33,15 +37,31 @@ public class FirmsFireDetectionProvider implements FireDetectionProvider {
             .build();
     private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
-    public FirmsFireDetectionProvider(@Value("${firms.map-key}") String mapKey, @Value("${firms.area}") String area) {
+    public FirmsFireDetectionProvider(
+            @Value("${firms.map-key}") String mapKey,
+            @Value("${firms.area}") String area,
+            MeterRegistry meterRegistry) {
         this.mapKey = mapKey;
         this.area = area;
+        // Lets Grafana alert on "ingestion is configured but blind" rather than waiting
+        // for someone to notice the map has been empty for a week.
+        Gauge.builder("wiser.ingestion.firms.configured", this, p -> p.isConfigured() ? 1 : 0)
+                .description("1 when a real FIRMS API key is configured, 0 when detections cannot be fetched")
+                .register(meterRegistry);
+    }
+
+    boolean isConfigured() {
+        return !PLACEHOLDER_KEY.equals(mapKey);
     }
 
     @Override
+    @Retryable(includes = IOException.class, maxRetries = 2, delay = 5000, multiplier = 2, maxDelay = 30_000)
     public List<ActiveFire> fetchLatest() throws IOException, InterruptedException {
         if (PLACEHOLDER_KEY.equals(mapKey)) {
-            log.warn("FIRMS_MAP_KEY not set - skipping fetch. Register at https://firms.modaps.eosdis.nasa.gov/api/area/ and set FIRMS_MAP_KEY.");
+            // Error, not warning: in this state the system silently detects no fires at all,
+            // which is indistinguishable from "no fires burning" unless it is loud.
+            log.error("FIRMS_MAP_KEY not set - fire ingestion is disabled and no detections will be imported. "
+                    + "Register at https://firms.modaps.eosdis.nasa.gov/api/area/ and set FIRMS_MAP_KEY.");
             return List.of();
         }
 

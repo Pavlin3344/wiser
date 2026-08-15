@@ -13,7 +13,9 @@ public class ZoneController {
         this.zoneRepository = zoneRepository;
     }
 
-    @GetMapping("/zones/risk")
+    // Under /api so nginx actually proxies it - only "location /api/" is forwarded
+    // to the backend, so the old /zones/risk path was unreachable in production.
+    @GetMapping("/api/zones/risk")
     public List<Zone> getRiskZones() {
         return zoneRepository.findAll();
     }

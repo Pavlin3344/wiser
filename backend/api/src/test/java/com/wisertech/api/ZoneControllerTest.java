@@ -39,7 +39,7 @@ class ZoneControllerTest {
         zone.setRiskClass((short) 5);
         when(zoneRepository.findAll()).thenReturn(List.of(zone));
 
-        mockMvc.perform(get("/zones/risk"))
+        mockMvc.perform(get("/api/zones/risk"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].riskClass").value(5))
                 .andExpect(jsonPath("$[0].geom.type").value("Polygon"))

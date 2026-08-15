@@ -1,5 +1,6 @@
 package com.wisertech.api;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -13,6 +14,8 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
@@ -38,13 +41,13 @@ class RoadControllerTest {
         ReflectionTestUtils.setField(road, "geom", GEOMETRY_FACTORY.createLineString(new Coordinate[] {
                 new Coordinate(23.30, 42.70), new Coordinate(23.32, 42.72)
         }));
-        when(roadRepository.findAll()).thenReturn(List.of(road));
+        when(roadRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(road)));
 
         mockMvc.perform(get("/api/roads"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].highway").value("residential"))
-                .andExpect(jsonPath("$[0].passable").value(true))
-                .andExpect(jsonPath("$[0].geom.type").value("LineString"))
-                .andExpect(jsonPath("$[0].geom.coordinates[0][0]").value(23.30));
+                .andExpect(jsonPath("$.content[0].highway").value("residential"))
+                .andExpect(jsonPath("$.content[0].passable").value(true))
+                .andExpect(jsonPath("$.content[0].geom.type").value("LineString"))
+                .andExpect(jsonPath("$.content[0].geom.coordinates[0][0]").value(23.30));
     }
 }
