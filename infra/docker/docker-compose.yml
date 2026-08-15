@@ -143,6 +143,27 @@ services:
       - rabbitmq_data:/var/lib/rabbitmq
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
       - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    # load_definitions makes RabbitMQ skip creating RABBITMQ_DEFAULT_USER, and
+    # definitions.json deliberately carries no credentials (they would be a password
+    # hash in git). The broker therefore boots with no users at all and every client
+    # gets ACCESS_REFUSED. This seeds the user once the broker is up.
+    # Runs inside the broker container on purpose: a sidecar would need a shared Erlang
+    # cookie and a fixed node name, and pinning the hostname would orphan the existing
+    # mnesia directory.
+    command:
+      - sh
+      - -c
+      - |
+        (
+          until rabbitmqctl await_startup >/dev/null 2>&1; do sleep 2; done
+          rabbitmqctl list_users 2>/dev/null | grep -qx "$$RABBITMQ_DEFAULT_USER.*" \
+            || rabbitmqctl add_user "$$RABBITMQ_DEFAULT_USER" "$$RABBITMQ_DEFAULT_PASS" \
+            || rabbitmqctl change_password "$$RABBITMQ_DEFAULT_USER" "$$RABBITMQ_DEFAULT_PASS"
+          rabbitmqctl set_user_tags "$$RABBITMQ_DEFAULT_USER" administrator
+          rabbitmqctl set_permissions -p "$$RABBITMQ_DEFAULT_VHOST" "$$RABBITMQ_DEFAULT_USER" ".*" ".*" ".*"
+          echo "RabbitMQ user provisioning done."
+        ) &
+        exec rabbitmq-server
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 10s
