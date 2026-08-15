@@ -85,17 +85,27 @@ describe("Zustand global stores", () => {
           selectedDate: "2026-07-04T00:00:00.000Z",
           currentTime: 10,
           isPlaying: true,
+          minConfidence: 80,
+          enabledSensors: ["MODIS_NRT"],
+          liveUpdates: false,
           setRegion: () => {},
           setRiskLevel: () => {},
           setSelectedDate: () => {},
           setCurrentTime: () => {},
           setIsPlaying: () => {},
+          setMinConfidence: () => {},
+          toggleSensor: () => {},
+          setLiveUpdates: () => {},
         }
         const partial = partialize(fullState)
         expect(partial).toEqual(expect.objectContaining({
           region: "varna",
           riskLevel: "medium",
           selectedDate: "2026-07-04T00:00:00.000Z",
+          // Detection filters survive a reload; the operator set them deliberately.
+          minConfidence: 80,
+          enabledSensors: ["MODIS_NRT"],
+          liveUpdates: false,
         }))
         expect((partial as any).currentTime).toBeUndefined()
         expect((partial as any).isPlaying).toBeUndefined()

@@ -33,6 +33,13 @@ public class FireGeoJsonService {
             properties.put("title", row.source() + " detection #" + row.id());
             properties.put("intensity", intensityFor(row.frp()));
             properties.put("date", row.detectedAt().toString());
+            // Exposed so the dashboard can filter by sensor and confidence rather than
+            // showing every detection and calling the controls decorative.
+            // Lets the alerts panel resolve an alert's fire_id back to a map location.
+            properties.put("id", row.id());
+            properties.put("source", row.source());
+            properties.put("confidence", row.confidence());
+            properties.put("frp", row.frp());
 
             JsonNode geometry = objectMapper.readTree(row.geometryJson());
 

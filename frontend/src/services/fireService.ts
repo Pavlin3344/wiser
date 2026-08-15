@@ -14,6 +14,45 @@ export async function fetchActiveFires(): Promise<FeatureCollection> {
   return r.json() as Promise<FeatureCollection>
 }
 
+export interface Alert {
+  id: number
+  fireId: number | null
+  alertType: string
+  severity: string
+  targetType: string | null
+  targetId: number | null
+  message: string | null
+  sentAt: string
+}
+
+interface Page<T> {
+  content: T[]
+}
+
+/** Proximity alerts raised by the alerts service. */
+export async function fetchAlerts(): Promise<Alert[]> {
+  const res = await fetch("/api/alerts?size=50&sort=sentAt,desc")
+  if (!res.ok) {
+    throw new Error(`HTTP error ${res.status}`)
+  }
+  const page = (await res.json()) as Page<Alert>
+  return page.content ?? []
+}
+
+export interface DailyFireCount {
+  day: string
+  count: number
+}
+
+/** Detections per day for the trends chart. */
+export async function fetchDailyFireCounts(days = 7): Promise<DailyFireCount[]> {
+  const res = await fetch(`/api/v1/fires/daily-counts?days=${days}`)
+  if (!res.ok) {
+    throw new Error(`HTTP error ${res.status}`)
+  }
+  return res.json() as Promise<DailyFireCount[]>
+}
+
 interface EffisFeatureInfoParams {
   layer: string
   bbox: string

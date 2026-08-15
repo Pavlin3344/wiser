@@ -27,7 +27,9 @@ import io.micrometer.core.instrument.MeterRegistry;
 public class FirmsFireDetectionProvider implements FireDetectionProvider {
     private static final Logger log = LoggerFactory.getLogger(FirmsFireDetectionProvider.class);
     private static final String PLACEHOLDER_KEY = "REPLACE_ME_REGISTER_AT_FIRMS";
-    private static final String SOURCE = "MODIS_NRT";
+    // Both instruments cover Bulgaria several times a day and see different fires:
+    // MODIS has the longer record, VIIRS the finer resolution.
+    private static final List<String> SOURCES = List.of("MODIS_NRT", "VIIRS_SNPP_NRT");
     private static final String DAY_RANGE = "1";
 
     private final String mapKey;
@@ -65,8 +67,29 @@ public class FirmsFireDetectionProvider implements FireDetectionProvider {
             return List.of();
         }
 
+        List<ActiveFire> detections = new ArrayList<>();
+        IOException lastFailure = null;
+
+        for (String source : SOURCES) {
+            try {
+                detections.addAll(parseCsv(fetchSource(source), source));
+            } catch (IOException e) {
+                // One instrument being unavailable must not cost us the other one's
+                // detections; only a total failure is worth retrying.
+                log.error("FIRMS fetch failed for {} - continuing with the remaining sources.", source, e);
+                lastFailure = e;
+            }
+        }
+
+        if (detections.isEmpty() && lastFailure != null) {
+            throw lastFailure;
+        }
+        return detections;
+    }
+
+    private String fetchSource(String source) throws IOException, InterruptedException {
         String url = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/%s/%s/%s/%s"
-                .formatted(mapKey, SOURCE, area, DAY_RANGE);
+                .formatted(mapKey, source, area, DAY_RANGE);
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
@@ -76,16 +99,17 @@ public class FirmsFireDetectionProvider implements FireDetectionProvider {
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         if (response.statusCode() != 200) {
-            throw new IOException("FIRMS API returned HTTP " + response.statusCode() + ": " + response.body());
+            throw new IOException("FIRMS API returned HTTP " + response.statusCode() + " for " + source + ": " + response.body());
         }
-
-        return parseCsv(response.body());
+        return response.body();
     }
 
-    private List<ActiveFire> parseCsv(String csv) {
+    // MODIS and VIIRS use the same column positions; only the confidence value differs
+    // (MODIS reports a percentage, VIIRS a low/nominal/high letter).
+    List<ActiveFire> parseCsv(String csv, String source) {
         List<ActiveFire> detections = new ArrayList<>();
         String[] lines = csv.split("\n");
-        // line 0 is the header: latitude,longitude,brightness,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,bright_t31,frp,daynight
+        // line 0 is the header: latitude,longitude,<brightness>,scan,track,acq_date,acq_time,satellite,instrument,confidence,version,<bright_t31|ti5>,frp,daynight
         for (int i = 1; i < lines.length; i++) {
             String line = lines[i].strip();
             if (line.isEmpty()) {
@@ -96,14 +120,29 @@ public class FirmsFireDetectionProvider implements FireDetectionProvider {
             double longitude = Double.parseDouble(columns[1]);
             String acqDate = columns[5];
             String acqTime = columns[6];
-            short confidence = Short.parseShort(columns[9]);
+            short confidence = parseConfidence(columns[9]);
             double frp = Double.parseDouble(columns[12]);
 
             Instant detectedAt = parseAcquisitionInstant(acqDate, acqTime);
             Point geom = geometryFactory.createPoint(new Coordinate(longitude, latitude));
-            detections.add(new ActiveFire(SOURCE, detectedAt, confidence, frp, geom));
+            detections.add(new ActiveFire(source, detectedAt, confidence, frp, geom));
         }
         return detections;
+    }
+
+    /**
+     * VIIRS grades confidence as l/n/h rather than a percentage. Mapping it onto the
+     * same 0-100 scale keeps one comparable column in the database and one filter in
+     * the dashboard, instead of two sensor-specific meanings.
+     */
+    static short parseConfidence(String raw) {
+        String value = raw.strip();
+        return switch (value.toLowerCase()) {
+            case "l", "low" -> 30;
+            case "n", "nominal" -> 70;
+            case "h", "high" -> 95;
+            default -> Short.parseShort(value);
+        };
     }
 
     private Instant parseAcquisitionInstant(String acqDate, String acqTime) {

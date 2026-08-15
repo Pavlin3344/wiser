@@ -17,7 +17,22 @@ interface FilterState {
 
   isPlaying: boolean
   setIsPlaying: (playing: boolean) => void
+
+  /** Detection filters. Applied to the live feed before it reaches the map. */
+  minConfidence: number
+  setMinConfidence: (value: number) => void
+
+  /** FIRMS instruments to include, matched against a detection's `source`. */
+  enabledSensors: string[]
+  toggleSensor: (source: string, enabled: boolean) => void
+
+  /** Whether the map subscribes to live pushes or only loads once. */
+  liveUpdates: boolean
+  setLiveUpdates: (on: boolean) => void
 }
+
+export const SENSOR_MODIS = "MODIS_NRT"
+export const SENSOR_VIIRS = "VIIRS_SNPP_NRT"
 
 export const useFilterStore = create<FilterState>()(
   persist(
@@ -36,6 +51,20 @@ export const useFilterStore = create<FilterState>()(
 
       isPlaying: false,
       setIsPlaying: (isPlaying) => set({ isPlaying }),
+
+      minConfidence: 0,
+      setMinConfidence: (minConfidence) => set({ minConfidence }),
+
+      enabledSensors: [SENSOR_MODIS, SENSOR_VIIRS],
+      toggleSensor: (source, enabled) =>
+        set((state) => ({
+          enabledSensors: enabled
+            ? Array.from(new Set([...state.enabledSensors, source]))
+            : state.enabledSensors.filter((s) => s !== source),
+        })),
+
+      liveUpdates: true,
+      setLiveUpdates: (liveUpdates) => set({ liveUpdates }),
     }),
     {
       name: "wiser-filter-storage",
@@ -44,6 +73,9 @@ export const useFilterStore = create<FilterState>()(
         region: state.region,
         riskLevel: state.riskLevel,
         selectedDate: state.selectedDate,
+        minConfidence: state.minConfidence,
+        enabledSensors: state.enabledSensors,
+        liveUpdates: state.liveUpdates,
       }),
     },
   ),

@@ -5,6 +5,7 @@ import { renderHook, act } from "@testing-library/react"
 import { useFireData } from "@/hooks/use-fire-data"
 import { fetchActiveFires } from "@/services/fireService"
 import { syncLayers } from "@/hooks/use-map-layers"
+import { useFilterStore, SENSOR_MODIS, SENSOR_VIIRS } from "@/store/use-filter-store"
 
 // Mock dependencies
 vi.mock("@/services/fireService", () => ({
@@ -40,6 +41,14 @@ describe("useFireData custom hook", () => {
 
     vi.mocked(fetchActiveFires).mockReset()
     vi.mocked(syncLayers).mockReset()
+
+    // The filter store is persisted and shared, so leaking a filter from one test
+    // would silently change what another test sees.
+    useFilterStore.setState({
+      minConfidence: 0,
+      enabledSensors: [SENSOR_MODIS, SENSOR_VIIRS],
+      liveUpdates: true,
+    })
   })
 
   afterEach(() => {
@@ -84,7 +93,8 @@ describe("useFireData custom hook", () => {
     })
 
     expect(fetchActiveFires).toHaveBeenCalled()
-    expect(fireDataRef.current).toBe(mockFetchedData)
+    // Equality, not identity: the ref holds the filtered view of the response.
+    expect(fireDataRef.current).toEqual(mockFetchedData)
     expect(syncLayers).toHaveBeenCalledWith(mapMock, mockFetchedData)
   })
 
@@ -107,7 +117,7 @@ describe("useFireData custom hook", () => {
 
     expect(mapMock.once).not.toHaveBeenCalled()
     expect(fetchActiveFires).toHaveBeenCalled()
-    expect(fireDataRef.current).toBe(mockFetchedData)
+    expect(fireDataRef.current).toEqual(mockFetchedData)
     expect(syncLayers).toHaveBeenCalledWith(mapMock, mockFetchedData)
   })
 
@@ -140,13 +150,14 @@ describe("useFireData custom hook", () => {
     expect(fetchActiveFires).toHaveBeenCalledTimes(3)
   })
 
-  it("should fallback to current data ref and warn on API fetch rejection", async () => {
+  // On failure the map must not be repainted with anything: stale detections shown as
+  // current are more dangerous than an empty map, so nothing is drawn at all.
+  it("should warn and draw nothing when the fetch is rejected", async () => {
     const mapRef = { current: mapMock } as any
     mapMock.loaded.mockReturnValue(true)
 
     const originalData = fireDataRef.current
-    const fetchError = new Error("Network Down")
-    vi.mocked(fetchActiveFires).mockRejectedValueOnce(fetchError)
+    vi.mocked(fetchActiveFires).mockRejectedValueOnce(new Error("Network Down"))
 
     renderHook(() => useFireData({ mapRef, fireDataRef }))
 
@@ -156,10 +167,58 @@ describe("useFireData custom hook", () => {
     })
 
     expect(fetchActiveFires).toHaveBeenCalled()
-    expect(warnSpy).toHaveBeenCalledWith("[Wiser] Backend unavailable (Error: Network Down). Using EFFIS mock data.")
-    // Data ref remains unchanged
+    expect(warnSpy).toHaveBeenCalledWith("[Wiser] Could not load active fires (Error: Network Down).")
     expect(fireDataRef.current).toBe(originalData)
-    expect(syncLayers).toHaveBeenCalledWith(mapMock, originalData)
+    expect(syncLayers).not.toHaveBeenCalled()
+  })
+
+  it("should hide detections below the configured confidence threshold", async () => {
+    const mapRef = { current: mapMock } as any
+    mapMock.loaded.mockReturnValue(true)
+
+    const feature = (confidence: number) => ({
+      type: "Feature" as const,
+      geometry: { type: "Point" as const, coordinates: [23, 42] },
+      properties: { confidence, source: SENSOR_MODIS },
+    })
+
+    vi.mocked(fetchActiveFires).mockResolvedValueOnce({
+      type: "FeatureCollection",
+      features: [feature(40), feature(90)],
+    })
+
+    useFilterStore.getState().setMinConfidence(80)
+
+    renderHook(() => useFireData({ mapRef, fireDataRef }))
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(fireDataRef.current.features).toHaveLength(1)
+    expect(fireDataRef.current.features[0].properties?.confidence).toBe(90)
+  })
+
+  it("should hide detections from a sensor that is switched off", async () => {
+    const mapRef = { current: mapMock } as any
+    mapMock.loaded.mockReturnValue(true)
+
+    vi.mocked(fetchActiveFires).mockResolvedValueOnce({
+      type: "FeatureCollection",
+      features: [
+        { type: "Feature", geometry: { type: "Point", coordinates: [23, 42] }, properties: { source: SENSOR_MODIS } },
+        { type: "Feature", geometry: { type: "Point", coordinates: [24, 42] }, properties: { source: SENSOR_VIIRS } },
+      ],
+    })
+
+    useFilterStore.getState().toggleSensor(SENSOR_VIIRS, false)
+
+    renderHook(() => useFireData({ mapRef, fireDataRef }))
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(fireDataRef.current.features).toHaveLength(1)
+    expect(fireDataRef.current.features[0].properties?.source).toBe(SENSOR_MODIS)
   })
 
   it("should clean up event listener and interval on unmount", () => {

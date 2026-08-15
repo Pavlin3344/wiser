@@ -1,121 +1,158 @@
-import React, { useState } from "react"
-import { AlertTriangle, Flame, Navigation, Volume2, VolumeX, ShieldAlert, CheckCircle2 } from "lucide-react"
+import React, { useEffect, useState } from "react"
+import { AlertTriangle, Flame, Navigation, ShieldAlert, CheckCircle2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 import { SidebarGroup, SidebarGroupLabel } from "@/components/ui/sidebar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { mockFireData } from "@/mocks/fire-data"
+import { fetchAlerts, fetchActiveFires, type Alert } from "@/services/fireService"
 import { useMapStore } from "@/store/use-map-store"
 import { useLayerStore } from "@/store/use-layer-store"
+
+/** Where a fire sits on the map, resolved from the active detections feed. */
+type FireLocations = Record<number, { lat: number; lng: number }>
 
 export function AlertsPage() {
   const { setFlyToTarget } = useMapStore()
   const { setShowFires } = useLayerStore()
-  const [mutedAlerts, setMutedAlerts] = useState<Record<string, boolean>>({})
-  const [dispatchedAlerts, setDispatchedAlerts] = useState<Record<string, boolean>>({})
 
-  const fireAlerts = mockFireData.features.map((feature, index) => {
-    const coords = feature.geometry.type === "Point" ? (feature.geometry.coordinates as [number, number]) : [0, 0]
-    const props = feature.properties || {}
-    const intensity = props.intensity || "moderate"
-    const title = props.title || `Ignition Detected #${index + 1}`
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [fireLocations, setFireLocations] = useState<FireLocations>({})
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
+  const [reviewed, setReviewed] = useState<Record<number, boolean>>({})
+  const [loadedAt, setLoadedAt] = useState(() => Date.now())
 
-    const sector = coords[0] > 0
-      ? (coords[0] > 25.5 ? "Eastern Sector" : coords[0] < 22 ? "Southern Sector" : "Central Sector")
-      : "Pacific Range"
+  useEffect(() => {
+    let cancelled = false
 
-    return {
-      id: `fire-${index}`,
-      title,
-      sector,
-      intensity,
-      lat: coords[1],
-      lng: coords[0],
-      time: "Active Now",
-      type: "fire",
+    // Alerts carry a fire_id but no coordinates, so the active detections are used to
+    // resolve a location. A missing fire only disables navigation, never the alert.
+    Promise.all([fetchAlerts(), fetchActiveFires().catch(() => null)])
+      .then(([loadedAlerts, fires]) => {
+        if (cancelled) return
+
+        const locations: FireLocations = {}
+        for (const feature of fires?.features ?? []) {
+          const id = feature.properties?.id
+          if (typeof id === "number" && feature.geometry.type === "Point") {
+            const [lng, lat] = feature.geometry.coordinates as [number, number]
+            locations[id] = { lat, lng }
+          }
+        }
+
+        setAlerts(loadedAlerts)
+        setFireLocations(locations)
+        setLoadedAt(Date.now())
+        setFailed(false)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        console.warn(`[Wiser] Could not load alerts (${err}).`)
+        setFailed(true)
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
     }
-  })
+  }, [])
 
-  const allAlerts = [
-    ...fireAlerts,
-    {
-      id: "sys-1",
-      title: "Weather Station Telemetry Lag",
-      sector: "Rila Peak (Station W-09)",
-      intensity: "moderate",
-      lat: 42.17,
-      lng: 23.58,
-      time: "45 mins ago",
-      type: "system",
+  const handleFlyTo = (alert: Alert) => {
+    const location = alert.fireId !== null ? fireLocations[alert.fireId] : undefined
+    if (!location) {
+      toast.info("No map location for this alert", {
+        description: "Its fire is not among the current active detections.",
+      })
+      return
     }
-  ]
 
-  const handleFlyTo = (alert: typeof allAlerts[0]) => {
-    // If it's a fire alert, make sure the fire layer is active so they can see the marker!
-    if (alert.type === "fire") {
-      setShowFires(true)
-    }
-    setFlyToTarget({ lat: alert.lat, lng: alert.lng, zoom: 12 })
-    toast.success(`Navigating to ${alert.title}`, {
-      description: `Coordinates: ${alert.lat.toFixed(4)}° N, ${alert.lng.toFixed(4)}° E`,
+    setShowFires(true)
+    setFlyToTarget({ lat: location.lat, lng: location.lng, zoom: 12 })
+    toast.success("Navigating to alert", {
+      description: `Coordinates: ${location.lat.toFixed(4)}° N, ${location.lng.toFixed(4)}° E`,
     })
   }
 
-  const toggleMute = (id: string, e: React.MouseEvent) => {
+  // Session-local on purpose. The alerts table has an acknowledged_at column but no
+  // endpoint writes it yet, so this must not look like it dispatched anyone.
+  const toggleReviewed = (id: number, e: React.MouseEvent) => {
     e.stopPropagation()
-    const isNowMuted = !mutedAlerts[id]
-    setMutedAlerts(prev => ({ ...prev, [id]: isNowMuted }))
-    if (isNowMuted) {
-      toast.info("Audio notifications muted for this alert")
-    } else {
-      toast.info("Audio notifications unmuted for this alert")
-    }
+    const next = !reviewed[id]
+    setReviewed((prev) => ({ ...prev, [id]: next }))
+    toast.info(next ? "Marked as reviewed (this session only)" : "Review mark removed")
   }
 
-  const handleDispatch = (id: string, title: string, e: React.MouseEvent) => {
-    e.stopPropagation()
-    const isNowDispatched = !dispatchedAlerts[id]
-    setDispatchedAlerts(prev => ({ ...prev, [id]: isNowDispatched }))
-    if (isNowDispatched) {
-      toast.success(`Emergency dispatched for: ${title}`, {
-        icon: <ShieldAlert className="text-destructive size-4" />,
-      })
-    } else {
-      toast.info(`Emergency response stand-down for: ${title}`)
-    }
-  }
-
-  const getIntensityStyles = (intensity: string) => {
-    switch (intensity) {
+  const getSeverityStyles = (severity: string) => {
+    switch (severity) {
       case "critical":
         return "bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/25 animate-pulse"
       case "high":
         return "bg-orange-500/10 border-orange-500/30 text-orange-500 hover:bg-orange-500/25"
-      case "moderate":
+      case "medium":
         return "bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/25"
       default:
         return "bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/25"
     }
   }
 
+  // Anchored to when the feed was loaded rather than read during render: calling
+  // Date.now() while rendering is an impure read, and the label would drift anyway.
+  const relativeTime = (iso: string) => {
+    const minutes = Math.round((loadedAt - new Date(iso).getTime()) / 60_000)
+    if (minutes < 1) return "just now"
+    if (minutes < 60) return `${minutes} min ago`
+    const hours = Math.round(minutes / 60)
+    if (hours < 24) return `${hours}h ago`
+    return `${Math.round(hours / 24)}d ago`
+  }
+
   return (
     <SidebarGroup className="min-h-0">
-
       <SidebarGroupLabel>
         <div className="w-full flex items-center justify-between">
           <span>System Alerts</span>
-          <Badge variant="outline" className="text-[10px] bg-destructive/10 border-destructive text-destructive">
-            <span className="animate-pulse">{allAlerts.length} LIVE</span>
-          </Badge>
+          {!loading && !failed && (
+            <Badge variant="outline" className="text-[10px] bg-destructive/10 border-destructive text-destructive">
+              {alerts.length} ACTIVE
+            </Badge>
+          )}
         </div>
       </SidebarGroupLabel>
 
       <div className="overflow-y-auto px-2 pt-3 space-y-2 no-scrollbar rounded-2xl max-h-[calc(100vh-28rem)]">
-        {allAlerts.map((alert) => {
-          const isDispatched = dispatchedAlerts[alert.id]
-          const isMuted = mutedAlerts[alert.id]
-          const severityStyles = getIntensityStyles(alert.intensity)
+        {loading && (
+          <div className="flex items-center gap-2 justify-center py-6 text-xs text-muted-foreground">
+            <Loader2 className="size-3.5 animate-spin" /> Loading alerts...
+          </div>
+        )}
+
+        {!loading && failed && (
+          <div className="flex flex-col items-center gap-1 py-6 text-center">
+            <AlertTriangle className="size-4 text-destructive" />
+            <p className="text-xs font-semibold">Alert feed unavailable</p>
+            <p className="text-[10px] text-muted-foreground px-4">
+              The backend did not respond, so this list is not a picture of current risk.
+            </p>
+          </div>
+        )}
+
+        {!loading && !failed && alerts.length === 0 && (
+          <div className="flex flex-col items-center gap-1 py-6 text-center">
+            <CheckCircle2 className="size-4 text-emerald-500" />
+            <p className="text-xs font-semibold">No active alerts</p>
+            <p className="text-[10px] text-muted-foreground px-4">
+              No fire has been detected near tracked critical infrastructure.
+            </p>
+          </div>
+        )}
+
+        {alerts.map((alert) => {
+          const isReviewed = reviewed[alert.id]
+          const severityStyles = getSeverityStyles(alert.severity)
+          const hasLocation = alert.fireId !== null && fireLocations[alert.fireId] !== undefined
 
           return (
             <div
@@ -126,27 +163,22 @@ export function AlertsPage() {
                 bg-background/20 hover:bg-background/40 backdrop-blur-md rounded-2xl
                 border border-white/10 border-t-white/20 border-l-white/20
                 shadow-sm hover:shadow-md
-                ${isDispatched ? "ring-1 ring-emerald-500/40 border-emerald-500/30" : ""}
+                ${isReviewed ? "ring-1 ring-emerald-500/40 border-emerald-500/30" : ""}
               `}
             >
               <div className="flex gap-2.5 items-start">
                 <div className={`p-2 rounded-xl shrink-0 ${severityStyles}`}>
-                  {alert.type === "fire" ? (
-                    <Flame className="size-3 animate-pulse text-red-500" />
-                  ) : (
-                    <AlertTriangle className="size-3 text-amber-500" />
-                  )}
+                  <Flame className="size-3 text-red-500" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-0.5">
+                  <div className="flex items-center justify-between mb-0.5 gap-1">
                     <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider truncate">
-                      {alert.sector}
+                      {alert.targetType ?? alert.alertType}
                     </span>
-                    <span className="text-[9px] text-muted-foreground">•</span>
-                    <span className="text-[9px] text-muted-foreground truncate">{alert.time}</span>
+                    <span className="text-[9px] text-muted-foreground shrink-0">{relativeTime(alert.sentAt)}</span>
                   </div>
                   <p className="text-xs font-bold text-foreground truncate group-hover/alert:text-destructive transition-colors">
-                    {alert.title}
+                    {alert.message ?? `${alert.alertType} alert`}
                   </p>
                 </div>
               </div>
@@ -154,17 +186,11 @@ export function AlertsPage() {
               <div className="flex items-center justify-between mt-1 pt-2 border-t border-white/5">
                 <div className="flex items-center gap-1.5">
                   <Badge variant="outline" className={`capitalize h-4 px-1 text-[9px] font-bold border-none rounded-full ${severityStyles}`}>
-                    {alert.intensity}
+                    {alert.severity}
                   </Badge>
-                  {!isDispatched && alert.intensity === "critical" && (
-                    <div className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                    </div>
-                  )}
-                  {isDispatched && (
-                    <Badge variant="outline" className="h-4 px-1 text-[9px] font-bold bg-emerald-500/10 border-none text-emerald-500 rounded-full flex items-center gap-0.5 animate-in fade-in zoom-in-95 duration-200">
-                      <CheckCircle2 className="size-2.5" /> Dispatched
+                  {isReviewed && (
+                    <Badge variant="outline" className="h-4 px-1 text-[9px] font-bold bg-emerald-500/10 border-none text-emerald-500 rounded-full flex items-center gap-0.5">
+                      <CheckCircle2 className="size-2.5" /> Reviewed
                     </Badge>
                   )}
                 </div>
@@ -173,27 +199,22 @@ export function AlertsPage() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="size-6 rounded-md hover:bg-background/40 hover:text-foreground text-muted-foreground"
-                    onClick={(e) => toggleMute(alert.id, e)}
-                  >
-                    {isMuted ? <VolumeX className="size-3.5 text-red-500" /> : <Volume2 className="size-3.5" />}
-                  </Button>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className={`size-6 rounded-md hover:bg-background/40 ${isDispatched ? "text-emerald-500" : "text-muted-foreground hover:text-destructive"}`}
-                    onClick={(e) => handleDispatch(alert.id, alert.title, e)}
+                    className={`size-6 rounded-md hover:bg-background/40 ${isReviewed ? "text-emerald-500" : "text-muted-foreground hover:text-emerald-500"}`}
+                    onClick={(e) => toggleReviewed(alert.id, e)}
+                    title="Mark as reviewed"
                   >
                     <ShieldAlert className="size-3.5" />
                   </Button>
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="size-6 rounded-md hover:bg-background/40 text-muted-foreground hover:text-sky-500"
+                    disabled={!hasLocation}
+                    className="size-6 rounded-md hover:bg-background/40 text-muted-foreground hover:text-sky-500 disabled:opacity-30"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleFlyTo(alert)
                     }}
+                    title={hasLocation ? "Show on map" : "Fire not among current detections"}
                   >
                     <Navigation className="size-3.5" />
                   </Button>

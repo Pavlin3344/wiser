@@ -1,22 +1,48 @@
-import { useEffect, type RefObject } from "react"
+import { useEffect, useRef, type RefObject } from "react"
 import type maplibregl from "maplibre-gl"
 import { toast } from "sonner"
 import type { FeatureCollection } from "geojson"
 import { syncLayers } from "@/hooks/use-map-layers"
 import { fetchActiveFires, FIRE_STREAM_URL } from "@/services/fireService"
 import { useDataStore } from "@/store/use-data-store"
+import { useFilterStore } from "@/store/use-filter-store"
 
 /** Fallback poll interval, used only when the live stream cannot be established (ms). */
 const POLL_INTERVAL_MS = 5 * 60 * 1_000 // 5 minutes
+
+const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] }
+
+/** Applies the detection filters to whatever the backend last returned. */
+function filterDetections(raw: FeatureCollection, minConfidence: number, enabledSensors: string[]): FeatureCollection {
+  return {
+    ...raw,
+    features: raw.features.filter((feature) => {
+      const props = feature.properties ?? {}
+      const confidence = typeof props.confidence === "number" ? props.confidence : 0
+      if (confidence < minConfidence) return false
+      // Detections from an unknown sensor are kept: hiding data because we do not
+      // recognise its label would be worse than showing it.
+      const source = typeof props.source === "string" ? props.source : null
+      return source === null || enabledSensors.includes(source)
+    }),
+  }
+}
 
 /**
  * Keeps the map in sync with backend active fire data.
  *
  * Prefers a Server-Sent Events stream so detections appear as they are ingested;
- * falls back to polling when the stream cannot be established (proxy or network
- * blocking text/event-stream).
+ * falls back to polling when the stream cannot be established. There is no offline
+ * fallback data - an unreachable backend leaves the map empty and says so.
  */
 export function useFireData({ mapRef, fireDataRef }: { mapRef: RefObject<maplibregl.Map | null>; fireDataRef: RefObject<FeatureCollection> }): void {
+  const minConfidence = useFilterStore((s) => s.minConfidence)
+  const enabledSensors = useFilterStore((s) => s.enabledSensors)
+  const liveUpdates = useFilterStore((s) => s.liveUpdates)
+
+  // Unfiltered backend response, so changing a filter re-renders without a refetch.
+  const rawRef = useRef<FeatureCollection>(EMPTY)
+
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
@@ -25,26 +51,36 @@ export function useFireData({ mapRef, fireDataRef }: { mapRef: RefObject<maplibr
     let pollIntervalId: ReturnType<typeof setInterval> | null = null
     let warnedOffline = false
 
-    const applyData = (data: FeatureCollection) => {
-      fireDataRef.current = data
-      syncLayers(map, data)
-      useDataStore.getState().setActiveFireCount(data.features.length)
+    const render = () => {
+      const filtered = filterDetections(rawRef.current, minConfidence, enabledSensors)
+      fireDataRef.current = filtered
+      syncLayers(map, filtered)
+      useDataStore.getState().setActiveFireCount(filtered.features.length)
     }
 
-    const keepStaleData = (reason: string) => {
-      console.warn(`[Wiser] Backend unavailable (${reason}). Using EFFIS mock data.`)
+    const applyData = (data: FeatureCollection) => {
+      rawRef.current = data
+      render()
+    }
+
+    const reportOffline = (reason: string) => {
+      console.warn(`[Wiser] Could not load active fires (${reason}).`)
       if (!warnedOffline) {
         warnedOffline = true
-        toast.warning("Backend unavailable. Using EFFIS mock data.")
+        toast.error("Live fire data unavailable", {
+          description: "The map cannot be trusted until the backend responds again.",
+          duration: 10_000,
+        })
       }
-      syncLayers(map, fireDataRef.current)
-      useDataStore.getState().setActiveFireCount(fireDataRef.current.features.length)
     }
 
     const fetchAndSyncData = () => {
       fetchActiveFires()
-        .then(applyData)
-        .catch((err) => keepStaleData(String(err)))
+        .then((data) => {
+          warnedOffline = false
+          applyData(data)
+        })
+        .catch((err) => reportOffline(String(err)))
     }
 
     const startPolling = () => {
@@ -79,7 +115,7 @@ export function useFireData({ mapRef, fireDataRef }: { mapRef: RefObject<maplibr
 
     const start = () => {
       fetchAndSyncData()
-      startStream()
+      if (liveUpdates) startStream()
     }
 
     if (map.loaded()) {
@@ -93,5 +129,5 @@ export function useFireData({ mapRef, fireDataRef }: { mapRef: RefObject<maplibr
       eventSource?.close()
       if (pollIntervalId !== null) clearInterval(pollIntervalId)
     }
-  }, [mapRef, fireDataRef])
+  }, [mapRef, fireDataRef, minConfidence, enabledSensors, liveUpdates])
 }

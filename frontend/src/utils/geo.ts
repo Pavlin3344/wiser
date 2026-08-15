@@ -1,4 +1,4 @@
-import bulgariaBorderData from "@/mocks/bulgaria-border.json"
+import bulgariaBorderData from "@/data/bulgaria-border.json"
 
 export const bulgariaBorder = bulgariaBorderData.geometry.coordinates as number[][][];
 

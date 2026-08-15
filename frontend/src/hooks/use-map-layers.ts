@@ -3,7 +3,6 @@ import maplibregl from "maplibre-gl"
 import type { FeatureCollection } from "geojson"
 import { useLayerStore } from "@/store/use-layer-store"
 import { useFilterStore } from "@/store/use-filter-store"
-import { mockFireData } from "@/mocks/fire-data"
 import { useMapStore } from "@/store/use-map-store"
 import { isPointInPolygon, bulgariaBorder } from "@/utils/geo"
 
@@ -43,7 +42,9 @@ export function initializeLayers(map: maplibregl.Map): void {
   // Starts empty on purpose - routes only ever come from the backend, which computes
   // them from the real road network and excludes roads running beside active fires.
   addSource("evac-routes", { type: "geojson", data: { type: "FeatureCollection", features: [] } })
-  addSource("active-fires", { type: "geojson", data: mockFireData as FeatureCollection })
+  // Empty until useFireData loads real detections - the map must never show a fire
+  // that is not actually burning.
+  addSource("active-fires", { type: "geojson", data: { type: "FeatureCollection", features: [] } })
   addSource("user-location", {
     type: "geojson",
     data: { type: "FeatureCollection", features: [] },

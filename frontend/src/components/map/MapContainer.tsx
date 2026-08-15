@@ -3,7 +3,6 @@ import "maplibre-gl/dist/maplibre-gl.css"
 import type { FeatureCollection } from "geojson"
 
 import { MapNavigation } from "@/components/map/MapNavigation"
-import { mockFireData } from "@/mocks/fire-data"
 import { useMapEvents } from "@/hooks/use-map-events"
 import { useMapInit } from "@/hooks/use-map-init"
 import { initializeLayers, syncLayers, useMapLayers } from "@/hooks/use-map-layers"
@@ -19,7 +18,7 @@ import { MapScale } from "@/components/overlays/MapScale"
 
 export function MapContainer() {
   const containerRef = useRef<HTMLDivElement>(null)
-  const fireDataRef = useRef<FeatureCollection>(mockFireData)
+  const fireDataRef = useRef<FeatureCollection>({ type: "FeatureCollection", features: [] })
   const mapRef = useMapInit(containerRef)
   const showWind = useLayerStore((s) => s.showWind)
 

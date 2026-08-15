@@ -20,10 +20,33 @@ public class FireRepository {
         LIMIT 5000
         """;
 
+    // Days with no detections still have to appear in the chart, otherwise a quiet
+    // Tuesday silently vanishes and the week looks shorter than it was.
+    private static final String DAILY_COUNTS_SQL = """
+        SELECT d.day::date AS day, COUNT(f.id) AS fire_count
+        FROM generate_series(
+                 (CURRENT_DATE - make_interval(days => ? - 1)),
+                 CURRENT_DATE,
+                 '1 day'
+             ) AS d(day)
+        LEFT JOIN active_fires f ON f.detected_at >= d.day AND f.detected_at < d.day + INTERVAL '1 day'
+        GROUP BY d.day
+        ORDER BY d.day
+        """;
+
     private final JdbcTemplate jdbcTemplate;
 
     public FireRepository(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+    }
+
+    public List<DailyFireCount> findDailyCounts(int days) {
+        return jdbcTemplate.query(DAILY_COUNTS_SQL, (rs, rowNum) -> new DailyFireCount(
+                rs.getDate("day").toLocalDate(),
+                rs.getInt("fire_count")), days);
+    }
+
+    public record DailyFireCount(java.time.LocalDate day, int count) {
     }
 
     public List<ActiveFireRow> findActiveFires() {

@@ -9,10 +9,11 @@ interface DataState {
   setOverallRiskLevel: (level: RiskLevel) => void
 }
 
-/** Runtime-only store — derived from backend / mock data.
+/** Runtime-only store — derived from backend data.
  *  Not persisted; values are always fetched fresh on mount. */
 export const useDataStore = create<DataState>()((set) => ({
-  activeFireCount: 12,
+  // Starts at zero: any other number would be a count of fires nobody detected.
+  activeFireCount: 0,
   setActiveFireCount: (activeFireCount) => set({ activeFireCount }),
 
   overallRiskLevel: "Moderate",
