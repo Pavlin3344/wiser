@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 
+import { AirQualityPanel } from "@/pages/phase2/AirQualityPanel"
 import { fetchActiveFires } from "@/services/fireService"
 import { useMapStore } from "@/store/use-map-store"
 import { useLayerStore } from "@/store/use-layer-store"
@@ -187,6 +188,8 @@ export function DetectionPage() {
           </Button>
         </div>
       </SidebarGroup>
+
+      <AirQualityPanel />
     </>
   )
 }

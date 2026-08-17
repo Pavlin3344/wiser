@@ -1,4 +1,4 @@
-import { intensityStyle, escHtml } from "@/utils/helpers"
+import { intensityStyle, escHtml, eaqiBand } from "@/utils/helpers"
 
 describe("helpers utility module", () => {
   describe("intensityStyle", () => {
@@ -27,6 +27,40 @@ describe("helpers utility module", () => {
         text: "text-amber-500",
         label: "moderate",
       })
+    })
+  })
+
+  describe("eaqiBand", () => {
+    it("should place a concentration in the band its value falls into", () => {
+      expect(eaqiBand("pm25", 5)?.label).toBe("Good")
+      expect(eaqiBand("pm25", 15)?.label).toBe("Fair")
+      expect(eaqiBand("pm25", 22)?.label).toBe("Moderate")
+      expect(eaqiBand("pm25", 40)?.label).toBe("Poor")
+      expect(eaqiBand("pm25", 60)?.label).toBe("Very poor")
+      expect(eaqiBand("pm25", 900)?.label).toBe("Extremely poor")
+    })
+
+    it("should treat a breakpoint as the start of the next band", () => {
+      expect(eaqiBand("pm25", 10)?.label).toBe("Fair")
+      expect(eaqiBand("pm10", 20)?.label).toBe("Fair")
+      expect(eaqiBand("no2", 40)?.label).toBe("Fair")
+    })
+
+    it("should use different breakpoints per pollutant", () => {
+      expect(eaqiBand("pm25", 30)?.label).toBe("Poor")
+      expect(eaqiBand("pm10", 30)?.label).toBe("Fair")
+      expect(eaqiBand("no2", 30)?.label).toBe("Good")
+    })
+
+    it("should expose an ordered level so the worst pollutant can be picked", () => {
+      expect(eaqiBand("pm25", 5)?.level).toBe(1)
+      expect(eaqiBand("pm25", 900)?.level).toBe(6)
+    })
+
+    it("should return null for a missing reading rather than a colour", () => {
+      expect(eaqiBand("pm25", null)).toBeNull()
+      expect(eaqiBand("pm25", undefined)).toBeNull()
+      expect(eaqiBand("pm25", Number.NaN)).toBeNull()
     })
   })
 
