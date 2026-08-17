@@ -297,9 +297,9 @@ services:
       retries: 3
     logging: *default-logging
 
-  # Python workers. FWI and NDVI are long-lived RabbitMQ consumers; fuel and
-  # risk_zones are one-shot jobs (see docker-compose.jobs.yml) so they do not hold
-  # memory between runs on a RAM-tight host.
+  # Python workers. FWI and NDVI are long-lived RabbitMQ consumers; fuel is a one-time
+  # bootstrap kept in docker-compose.jobs.yml so it does not hold memory on a RAM-tight
+  # host.
   worker-fwi:
     build:
       context: ../../data/processing
@@ -345,6 +345,51 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+    logging: *default-logging
+
+  # Rebuilds the `zones` table from FWI + NDVI + fuel. This used to be a one-shot job
+  # driven by host cron - but that cron lived outside the repository, was never set up,
+  # and `zones` stayed empty while every input was being collected correctly. Scheduling
+  # it inside the container keeps the daily rhythm declared next to the thing it runs.
+  #
+  # Between runs the process is a sleeping Python interpreter (tens of MB); the limit is
+  # sized for the peak, when rasterio holds the NDVI and fuel bands in memory.
+  #
+  # One-off run (backfill, or after changing the model):
+  #   docker compose run --rm -e RISK_ZONES_INTERVAL_SECONDS=0 risk-zones
+  risk-zones:
+    build:
+      context: ../../data/processing
+      dockerfile: Dockerfile
+      args:
+        WORKER: risk_zones
+        ENTRYPOINT_FILE: job.py
+    container_name: wiser-risk-zones
+    restart: unless-stopped
+    mem_limit: 768m
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TIMESCALE_HOST: timescale
+      TIMESCALE_PORT: 5432
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # EFFIS publishes FWI once a day, but the container cannot know at which hour that
+      # lands, so it re-checks every six hours rather than waiting out a full day.
+      RISK_ZONES_INTERVAL_SECONDS: "21600"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      flyway-postgres:
+        condition: service_completed_successfully
+      timescale:
+        condition: service_healthy
+      flyway-timescale:
+        condition: service_completed_successfully
       minio:
         condition: service_healthy
     logging: *default-logging

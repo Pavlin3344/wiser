@@ -8,8 +8,10 @@
 Идемпотентен за деня: трие зоните за днешната дата и ги записва наново.
 """
 import logging
+import os
 import tempfile
-from datetime import date
+import time
+from datetime import date, timedelta
 
 import psycopg
 import rasterio
@@ -23,6 +25,15 @@ log = logging.getLogger("risk-zones")
 PRODUCTS_BUCKET = "processed-products"
 FUEL_KEY = "fuel/bg_fuel.tif"  # EFFIS NFFL fuel карта, изрязана за България
 CELL_HALF_DEG = 0.036          # ~8 km / 2, за квадратна клетка около точката
+
+# 0 = еднократно пускане (за ръчен run и backfill). Стойност > 0 включва вграден
+# планировчик, за да не зависи дневният ритъм от cron на хоста — той не е част от
+# репото и затова просто липсваше, а `zones` стоеше празна.
+INTERVAL_SECONDS = int(os.getenv("RISK_ZONES_INTERVAL_SECONDS", "0"))
+
+# Всеки ден се пише като отделен `valid_date`, а само днешният се трие преди запис,
+# така че без таван старите дни се трупат вечно.
+RETENTION_DAYS = int(os.getenv("RISK_ZONES_RETENTION_DAYS", "7"))
 
 INSERT_SQL = """
     INSERT INTO zones
@@ -123,6 +134,10 @@ def main() -> None:
     with psycopg.connect(postgres_dsn()) as pdb:
         with pdb.cursor() as cur:
             cur.execute("DELETE FROM zones WHERE valid_date = %s", (today,))
+            cur.execute(
+                "DELETE FROM zones WHERE valid_date < %s",
+                (today - timedelta(days=RETENTION_DAYS),),
+            )
             for lat, lon, fwi, fclass in points:
                 ndvi_mean = sample_ndvi(ndvi, lon, lat)
                 fuel_code = sample_fuel(fuel, lon, lat)
@@ -138,5 +153,24 @@ def main() -> None:
     log.info("Записах %d риск зони за %s", len(points), today)
 
 
+def run_forever(interval: int) -> None:
+    """Смята зоните на фиксиран ритъм.
+
+    Провален цикъл НЕ спира графика: следващото публикуване на FWI е по-добро
+    възстановяване от мъртъв контейнер, а рестарт би довел до незабавен повторен
+    опит в цикъл вместо изчакване.
+    """
+    log.info("Планировчик: преизчислявам риск зоните на всеки %d s", interval)
+    while True:
+        try:
+            main()
+        except Exception:  # noqa: BLE001 — цикълът трябва да преживее всяка грешка
+            log.exception("Риск зоните не бяха преизчислени; следващ опит след %d s", interval)
+        time.sleep(interval)
+
+
 if __name__ == "__main__":
-    main()
+    if INTERVAL_SECONDS > 0:
+        run_forever(INTERVAL_SECONDS)
+    else:
+        main()

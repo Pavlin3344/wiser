@@ -2,40 +2,17 @@
 # They finish and exit rather than sitting resident, which matters on a host where
 # the always-on containers already claim most of the RAM.
 #
-#   docker compose -f docker-compose.yml -f docker-compose.jobs.yml run --rm risk-zones
 #   docker compose -f docker-compose.yml -f docker-compose.jobs.yml run --rm fuel-loader
 #
-# risk-zones is the daily batch that rebuilds the `zones` table; drive it from host
-# cron. fuel-loader is a one-time bootstrap of the EFFIS fuel raster.
+# fuel-loader is a one-time bootstrap of the EFFIS fuel raster.
+#
+# risk-zones used to live here as a one-shot driven by host cron. That cron was never
+# part of the repository and never existed on the host, so the `zones` table stayed
+# empty; it is now a scheduled service in docker-compose.yml. To run it once by hand:
+#
+#   docker compose run --rm -e RISK_ZONES_INTERVAL_SECONDS=0 risk-zones
 
 services:
-  risk-zones:
-    build:
-      context: ../../data/processing
-      dockerfile: Dockerfile
-      args:
-        WORKER: risk_zones
-        ENTRYPOINT_FILE: job.py
-    container_name: wiser-job-risk-zones
-    restart: "no"
-    mem_limit: 768m
-    environment:
-      POSTGRES_HOST: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      TIMESCALE_HOST: timescale
-      TIMESCALE_PORT: 5432
-      MINIO_ENDPOINT: http://minio:9000
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
-    # YAML anchors do not carry across compose files, so this repeats the
-    # x-default-logging block from docker-compose.yml rather than referencing it.
-    logging:
-      driver: json-file
-      options:
-        max-size: "10m"
-        max-file: "3"
-
   fuel-loader:
     build:
       context: ../../data/processing
