@@ -285,8 +285,10 @@ export function AirQualityPanel() {
                 <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} stroke="var(--muted-foreground)" minTickGap={24} />
                 <YAxis fontSize={10} tickLine={false} axisLine={false} width={24} stroke="var(--muted-foreground)" />
                 <Tooltip content={<ChartTooltip />} cursor={{ fill: "var(--muted)" }} />
-                <Area type="monotone" dataKey="pm10" stroke={PM10_COLOR} strokeWidth={1.5} fill="url(#areaPm10)" connectNulls />
-                <Area type="monotone" dataKey="pm25" stroke={PM25_COLOR} strokeWidth={1.5} fill="url(#areaPm25)" connectNulls />
+                {/* A line through one or two points draws nothing visible, and the
+                    series starts out that short: the poller adds one bucket an hour. */}
+                <Area type="monotone" dataKey="pm10" stroke={PM10_COLOR} strokeWidth={1.5} fill="url(#areaPm10)" connectNulls dot={chartData.length < 3} />
+                <Area type="monotone" dataKey="pm25" stroke={PM25_COLOR} strokeWidth={1.5} fill="url(#areaPm25)" connectNulls dot={chartData.length < 3} />
               </AreaChart>
             </ResponsiveContainer>
           )}
@@ -299,7 +301,11 @@ export function AirQualityPanel() {
           <span className="flex items-center gap-1">
             <span className="size-2 rounded-full" style={{ backgroundColor: PM10_COLOR }} /> PM10
           </span>
-          <span className="ml-auto">Hourly average, µg/m³</span>
+          <span className="ml-auto">
+            {chartData.length === 1
+              ? "1 hourly reading so far"
+              : `${chartData.length} hourly readings, µg/m³`}
+          </span>
         </div>
       </SidebarGroup>
     </>
