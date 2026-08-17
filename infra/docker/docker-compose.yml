@@ -198,6 +198,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/wiser
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       WISER_API_KEY: ${WISER_API_KEY}
+      # Air quality and FWI are time series, kept in TimescaleDB.
+      TIMESCALE_URL: jdbc:postgresql://timescale:5432/wiser_timeseries
       # Consumes fire.detections and fans it out to dashboards over SSE.
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: ${RABBITMQ_USER}
@@ -206,6 +208,10 @@ services:
       postgres:
         condition: service_healthy
       flyway-postgres:
+        condition: service_completed_successfully
+      timescale:
+        condition: service_healthy
+      flyway-timescale:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
@@ -259,6 +265,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/wiser
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       WISER_API_KEY: ${WISER_API_KEY}
+      # Air quality readings are written to TimescaleDB, not the PostGIS database.
+      TIMESCALE_URL: jdbc:postgresql://timescale:5432/wiser_timeseries
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_USER: ${RABBITMQ_USER}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
@@ -273,6 +281,10 @@ services:
       postgres:
         condition: service_healthy
       flyway-postgres:
+        condition: service_completed_successfully
+      timescale:
+        condition: service_healthy
+      flyway-timescale:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy

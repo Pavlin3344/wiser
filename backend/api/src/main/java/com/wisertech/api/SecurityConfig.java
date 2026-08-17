@@ -25,6 +25,7 @@ public class SecurityConfig {
                         // served to browsers, so it cannot hold a secret to present here.
                         .requestMatchers(HttpMethod.GET, "/api/v1/fires/active", "/api/v1/fires/stream").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/fires/daily-counts").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/air-quality/**").permitAll()
                         // Read-only alert feed the dashboard renders; writes stay protected.
                         .requestMatchers(HttpMethod.GET, "/api/alerts").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/zones/risk").permitAll()
