@@ -17,6 +17,6 @@ public class ZoneController {
     // to the backend, so the old /zones/risk path was unreachable in production.
     @GetMapping("/api/zones/risk")
     public List<Zone> getRiskZones() {
-        return zoneRepository.findAll();
+        return zoneRepository.findLatest();
     }
 }

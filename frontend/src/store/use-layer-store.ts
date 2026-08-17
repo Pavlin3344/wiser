@@ -11,8 +11,13 @@ interface LayerState {
   showLabels: boolean
   setShowLabels: (show: boolean) => void
 
+  /** Copernicus EFFIS fire weather raster - somebody else's model, shown as tiles. */
   showRiskGrid: boolean
   setShowRiskGrid: (show: boolean) => void
+
+  /** Wiser's own risk zones: FWI corrected by NDVI and fuel type, computed here. */
+  showRiskZones: boolean
+  setShowRiskZones: (show: boolean) => void
 
   /** Placeholder — layer not yet implemented; toggle is reserved for a future
    *  Sentinel-3 smoke/aerosol layer. Wired to the UI but has no map layer. */
@@ -53,6 +58,9 @@ export const useLayerStore = create<LayerState>()(
 
       showRiskGrid: true,
       setShowRiskGrid: (showRiskGrid) => set({ showRiskGrid }),
+
+      showRiskZones: false,
+      setShowRiskZones: (showRiskZones) => set({ showRiskZones }),
 
       showThermal: true,
       setShowThermal: (showThermal) => set({ showThermal }),

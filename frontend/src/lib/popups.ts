@@ -36,6 +36,59 @@ export const generateGlassPopupHTML = (
   </div>
 `
 
+const RISK_CLASS_LABELS = ["", "Low", "Moderate", "High", "Very High", "Extreme", "Very Extreme"]
+const RISK_CLASS_COLORS = ["", "#a0ffc3", "#cfe355", "#e7af0a", "#dc7719", "#b01117", "#41091f"]
+
+/**
+ * Breakdown of one Wiser risk cell.
+ *
+ * Shows the inputs next to the result rather than only the final class: the whole
+ * point of running our own model beside EFFIS is being able to say why the two
+ * disagree. A missing input reads as a dash, never as a zero measurement.
+ */
+export const generateRiskZonePopupHTML = (zone: {
+  riskClass: number
+  fwiClass: number
+  fwiValue: number | null
+  ndviMean: number | null
+  fuelType: number | null
+  validDate: string
+}) => {
+  const label = RISK_CLASS_LABELS[zone.riskClass] ?? "Unknown"
+  const color = RISK_CLASS_COLORS[zone.riskClass] ?? "#a0ffc3"
+  const num = (value: number | null, digits: number) =>
+    typeof value === "number" ? value.toFixed(digits) : "—"
+
+  const row = (name: string, value: string) => `
+      <div class="flex justify-between gap-4">
+        <span class="font-semibold text-foreground/70">${escHtml(name)}</span>
+        <span class="font-mono text-foreground">${escHtml(value)}</span>
+      </div>`
+
+  return `
+  <div class="relative font-sans max-w-60 p-3 bg-background/60 backdrop-blur-xl shadow-lg rounded-2xl border border-white/10 border-t-white/20 border-l-white/20">
+    <div class='absolute inset-0 rounded-2xl bg-linear-to-br from-white/5 to-transparent pointer-events-none'></div>
+
+    <div class="flex items-center justify-between mb-1.5">
+      <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">${escHtml(zone.validDate)}</div>
+      <div class="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-background/20 backdrop-blur-sm px-1.5 py-0.5 rounded-xl border border-border/10">WISER</div>
+    </div>
+
+    <div class="flex items-center gap-2 mb-3">
+      <div class="w-2.5 h-2.5 rounded-full border border-white/20" style="background-color: ${escHtml(color)}"></div>
+      <span class="font-bold text-sm text-foreground leading-tight">${escHtml(label)}</span>
+      <span class="ml-auto text-[10px] font-mono text-muted-foreground">class ${zone.riskClass}/6</span>
+    </div>
+
+    <div class="text-xs text-muted-foreground border-t border-white/10 pt-2 space-y-1">
+      ${row("FWI", `${num(zone.fwiValue, 1)} (class ${zone.fwiClass})`)}
+      ${row("NDVI", num(zone.ndviMean, 2))}
+      ${row("Fuel (NFFL)", zone.fuelType === null ? "—" : String(zone.fuelType))}
+    </div>
+  </div>
+`
+}
+
 export const generateSectorPopupHTML = (
   sectorId: string,
   level: string,

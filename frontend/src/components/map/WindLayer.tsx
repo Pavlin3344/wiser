@@ -3,8 +3,7 @@ import type { Map } from "maplibre-gl"
 import { toast } from "sonner"
 import { useUIStore } from "@/store/use-ui-store"
 import { useSidebar } from "@/components/ui/sidebar"
-import { useFilterStore } from "@/store/use-filter-store"
-import { isPointInPolygon, bulgariaBorder } from "@/utils/geo"
+import { isPointInPolygon, bulgariaBorder, bulgariaBBox } from "@/utils/geo"
 
 interface Particle {
   lng: number
@@ -181,7 +180,6 @@ export function WindLayer({ mapRef }: WindLayerProps) {
 
   const resolvedTheme = theme === "system" ? systemTheme : (theme as "light" | "dark")
 
-  const region = useFilterStore((s) => s.region)
   const { open: sidebarOpen, isMobile } = useSidebar()
 
   // Real weather data state
@@ -266,58 +264,21 @@ export function WindLayer({ mapRef }: WindLayerProps) {
     return [25.5, 42.7] // Fallback center of Bulgaria
   }
 
-  const initParticles = useCallback((width: number, height: number, map: Map) => {
+  // Particles only ever spawn inside the national border - the wind field is fetched
+  // for Bulgaria, so seeding them across the viewport would animate wind nobody measured.
+  const initParticles = useCallback(() => {
     const arr: Particle[] = []
-    const center = map.getCenter()
-    const { region } = useFilterStore.getState()
-    const isBulgaria = region === "bulgaria"
 
     for (let i = 0; i < particleCount; i++) {
-      if (isBulgaria) {
-        const [lng, lat] = getRandomPointInBulgaria(bulgariaBorder)
-        arr.push({
-          lng,
-          lat,
-          prevX: null,
-          prevY: null,
-          age: 0,
-          life: Math.random() * 80 + 40,
-        })
-      } else {
-        const rx = Math.random() * width
-        const ry = Math.random() * height
-        try {
-          const lngLat = map.unproject([rx, ry])
-          if (lngLat && !isNaN(lngLat.lng) && !isNaN(lngLat.lat) && isFinite(lngLat.lng) && isFinite(lngLat.lat)) {
-            arr.push({
-              lng: lngLat.lng,
-              lat: lngLat.lat,
-              prevX: null,
-              prevY: null,
-              age: 0,
-              life: Math.random() * 80 + 40,
-            })
-          } else {
-            arr.push({
-              lng: center?.lng ?? 0,
-              lat: center?.lat ?? 0,
-              prevX: null,
-              prevY: null,
-              age: 0,
-              life: Math.random() * 80 + 40,
-            })
-          }
-        } catch {
-          arr.push({
-            lng: center?.lng ?? 0,
-            lat: center?.lat ?? 0,
-            prevX: null,
-            prevY: null,
-            age: 0,
-            life: Math.random() * 80 + 40,
-          })
-        }
-      }
+      const [lng, lat] = getRandomPointInBulgaria(bulgariaBorder)
+      arr.push({
+        lng,
+        lat,
+        prevX: null,
+        prevY: null,
+        age: 0,
+        life: Math.random() * 80 + 40,
+      })
     }
     particles.current = arr
   }, [])
@@ -349,34 +310,15 @@ export function WindLayer({ mapRef }: WindLayerProps) {
       return
     }
 
-    const degreeSpanLng = Math.max(120 / Math.pow(1.5, Math.max(currentZoom - 2, 0)), 8)
-    const degreeSpanLat = Math.max(80 / Math.pow(1.5, Math.max(currentZoom - 2, 0)), 6)
+    // The grid always covers Bulgaria, whatever the camera is doing. Zooming out used
+    // to widen it to 120 degrees of longitude - a coarser grid, refetched on every pan,
+    // describing wind over countries this system does not monitor.
+    const { west, south, east, north } = bulgariaBBox
 
-    const west = center.lng - degreeSpanLng / 2
-    const east = center.lng + degreeSpanLng / 2
-    const south = Math.max(center.lat - degreeSpanLat / 2, -80)
-    const north = Math.min(center.lat + degreeSpanLat / 2, 80)
-
-    // B. Local Memory Cache Lookup: Check if we have a valid, recent grid that covers this area
+    // B. Local Memory Cache Lookup. With a fixed extent, age is the only thing that can
+    // invalidate a grid - checking zoom or containment no longer means anything.
     const now = Date.now()
-    const matchingCachedGrid = cachedGridsRef.current.find((grid) => {
-      // Must be recent
-      if (now - grid.timestamp > WIND_CACHE_LIFETIME) return false
-
-      // Zoom level must be close (within 1.0 unit)
-      if (Math.abs(currentZoom - grid.zoom) >= 1.0) return false
-
-      // Bounding box must fully contain the current map center with a 10% safety margin
-      const padLng = (grid.east - grid.west) * 0.1
-      const padLat = (grid.north - grid.south) * 0.1
-
-      return (
-        center.lng >= grid.west + padLng &&
-        center.lng <= grid.east - padLng &&
-        center.lat >= grid.south + padLat &&
-        center.lat <= grid.north - padLat
-      )
-    })
+    const matchingCachedGrid = cachedGridsRef.current.find((grid) => now - grid.timestamp <= WIND_CACHE_LIFETIME)
 
     if (matchingCachedGrid) {
       console.info("Found matching wind grid in memory cache. Skipping API call.")
@@ -398,26 +340,9 @@ export function WindLayer({ mapRef }: WindLayerProps) {
       return
     }
 
-    // C. Spatial Throttling: Check if center drift is minor compared to the currently loaded grid
-    const currentGrid = gridRef.current
-    if (currentGrid) {
-      const gridCenterLng = (currentGrid.west + currentGrid.east) / 2
-      const gridCenterLat = (currentGrid.south + currentGrid.north) / 2
-
-      const lngSpan = currentGrid.east - currentGrid.west
-      const latSpan = currentGrid.north - currentGrid.south
-
-      const deltaLng = Math.abs(center.lng - gridCenterLng)
-      const deltaLat = Math.abs(center.lat - gridCenterLat)
-      const zoomDiff = Math.abs(currentZoom - currentGrid.zoom)
-
-      if (deltaLng < lngSpan * 0.3 && deltaLat < latSpan * 0.3 && zoomDiff < 1.0) {
-        console.info("Reusing active wind grid. Center drift and zoom change are minor.")
-        toast.info("Reusing active wind grid. Center drift and zoom change are minor.")
-        if (status === "syncing") setStatus("live")
-        return
-      }
-    }
+    // The spatial throttle that used to sit here compared the camera against the grid's
+    // centre and zoom. Both are irrelevant to a fixed extent, and the cache check above
+    // already covers the only question left: is the grid still fresh.
 
     // D. Rate Limit Cooldown Check
     if (rateLimitResetTimeRef.current && Date.now() < rateLimitResetTimeRef.current) {
@@ -550,7 +475,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
     } finally {
       isFetchingRef.current = false
     }
-  }, [mapRef, status, setSpeedRange, setStatus])
+  }, [mapRef, setSpeedRange, setStatus])
 
   // Sync ref with the callback to allow recursive scheduling without lexical TDZ errors
   useEffect(() => {
@@ -570,7 +495,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
 
     const { width, height } = dimensions.current
     if (particles.current.length === 0 && width > 0 && height > 0) {
-      initParticles(width, height, map)
+      initParticles()
     }
 
     let animationFrameId: number
@@ -590,7 +515,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
 
       // If particles were not initialized (e.g. because dimensions were 0 initially), initialize them now
       if (particles.current.length === 0) {
-        initParticles(w, h, map)
+        initParticles()
       }
 
       // 1. Fade previous frame to create smooth, transparent trails
@@ -604,33 +529,16 @@ export function WindLayer({ mapRef }: WindLayerProps) {
       // Adjust speed factor dynamically based on zoom level
       const speedFactor = 0.35 / Math.pow(2, zoom)
 
-      const { region } = useFilterStore.getState()
-      const isBulgaria = region === "bulgaria"
-
       // 2. Process and draw each particle
       particles.current.forEach((p) => {
         try {
-          const isOutsideBulgaria = isBulgaria && !isPointInPolygon([p.lng, p.lat], bulgariaBorder)
+          const isOutsideBulgaria = !isPointInPolygon([p.lng, p.lat], bulgariaBorder)
 
           // If particle coordinate is invalid, outside bounds, or outside Bulgaria, respawn it immediately
           if (isOutsideBulgaria || typeof p.lng !== "number" || typeof p.lat !== "number" || isNaN(p.lng) || isNaN(p.lat) || !isFinite(p.lng) || !isFinite(p.lat) || p.lat < -85 || p.lat > 85) {
-            if (isBulgaria) {
-              const [lng, lat] = getRandomPointInBulgaria(bulgariaBorder)
-              p.lng = lng
-              p.lat = lat
-            } else {
-              const rx = Math.random() * w
-              const ry = Math.random() * h
-              const lngLat = map.unproject([rx, ry])
-              if (lngLat && !isNaN(lngLat.lng) && !isNaN(lngLat.lat)) {
-                p.lng = lngLat.lng
-                p.lat = lngLat.lat
-              } else {
-                const center = map.getCenter()
-                p.lng = center?.lng ?? 0
-                p.lat = center?.lat ?? 0
-              }
-            }
+            const [lng, lat] = getRandomPointInBulgaria(bulgariaBorder)
+            p.lng = lng
+            p.lat = lat
             p.age = 0
             p.life = Math.random() * 80 + 40
             p.prevX = null
@@ -648,23 +556,9 @@ export function WindLayer({ mapRef }: WindLayerProps) {
           const isOffScreen = isInvalidProject || x < 0 || x > w || y < 0 || y > h
 
           if (isOffScreen || p.age >= p.life) {
-            if (isBulgaria) {
-              const [lng, lat] = getRandomPointInBulgaria(bulgariaBorder)
-              p.lng = lng
-              p.lat = lat
-            } else {
-              const rx = Math.random() * w
-              const ry = Math.random() * h
-              const lngLat = map.unproject([rx, ry])
-              if (lngLat && !isNaN(lngLat.lng) && !isNaN(lngLat.lat)) {
-                p.lng = lngLat.lng
-                p.lat = lngLat.lat
-              } else {
-                const center = map.getCenter()
-                p.lng = center?.lng ?? 0
-                p.lat = center?.lat ?? 0
-              }
-            }
+            const [lng, lat] = getRandomPointInBulgaria(bulgariaBorder)
+            p.lng = lng
+            p.lat = lat
             p.age = 0
             p.life = Math.random() * 80 + 40
             p.prevX = null
@@ -774,7 +668,7 @@ export function WindLayer({ mapRef }: WindLayerProps) {
       map.off("resize", handleMapResize)
       map.off("moveend", handleMoveEnd)
     }
-  }, [mapReady, resolvedTheme, region, mapRef, fetchWindData, initParticles, resizeCanvas])
+  }, [mapReady, resolvedTheme, mapRef, fetchWindData, initParticles, resizeCanvas])
 
   return (
     <>

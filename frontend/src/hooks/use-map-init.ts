@@ -4,7 +4,6 @@ import { toast } from "sonner"
 import { useMapStore } from "@/store/use-map-store"
 import { useUIStore } from "@/store/use-ui-store"
 import { satelliteStyle } from "@/lib/map-config"
-import { useFilterStore } from "@/store/use-filter-store"
 import { bulgariaMercatorCoordinates, bulgariaBBoxMercator } from "@/utils/geo"
 
 let protocolsRegistered = false
@@ -16,14 +15,10 @@ function registerCustomProtocols() {
   const registerProtocol = (protocol: string, schemeReplacement: string) => {
     maplibregl.addProtocol(protocol, async (params, abortController) => {
       const fetchUrl = params.url.replace(`${protocol}://`, schemeReplacement)
-      const { region } = useFilterStore.getState()
 
-      if (region !== "bulgaria") {
-        const res = await fetch(fetchUrl, { signal: abortController.signal })
-        if (!res.ok) throw new Error(`Failed to load tile: ${res.status}`)
-        const data = await res.arrayBuffer()
-        return { data }
-      }
+      // Every tile is clipped to Bulgaria, unconditionally. These are worldwide WMS
+      // layers: left unclipped they draw the Sahel's agricultural burning across the
+      // globe and cost a request per tile for ground nobody here is monitoring.
 
       // Extract BBOX from query parameter in EPSG:3857
       const match = params.url.match(/[?&]BBOX=([^&]+)/i)

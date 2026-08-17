@@ -1,5 +1,7 @@
 package com.wisertech.api;
 
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -37,12 +39,28 @@ class ZoneControllerTest {
         Zone zone = new Zone();
         zone.setGeom(geom);
         zone.setRiskClass((short) 5);
-        when(zoneRepository.findAll()).thenReturn(List.of(zone));
+        when(zoneRepository.findLatest()).thenReturn(List.of(zone));
 
         mockMvc.perform(get("/api/zones/risk"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].riskClass").value(5))
                 .andExpect(jsonPath("$[0].geom.type").value("Polygon"))
                 .andExpect(jsonPath("$[0].geom.coordinates[0][0][0]").value(23.0));
+    }
+
+    /**
+     * The batch keeps several days of history, so serving findAll() would send the map
+     * overlapping copies of the whole country instead of the current risk surface.
+     */
+    @Test
+    void getRiskZones_asksForTheLatestDayOnly() throws Exception {
+        when(zoneRepository.findLatest()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/zones/risk"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+
+        verify(zoneRepository).findLatest();
+        verify(zoneRepository, never()).findAll();
     }
 }

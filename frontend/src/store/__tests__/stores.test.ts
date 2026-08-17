@@ -35,7 +35,6 @@ describe("Zustand global stores", () => {
   describe("useFilterStore", () => {
     beforeEach(() => {
       useFilterStore.setState({
-        region: "bulgaria",
         riskLevel: "all",
         selectedDate: "2026-07-04T00:00:00.000Z",
         currentTime: 0,
@@ -45,15 +44,16 @@ describe("Zustand global stores", () => {
 
     it("should have correct initial values", () => {
       const state = useFilterStore.getState()
-      expect(state.region).toBe("bulgaria")
       expect(state.riskLevel).toBe("all")
       expect(state.currentTime).toBe(0)
       expect(state.isPlaying).toBe(false)
     })
 
-    it("should update region", () => {
-      useFilterStore.getState().setRegion("sofia")
-      expect(useFilterStore.getState().region).toBe("sofia")
+    // Coverage is fixed to Bulgaria and no longer lives in this store, so there is
+    // deliberately no region setter to test.
+    it("should not expose a region setting", () => {
+      expect("region" in useFilterStore.getState()).toBe(false)
+      expect(useFilterStore.persist.getOptions().version).toBe(1)
     })
 
     it("should update riskLevel", () => {
@@ -80,7 +80,6 @@ describe("Zustand global stores", () => {
       const partialize = useFilterStore.persist.getOptions().partialize
       if (partialize) {
         const fullState = {
-          region: "varna",
           riskLevel: "medium",
           selectedDate: "2026-07-04T00:00:00.000Z",
           currentTime: 10,
@@ -88,7 +87,6 @@ describe("Zustand global stores", () => {
           minConfidence: 80,
           enabledSensors: ["MODIS_NRT"],
           liveUpdates: false,
-          setRegion: () => {},
           setRiskLevel: () => {},
           setSelectedDate: () => {},
           setCurrentTime: () => {},
@@ -99,7 +97,6 @@ describe("Zustand global stores", () => {
         }
         const partial = partialize(fullState)
         expect(partial).toEqual(expect.objectContaining({
-          region: "varna",
           riskLevel: "medium",
           selectedDate: "2026-07-04T00:00:00.000Z",
           // Detection filters survive a reload; the operator set them deliberately.

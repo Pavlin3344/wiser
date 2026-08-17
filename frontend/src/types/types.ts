@@ -43,16 +43,24 @@ export type EvacRoute = Feature<LineString, EvacRouteProperties>
 export type EvacRouteCollection = FeatureCollection<LineString, EvacRouteProperties>
 
 // ─── Risk Zones ──────────────────────────────────────────────────────────────
-/** Matches the `zones` table in db/postgres/migrations. */
+/**
+ * Wiser's own risk model, one cell per FWI grid point. Field names are camelCase
+ * because that is what the JPA entity serialises - the snake_case column names of
+ * the `zones` table never reach the wire.
+ *
+ * NDVI and fuel are nullable: a cell outside the raster coverage still gets a risk
+ * class from FWI alone, and saying so is better than implying a measurement.
+ */
 export interface RiskZoneProperties {
   id: number
-  fwi_class: FWIClass
-  fwi_value: number
-  ndvi_mean: number
-  risk_class: FWIClass
-  risk_score: number
-  computed_at: string // ISO-8601
-  valid_date: string  // YYYY-MM-DD
+  fwiClass: FWIClass
+  fwiValue: number
+  ndviMean: number | null
+  fuelType: number | null
+  riskClass: FWIClass
+  riskScore: number
+  computedAt: string // ISO-8601
+  validDate: string  // YYYY-MM-DD
 }
 
 export type RiskZone = Feature<Polygon, RiskZoneProperties>

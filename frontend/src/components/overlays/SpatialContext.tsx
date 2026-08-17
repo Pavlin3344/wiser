@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react"
 import { Globe, Compass, MapPin, Navigation } from "lucide-react"
 
-import { useFilterStore } from "@/store/use-filter-store"
 import { useMapStore, type MapStatus } from "@/store/use-map-store"
 import { Button } from "@/components/ui/button"
 import { Breadcrumb, BreadcrumbEllipsis, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 export function SpatialContext() {
-    const { setRegion } = useFilterStore()
     const { setFlyToTarget } = useMapStore()
 
     const [spatialLocation, setSpatialLocation] = useState<{
@@ -86,31 +84,20 @@ export function SpatialContext() {
         }
     }, [])
 
+    // These move the camera and nothing else. The breadcrumb is orientation, not a data
+    // scope: zooming out to the world is allowed, it just shows no data outside Bulgaria.
     const handleWorldClick = () => {
-        setRegion("world")
         setFlyToTarget({ lat: 20.0, lng: 0.0, zoom: 2.2 })
     }
 
     const handleContinentClick = () => {
         if (spatialLocation) {
-            if (spatialLocation.continent?.toLowerCase() === "europe") {
-                setRegion("europe")
-            } else {
-                setRegion("world")
-            }
             setFlyToTarget({ lat: spatialLocation.lat, lng: spatialLocation.lng, zoom: 4.0 })
         }
     }
 
     const handleCountryClick = () => {
         if (spatialLocation) {
-            if (spatialLocation.country?.toLowerCase() === "bulgaria") {
-                setRegion("bulgaria")
-            } else if (spatialLocation.continent?.toLowerCase() === "europe") {
-                setRegion("europe")
-            } else {
-                setRegion("world")
-            }
             setFlyToTarget({ lat: spatialLocation.lat, lng: spatialLocation.lng, zoom: 7.0 })
         }
     }

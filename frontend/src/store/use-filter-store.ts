@@ -1,10 +1,12 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
+/**
+ * There is deliberately no `region` here. The system is scoped to Bulgaria: every
+ * data layer clips to the national border, so a selectable region would only ever
+ * mean "also download and draw data nobody is monitoring".
+ */
 interface FilterState {
-  region: string
-  setRegion: (region: string) => void
-
   riskLevel: string
   setRiskLevel: (level: string) => void
 
@@ -37,9 +39,6 @@ export const SENSOR_VIIRS = "VIIRS_SNPP_NRT"
 export const useFilterStore = create<FilterState>()(
   persist(
     (set) => ({
-      region: "bulgaria",
-      setRegion: (region) => set({ region }),
-
       riskLevel: "all",
       setRiskLevel: (riskLevel) => set({ riskLevel }),
 
@@ -68,9 +67,11 @@ export const useFilterStore = create<FilterState>()(
     }),
     {
       name: "wiser-filter-storage",
+      // Bumped when `region` was dropped: browsers that stored region:"europe" would
+      // otherwise keep merging it back in, and the value outlived the code reading it.
+      version: 1,
       // Do not persist transient playback state across sessions
       partialize: (state) => ({
-        region: state.region,
         riskLevel: state.riskLevel,
         selectedDate: state.selectedDate,
         minConfidence: state.minConfidence,

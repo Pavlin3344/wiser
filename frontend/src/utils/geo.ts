@@ -77,3 +77,23 @@ for (const ring of bulgariaMercatorCoordinates) {
 }
 
 export const bulgariaBBoxMercator = { minX, minY, maxX, maxY };
+
+// The same extent in lng/lat, for services that take geographic coordinates.
+// Derived from the border rather than hard-coded so the two cannot drift apart.
+export const bulgariaBBox = (() => {
+  let west = Infinity;
+  let east = -Infinity;
+  let south = Infinity;
+  let north = -Infinity;
+
+  for (const ring of bulgariaBorder) {
+    for (const [lng, lat] of ring) {
+      if (lng < west) west = lng;
+      if (lng > east) east = lng;
+      if (lat < south) south = lat;
+      if (lat > north) north = lat;
+    }
+  }
+
+  return { west, south, east, north };
+})();

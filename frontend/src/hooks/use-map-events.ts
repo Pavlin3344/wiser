@@ -4,7 +4,7 @@ import { toast } from "sonner"
 import type { Point } from "geojson"
 import { useMapStore } from "@/store/use-map-store"
 import { useLayerStore } from "@/store/use-layer-store"
-import { generateGlassPopupHTML, generateSectorPopupHTML } from "@/lib/popups"
+import { generateGlassPopupHTML, generateRiskZonePopupHTML, generateSectorPopupHTML } from "@/lib/popups"
 import { lngLatToMercator } from "@/utils/geo"
 import { intensityStyle } from "@/utils/helpers"
 import { fetchEffisWmsFeatureInfo } from "@/services/fireService"
@@ -41,6 +41,13 @@ async function fetchEffisInfo(
   const { showFires, showRiskGrid } = useLayerStore.getState()
   // Only query EFFIS when a relevant layer is visible
   if (!showFires && !showRiskGrid) return
+
+  // Our own vector layers answer for themselves and have already opened their popup.
+  // Without this the EFFIS round-trip would land a moment later and replace it.
+  const ownFeatures = map.queryRenderedFeatures(e.point, {
+    layers: ["risk-zones-fill", "fire-points"].filter((id) => map.getLayer(id)),
+  })
+  if (ownFeatures.length > 0) return
 
   const { lng, lat } = e.lngLat
   const canvas = map.getCanvas()
@@ -173,6 +180,38 @@ export function useMapEvents(mapRef: RefObject<maplibregl.Map | null>): void {
     }
     map.on("click", "fire-points", onClickFire)
 
+    const onEnterZone = () => {
+      map.getCanvas().style.cursor = "pointer"
+    }
+    const onLeaveZone = () => {
+      map.getCanvas().style.cursor = ""
+    }
+    map.on("mouseenter", "risk-zones-fill", onEnterZone)
+    map.on("mouseleave", "risk-zones-fill", onLeaveZone)
+
+    // Unlike the EFFIS raster, our zones are real features, so a click can report the
+    // model that produced the cell instead of guessing from a pixel colour.
+    const onClickZone = (e: maplibregl.MapLayerMouseEvent) => {
+      const feature = e.features?.[0]
+      if (!feature) return
+
+      const p = feature.properties ?? {}
+      openPopup(
+        map,
+        [e.lngLat.lng, e.lngLat.lat],
+        generateRiskZonePopupHTML({
+          riskClass: Number(p.riskClass ?? 0),
+          fwiClass: Number(p.fwiClass ?? 0),
+          fwiValue: typeof p.fwiValue === "number" ? p.fwiValue : null,
+          ndviMean: typeof p.ndviMean === "number" ? p.ndviMean : null,
+          fuelType: typeof p.fuelType === "number" ? p.fuelType : null,
+          validDate: String(p.validDate ?? ""),
+        }),
+        activePopupRef,
+      )
+    }
+    map.on("click", "risk-zones-fill", onClickZone)
+
     const onClickMap = (e: maplibregl.MapMouseEvent) => void fetchEffisInfo(map, e, activePopupRef)
     map.on("click", onClickMap)
 
@@ -257,6 +296,9 @@ export function useMapEvents(mapRef: RefObject<maplibregl.Map | null>): void {
       map.off("mouseenter", "fire-points", onEnterFire)
       map.off("mouseleave", "fire-points", onLeaveFire)
       map.off("click", "fire-points", onClickFire)
+      map.off("mouseenter", "risk-zones-fill", onEnterZone)
+      map.off("mouseleave", "risk-zones-fill", onLeaveZone)
+      map.off("click", "risk-zones-fill", onClickZone)
       map.off("click", onClickMap)
       map.off("mousemove", onMouseMove)
       map.off("move", onMove)

@@ -39,6 +39,8 @@ export function initializeLayers(map: maplibregl.Map): void {
   })
   addSource("effis-fwi", { type: "raster", tiles: getFwiTilesUrl(selectedDate), tileSize: 256, attribution: "Copernicus EFFIS" })
   addSource("effis-viirs", { type: "raster", tiles: EFFIS_VIIRS_TILES, tileSize: 256, attribution: "Copernicus EFFIS" })
+  // Wiser's own risk model. Empty until useRiskZones loads it from the backend.
+  addSource("risk-zones", { type: "geojson", data: { type: "FeatureCollection", features: [] } })
   // Starts empty on purpose - routes only ever come from the backend, which computes
   // them from the real road network and excludes roads running beside active fires.
   addSource("evac-routes", { type: "geojson", data: { type: "FeatureCollection", features: [] } })
@@ -56,6 +58,40 @@ export function initializeLayers(map: maplibregl.Map): void {
 
   addLayer({ id: "effis-fwi-layer", type: "raster", source: "effis-fwi", paint: { "raster-opacity": 0.7 } })
   addLayer({ id: "effis-viirs-layer", type: "raster", source: "effis-viirs", paint: { "raster-opacity": 0.8 }, layout: { visibility: "none" } })
+
+  // Wiser's own risk zones sit directly above the EFFIS raster so the two models can
+  // be compared by toggling between them. The colours are deliberately the EFFIS
+  // palette: same six-class scale, so any difference on screen is model, not styling.
+  addLayer({
+    id: "risk-zones-fill",
+    type: "fill",
+    source: "risk-zones",
+    layout: { visibility: "none" },
+    paint: {
+      "fill-color": [
+        "match",
+        ["get", "riskClass"],
+        1, "#a0ffc3",
+        2, "#cfe355",
+        3, "#e7af0a",
+        4, "#dc7719",
+        5, "#b01117",
+        6, "#41091f",
+        "#a0ffc3",
+      ],
+      "fill-opacity": 0.55,
+    },
+  })
+
+  // A faint cell boundary: without it 2772 adjacent squares read as a single blur and
+  // the grid resolution of the model is invisible.
+  addLayer({
+    id: "risk-zones-outline",
+    type: "line",
+    source: "risk-zones",
+    layout: { visibility: "none" },
+    paint: { "line-color": "#ffffff", "line-width": 0.4, "line-opacity": 0.25 },
+  })
 
   // Drawn as a solid casing under a bright core so the corridor stays legible over
   // satellite imagery, where a thin dashed line disappears into the terrain.
@@ -123,8 +159,7 @@ export function initializeLayers(map: maplibregl.Map): void {
 
 /** Reads current store state and sets all layer visibilities + terrain. */
 export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): void {
-  const { showTerrain, showRiskGrid, showFires, showEvac, showLabels } = useLayerStore.getState()
-  const { region } = useFilterStore.getState()
+  const { showTerrain, showRiskGrid, showRiskZones, showFires, showEvac, showLabels } = useLayerStore.getState()
 
   const setVis = (id: string, visible: boolean) => {
     if (map.getLayer(id)) {
@@ -135,6 +170,8 @@ export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): vo
   map.setTerrain(showTerrain ? { source: "3d-terrain", exaggeration: 1.5 } : null)
 
   setVis("effis-fwi-layer", showRiskGrid)
+  setVis("risk-zones-fill", showRiskZones)
+  setVis("risk-zones-outline", showRiskZones)
   setVis("effis-viirs-layer", showFires)
   setVis("evac-routes-casing", showEvac)
   setVis("evac-routes-line", showEvac)
@@ -142,20 +179,17 @@ export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): vo
   setVis("country-borders", showLabels)
   setVis("place-labels", showLabels)
 
-  let filteredFireData = fireData
-
-  if (region === "bulgaria") {
-    // Filter fire data points to be within Bulgaria
-    filteredFireData = {
-      ...fireData,
-      features: fireData.features.filter((f) => {
-        if (f.geometry.type === "Point") {
-          const coords = f.geometry.coordinates as [number, number]
-          return isPointInPolygon(coords, bulgariaBorder)
-        }
-        return false
-      }),
-    }
+  // Detections outside the national border are dropped rather than drawn: the system
+  // monitors Bulgaria, and a fire it will never dispatch anyone to is noise on the map.
+  const filteredFireData: FeatureCollection = {
+    ...fireData,
+    features: fireData.features.filter((f) => {
+      if (f.geometry.type === "Point") {
+        const coords = f.geometry.coordinates as [number, number]
+        return isPointInPolygon(coords, bulgariaBorder)
+      }
+      return false
+    }),
   }
 
   const src = map.getSource("active-fires") as maplibregl.GeoJSONSource | undefined
@@ -181,15 +215,15 @@ export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): vo
  * Uses a single flat dependency array — no synchronisation bugs.
  */
 export function useMapLayers(mapRef: RefObject<maplibregl.Map | null>, fireDataRef: RefObject<FeatureCollection>): void {
-  const { showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid } = useLayerStore()
-  const { selectedDate, region } = useFilterStore()
+  const { showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid, showRiskZones } = useLayerStore()
+  const { selectedDate } = useFilterStore()
 
   useEffect(() => {
     const map = mapRef.current
     if (!map?.isStyleLoaded()) return
     syncLayers(map, fireDataRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid, region])
+  }, [showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid, showRiskZones])
 
   useEffect(() => {
     const map = mapRef.current
@@ -204,5 +238,5 @@ export function useMapLayers(mapRef: RefObject<maplibregl.Map | null>, fireDataR
     if (viirsSource && typeof viirsSource.setTiles === "function") {
       viirsSource.setTiles(EFFIS_VIIRS_TILES)
     }
-  }, [selectedDate, region, mapRef])
+  }, [selectedDate, mapRef])
 }

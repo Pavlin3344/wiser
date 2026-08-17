@@ -9,6 +9,7 @@ import { initializeLayers, syncLayers, useMapLayers } from "@/hooks/use-map-laye
 import { useMapStyle, useMapView, useTimePlayback } from "@/hooks/use-map-style"
 import { useFireData } from "@/hooks/use-fire-data"
 import { useEvacuationRoutes } from "@/hooks/use-evacuation-routes"
+import { useRiskZones } from "@/hooks/use-risk-zones"
 import { useFlyTo } from "@/hooks/use-fly-to"
 import { useLayerStore } from "@/store/use-layer-store"
 import { WindLayer } from "@/components/map/WindLayer"
@@ -41,6 +42,7 @@ export function MapContainer() {
   useFlyTo(mapRef)
   useFireData({ mapRef, fireDataRef })
   useEvacuationRoutes(mapRef)
+  useRiskZones(mapRef)
   useMapLayers(mapRef, fireDataRef)
   useMapEvents(mapRef)
   useMapStyle(mapRef, fireDataRef)
