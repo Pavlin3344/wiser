@@ -10,6 +10,10 @@
 *.tfstate.*
 .terraform/
 
+# Python (data/processing workers) — байткодът се генерира при всяко пускане
+__pycache__/
+*.py[cod]
+
 # OS / editor
 .DS_Store
 Thumbs.db
