@@ -21,14 +21,19 @@ log = logging.getLogger("fwi-worker")
 
 QUEUE = "weather.ingest"
 
+# ON CONFLICT DO NOTHING без изрична цел хваща всеки уникален индекс — тук
+# `fire_weather_index_unique_point` (миграция V3), т.е. (time, lat, lon, source).
+# Нужно е, защото EFFIS downloader-ът публикува цялата решетка за деня наново при
+# всеки старт на контейнера; без това всеки деплой добавяше още едно копие.
 INSERT_SQL = """
     INSERT INTO fire_weather_index (time, lat, lon, source, fwi, class)
     VALUES (%s, %s, %s, %s, %s, %s)
+    ON CONFLICT DO NOTHING
 """
 
 
-def process_message(body: bytes, db) -> int:
-    """Парсва съобщението и записва точките. Връща броя записани редове."""
+def process_message(body: bytes, db) -> tuple[int, int]:
+    """Парсва съобщението и записва точките. Връща (записани, получени)."""
     msg = json.loads(body)
     source = msg.get("source", "unknown")
     payload = msg["payload"]
@@ -41,8 +46,11 @@ def process_message(body: bytes, db) -> int:
     ]
     with db.cursor() as cur:
         cur.executemany(INSERT_SQL, rows)
+        # psycopg3 сумира засегнатите редове за целия executemany; при -1 (драйверът не
+        # знае) не гадаем колко са пропуснатите дубликати, а приемаме, че всички са нови.
+        written = len(rows) if cur.rowcount is None or cur.rowcount < 0 else cur.rowcount
     db.commit()
-    return len(rows)
+    return written, len(rows)
 
 
 def main() -> None:
@@ -53,8 +61,11 @@ def main() -> None:
 
     def on_message(ch, method, _properties, body):
         try:
-            n = process_message(body, db)
-            log.info("Записах %d FWI точки в fire_weather_index", n)
+            written, total = process_message(body, db)
+            log.info(
+                "Записах %d от %d FWI точки в fire_weather_index (%d вече ги имаше)",
+                written, total, total - written,
+            )
             ch.basic_ack(delivery_tag=method.delivery_tag)
         except Exception as exc:  # noqa: BLE001 — искаме да хванем всичко → DLQ
             db.rollback()
