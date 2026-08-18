@@ -1,0 +1,124 @@
+groups:
+  - name: data-processing
+    rules:
+
+      # Exporter-ът е единственият източник за всичко останало в този файл — ако той
+      # мълчи, останалите правила няма да гръмнат, защото метриките просто липсват.
+      - alert: DataMetricsExporterDown
+        expr: up{job="wiser-data-metrics"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          environment: Development
+        annotations:
+          summary: "Data metrics exporter не отговаря"
+          description: "Свежестта на FWI, NDVI и риск зоните вече не се наблюдава"
+
+      # Един източник не отговаря (база или MinIO), а самият exporter работи.
+      - alert: DataSourceUnreachable
+        expr: wiser_data_scrape_success == 0
+        for: 10m
+        labels:
+          severity: warning
+          environment: Development
+        annotations:
+          summary: "Data pipeline не достига {{ $labels.source }}"
+          description: "Метриките от {{ $labels.source }} липсват вече 10 минути"
+
+      # Картата рисува по `zones`. Стари зони изглеждат съвсем нормално на екрана -
+      # точно затова трябва аларма, а не разчитане на очи. Job-ът се върти на 6 часа,
+      # така че 24 часа значи няколко пропуснати цикъла подред.
+      - alert: RiskZonesStale
+        expr: time() - wiser_data_zones_last_computed_timestamp_seconds > 86400
+        for: 30m
+        labels:
+          severity: critical
+          environment: Development
+        annotations:
+          summary: "Риск зоните не са преизчислявани над 24 часа"
+          description: "Картата показва стар риск - виж логовете на wiser-risk-zones"
+
+      # Празна таблица, а не стара - това вече се е случвало (job-ът не се пускаше
+      # изобщо, защото cron-ът не съществуваше на хоста). Пита се само когато Postgres
+      # реално е отговорил, иначе паднала база би вдигала и тази аларма.
+      - alert: RiskZonesMissing
+        expr: |
+          absent(wiser_data_zones_last_computed_timestamp_seconds)
+            and on() (wiser_data_scrape_success{source="postgres"} == 1)
+        for: 30m
+        labels:
+          severity: critical
+          environment: Development
+        annotations:
+          summary: "Таблицата `zones` е празна"
+          description: "Няма нито една изчислена риск зона - картата няма какво да рисува"
+
+      # EFFIS публикува дневно; 36 часа дава запас за изместен час на публикуване.
+      - alert: FwiIngestionStale
+        expr: time() - wiser_data_fwi_last_observation_timestamp_seconds > 129600
+        for: 1h
+        labels:
+          severity: warning
+          environment: Development
+        annotations:
+          summary: "Няма нов FWI от над 36 часа"
+          description: "Спрял е или EFFIS downloader-ът, или FWI worker-ът (виж weather.dlq)"
+
+      # Реалната решетка над България е ~2772 точки. Наполовина смалена решетка не личи
+      # по свежест: данните са пресни, но половин страна остава без зони.
+      - alert: FwiGridShrunk
+        expr: wiser_data_fwi_points_latest_day < 2000
+        for: 1h
+        labels:
+          severity: warning
+          environment: Development
+        annotations:
+          summary: "FWI решетката е по-малка от обичайното ({{ $value }} точки)"
+          description: "Очакват се ~2772 точки - EFFIS може да е върнал частично покритие"
+
+      # Sentinel-2 минава на ~3 дни, а облачност изяжда още сцени - оттам и 7 дни.
+      - alert: NdviProductsStale
+        expr: time() - wiser_data_ndvi_last_product_timestamp_seconds > 604800
+        for: 6h
+        labels:
+          severity: warning
+          environment: Development
+        annotations:
+          summary: "Няма нов NDVI продукт от над 7 дни"
+          description: "Спрял е Sentinel fetcher-ът или NDVI worker-ът (виж satellite.dlq)"
+
+      # Статичен файл, но нов MinIO volume го изтрива. Без него риск моделът мълчаливо
+      # губи fuel корекцията и негоримото (град, вода) спира да се занулява.
+      - alert: FuelMapMissing
+        expr: wiser_data_fuel_map_present == 0
+        for: 15m
+        labels:
+          severity: warning
+          environment: Development
+        annotations:
+          summary: "Fuel картата липсва в MinIO"
+          description: "Пусни fuel-loader job-а - иначе зоните се смятат без fuel корекция"
+
+      # DLQ-тата се пълнеха мълчаливо: съобщението не се губи, но никой не разбира.
+      - alert: DeadLetterQueueNotEmpty
+        # Двойната наклонена черта е нарочна: PromQL чете низа по правилата на Go, така
+        # че до регулярния израз трябва да стигне `\.`, а не escape последователност.
+        expr: 'rabbitmq_queue_messages_ready{queue=~".+\\.dlq"} > 0'
+        for: 10m
+        labels:
+          severity: warning
+          environment: Development
+        annotations:
+          summary: "Съобщения в {{ $labels.queue }}"
+          description: "{{ $value }} отхвърлени съобщения чакат в DLQ - прегледай ги"
+
+      # Пълнеща се входна опашка = consumer-ът е жив, но не се справя или е забит.
+      - alert: IngestQueueBacklog
+        expr: 'rabbitmq_queue_messages_ready{queue=~"weather.ingest|satellite.ingest"} > 5'
+        for: 30m
+        labels:
+          severity: warning
+          environment: Development
+        annotations:
+          summary: "Натрупване в {{ $labels.queue }}"
+          description: "{{ $value }} необработени съобщения - worker-ът изостава или е забит"

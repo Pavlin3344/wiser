@@ -349,6 +349,39 @@ services:
         condition: service_healthy
     logging: *default-logging
 
+  # Phase 3: burn severity (dNBR) after a fire. Event-driven, not scheduled - it only
+  # works when something publishes a pre/post scene pair to `analysis.tasks`, so it sits
+  # idle most of the time. Memory sized for the peak: two Sentinel-2 bands per scene.
+  worker-dnbr:
+    build:
+      context: ../../data/processing
+      dockerfile: Dockerfile
+      args:
+        WORKER: dnbr
+    container_name: wiser-worker-dnbr
+    restart: unless-stopped
+    mem_limit: 768m
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      flyway-postgres:
+        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
+    logging: *default-logging
+
   # Rebuilds the `zones` table from FWI + NDVI + fuel. This used to be a one-shot job
   # driven by host cron - but that cron lived outside the repository, was never set up,
   # and `zones` stayed empty while every input was being collected correctly. Scheduling
@@ -381,6 +414,44 @@ services:
       # EFFIS publishes FWI once a day, but the container cannot know at which hour that
       # lands, so it re-checks every six hours rather than waiting out a full day.
       RISK_ZONES_INTERVAL_SECONDS: "21600"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      flyway-postgres:
+        condition: service_completed_successfully
+      timescale:
+        condition: service_healthy
+      flyway-timescale:
+        condition: service_completed_successfully
+      minio:
+        condition: service_healthy
+    logging: *default-logging
+
+  # Prometheus scrapes the Java services through actuator; the three Python workers have
+  # no such endpoint, and a running container proves nothing anyway - `zones` sat empty
+  # for weeks while every container was up and green. This exporter reports the freshness
+  # of what the workers produce, which is the signal that actually matters.
+  #
+  # Read-only: it queries both databases and lists MinIO, and writes nothing.
+  data-metrics:
+    build:
+      context: ../../data/processing
+      dockerfile: Dockerfile
+      args:
+        WORKER: metrics
+        ENTRYPOINT_FILE: exporter.py
+    container_name: wiser-data-metrics
+    restart: unless-stopped
+    mem_limit: 192m
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TIMESCALE_HOST: timescale
+      TIMESCALE_PORT: 5432
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy

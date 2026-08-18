@@ -47,3 +47,13 @@ scrape_configs:
     metrics_path: /actuator/prometheus
     static_configs:
       - targets: ['wiser-ingestion:8081']
+
+  # The Python workers have no actuator equivalent, so a small exporter reports the
+  # freshness of what they produce (zones, FWI rows, NDVI rasters) instead.
+  - job_name: 'wiser-data-metrics'
+    # Every scrape opens a connection to both databases and lists MinIO, and freshness
+    # moves on the scale of hours - the global 15s would be four times a minute for
+    # nothing. The alerts here are all measured in hours, so a minute of lag is free.
+    scrape_interval: 60s
+    static_configs:
+      - targets: ['data-metrics:9105']
