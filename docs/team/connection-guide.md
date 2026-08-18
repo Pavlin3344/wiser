@@ -15,37 +15,80 @@ Setup на Tailscale: виж `docs/team/onboarding.md`.
 
 ## Фаза 1 — статус на интеграцията (Data Engineer ↔ Backend)
 
-> Кратко: Data Engineer частта е **готова и тествана локално** срещу mock-ове.
-> Сега е ред на Backend да пусне реалните producer-и, за да паднат mock-овете.
+> Кратко: **Фаза 1 е затворена от двете страни и тече наживо.** Реалните producer-и на
+> бекенда публикуват, worker-ите ги консумират, зоните се рисуват на картата.
 > Пълният договор: [`shared/schemas/message-contracts.md`](../../shared/schemas/message-contracts.md).
+> Последна редакция: 2026-08-18.
 
-### ✅ Какво е готово (Data Engineer)
+### ✅ Какво работи (цялата верига)
 
-| Компонент | Чете | Пише |
-|---|---|---|
-| FWI worker | `weather.ingest` | TimescaleDB `fire_weather_index` |
-| NDVI worker | `satellite.ingest` | MinIO `processed-products/ndvi/` |
-| Fuel карта (EFFIS NFFL, само BG) | — | MinIO `processed-products/fuel/bg_fuel.tif` |
-| Risk zones job | FWI + NDVI + fuel | PostGIS `zones` |
-| Локален dev стек | `docker-compose.dev.yml` | — |
+| Компонент | Кой | Чете | Пише |
+|---|---|---|---|
+| EFFIS downloader | Backend | EFFIS WMS | `weather.ingest` |
+| Sentinel-2 fetcher | Backend | Copernicus CDSE | MinIO `satellite-imagery` + `satellite.ingest` |
+| OSM importer | Backend | Overpass / Geofabrik | `critical_infrastructure`, `roads` |
+| `zones` миграция + `GET /zones/risk` | Backend | — | `db/postgres/migrations/V2__zones.sql` |
+| FWI worker | Data Eng | `weather.ingest` | TimescaleDB `fire_weather_index` |
+| NDVI worker | Data Eng | `satellite.ingest` | MinIO `processed-products/ndvi/` |
+| Fuel карта (EFFIS NFFL, само BG) | Data Eng | EFFIS (еднократно) | MinIO `processed-products/fuel/bg_fuel.tif` |
+| Risk zones job | Data Eng | FWI + NDVI + fuel | PostGIS `zones` |
+| Data metrics exporter | Data Eng | двете бази + MinIO | Prometheus (`:9105/metrics`) |
+| dNBR worker (Фаза 3) | Data Eng | `analysis.tasks` | MinIO `processed-products/dnbr/` + PostGIS `burn_severity` |
 
-Worker-ите работят срещу **mock publisher-и**, които заместват още-неготовите ти producer-и.
-Като пуснеш реалните — mock-овете просто спират, worker-ите не се пипат.
+Всичко от колоната „Data Eng" са контейнери в `infra/docker/docker-compose.yml`
+(`worker-fwi`, `worker-ndvi`, `risk-zones`, `worker-dnbr`, `data-metrics`). Mock publisher-ите
+остават в репото само за ръчна проверка и за DLQ пътя — в нормална работа не се пускат.
+Изключение е dNBR: за него още няма истински producer, така че mock-ът е единственият начин
+да се пусне задача.
 
-### 🔲 Какво трябва да направиш сега (Backend / Ицо)
+**Наблюдение:** `data-metrics` мери свежестта на данните (кога зоните/FWI/NDVI са се обновявали
+за последно), а не дали контейнерите са живи — вдигнат контейнер, който нищо не произвежда, е
+точно случаят, който вече ни се е случвал. Алармите са в
+`infra/docker/prometheus/rules/data-processing.yml` и покриват също DLQ-тата и натрупване във
+входните опашки. Подробно: [`data/processing/metrics/README.md`](../../data/processing/metrics/README.md).
 
-1. **EFFIS/ECMWF downloader** → публикувай в `weather.ingest` по контракта (готов FWI, batch с масив точки). Отпушва FWI worker-а.
-2. **Sentinel-2 fetcher** → качи GeoTIFF (канали `B04`+`B08`) в MinIO `satellite-imagery`, публикувай `satellite.ingest`. Отпушва NDVI worker-а.
-3. **OSM importer** → напълни `critical_infrastructure` + `roads`.
-4. **`zones` миграция** → `db/postgres/migrations/001_zones.sql`. Схемата е готова — копни я от `message-contracts.md` (раздел 6) или `data/processing/risk_zones/dev_schema.sql`. Аз ползвам локална dev таблица дотогава.
-5. **REST endpoint** `GET /zones/risk` → сервира `zones` на frontend-а.
+### 🔲 За Backend (Ицо) — две неща чакат теб
 
-### ⚠️ Какво липсва / да се реши
+**1. NDVI покрива ~1% от страната.** `SentinelFetcherService` дърпа едно квадратче
+(`BBOX = {25.0, 42.4, 25.5, 42.8}`, ~40×45 км при Казанлък). За всичко извън него
+`ndvi_mean` в `zones` е NULL, тоест NDVI корекцията в риск модела реално не участва —
+рискът се смята само от FWI и fuel.
 
-- **4-те отворени точки** от договора (най-долу в `message-contracts.md`) — потвърди ги.
-- **SSH достъп за мен** — Pavlin да добави ключа ми, за тунел към сървъра (дотогава работя локално).
-- **Fuel = NFFL, не FirEUrisk** — EFFIS свалят NFFL кодовете (1–10); риск моделът е по тях.
-- ⚠️ EFFIS data сървърът има **изтекъл SSL сертификат** — свалянето на fuel картата иска изключена cert проверка.
+Предложение: **не** много сцени с 10 м резолюция, а една широка заявка с груба.
+Риск клетките са ~8 км, така че 100–250 м на пиксел е предостатъчно — при теб това е
+смяна на `BBOX` и на `width`/`height` в Process API заявката, не нова архитектура.
+Ако решиш друго (мозайка от няколко сцени, друг източник), кажи каква ще е формата и
+NDVI worker-ът се нагажда — той не се интересува колко на брой са сцените.
+
+**2. dNBR producer (Фаза 3).** Worker-ът е готов и пуснат (`worker-dnbr`): чете
+`analysis.tasks`, смята тежестта на изгарянето, пълни `burn_severity`. Липсва само кой да
+пуска задачите — днес това става на ръка с mock-а.
+
+Формата на съобщението е предложена в **раздел 10** на
+[`message-contracts.md`](../../shared/schemas/message-contracts.md) — прегледай я **преди**
+да пишеш producer-а, защото сега се сменя лесно, после не. Трябват ти: bucket + път до
+двете сцени (преди/след), техните дати, `bands: ["B08","B12"]`, bbox и по избор `fire_id`.
+Двете сцени трябва да са с еднакъв размер и обхват.
+
+Предложение кога се пуска: когато пожар не е бил засичан N дни (тоест е угаснал), с
+най-близките налични сцени преди началото и след края му.
+
+### ⚠️ Отворено
+
+- **NDVI покритието** и **producer-ът за dNBR** — двете са горе, в „За Backend".
+- **SSH достъп за мен** — Pavlin да добави ключа ми, за тунел към сървъра.
+- ⚠️ EFFIS data сървърът има **изтекъл SSL сертификат** — свалянето на fuel картата иска
+  изключена cert проверка. Техен проблем, файлът е публичен държавен dataset.
+
+### Фаза 2
+
+Алармите и евакуационните маршрути са реализирани директно в Java — `backend/alerts` и
+`EvacuationController`, без опашките `fire.alerts` / `evacuation.routes` от таблицата по-долу.
+Тя описва първоначалния план, не текущия път на данните. `fire.detections` обаче се ползва
+наистина (ingestion публикува, `FireStreamService` чете).
+
+Тоест две от опашките в конфигурацията стоят без нито producer, нито consumer. Или се ползват,
+или се махат — иначе документацията описва един път на данните, а кодът върви по друг.
 
 ---
 
