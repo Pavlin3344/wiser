@@ -13,6 +13,9 @@
 # Python (data/processing workers) — байткодът се генерира при всяко пускане
 __pycache__/
 *.py[cod]
+.pytest_cache/
+# Всеки worker си има собствен venv (различни зависимости, rasterio тежи) — локален е.
+.venv/
 
 # OS / editor
 .DS_Store

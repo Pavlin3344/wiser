@@ -32,13 +32,17 @@ jobs:
             prom/prometheus:v2.53.0 \
             check config /etc/prometheus/prometheus.yml
 
+      # Всички файлове с правила, не само infrastructure.yml — иначе нов файл влиза
+      # невалидиран и Prometheus го отхвърля чак на сървъра.
       - name: Validate Prometheus rules
         run: |
           docker run --rm \
             -v ${{ github.workspace }}/infra/docker/prometheus:/etc/prometheus:ro \
             --entrypoint /bin/promtool \
             prom/prometheus:v2.53.0 \
-            check rules /etc/prometheus/rules/infrastructure.yml
+            check rules /etc/prometheus/rules/infrastructure.yml \
+                        /etc/prometheus/rules/backend.yml \
+                        /etc/prometheus/rules/data-processing.yml
 
       - name: Validate Alertmanager config
         run: |
@@ -101,6 +105,53 @@ jobs:
         working-directory: backend/${{ matrix.service }}
         run: ./mvnw -B test
 
+  validate-shared-data:
+    name: Validate shared data files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Очертанието на България живее на две места: картата реже детекциите по копието
+      # на фронтенда, risk zones job-ът реже зоните по своето. Разминат ли се, зоните и
+      # детекциите спират да съвпадат по границата - тихо и само на око.
+      - name: Bulgaria border stays identical in both copies
+        run: |
+          if ! cmp -s data/processing/risk_zones/bulgaria_border.json frontend/src/data/bulgaria-border.json; then
+            echo "Двете копия на границата се разминаха:"
+            diff <(head -c 400 data/processing/risk_zones/bulgaria_border.json) \
+                 <(head -c 400 frontend/src/data/bulgaria-border.json) || true
+            exit 1
+          fi
+          echo "Border files are identical - OK"
+
+  validate-data-processing:
+    name: Validate data processing workers
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        worker: [fwi, ndvi, risk_zones, dnbr, metrics]
+    steps:
+      - uses: actions/checkout@v7
+
+      # Същата версия като в `data/processing/Dockerfile` (python:3.12-slim) — тестът
+      # трябва да върви на това, което ще се деплойне, а не на локалния venv (3.11).
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: data/processing/${{ matrix.worker }}/requirements.txt
+
+      - name: Install dependencies
+        working-directory: data/processing/${{ matrix.worker }}
+        run: pip install -r requirements.txt -r ../requirements-dev.txt
+
+      # Тестовете не пипат база, RabbitMQ или MinIO — не им трябва стек
+      - name: Run tests
+        working-directory: data/processing/${{ matrix.worker }}
+        run: python -m pytest -q
+
   validate-sql:
     name: Validate SQL schemas
     runs-on: ubuntu-latest
@@ -157,7 +208,7 @@ jobs:
 
   deploy:
     name: Deploy to Hetzner
-    needs: [validate-infra, validate-sql, validate-frontend, validate-backend, security-scan]
+    needs: [validate-infra, validate-sql, validate-frontend, validate-backend, validate-data-processing, validate-shared-data, security-scan]
     runs-on: self-hosted
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     # Един deploy наведнъж — при бързи последователни push-ове се редят на опашка

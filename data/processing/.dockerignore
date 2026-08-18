@@ -1,0 +1,7 @@
+# Dockerfile-ът копира цялата папка на worker-а (`COPY ${WORKER}/ ...`), а всеки worker
+# има локален .venv от 40 до 160 MB — с macOS бинарки, безполезни в Linux образа.
+# На сървъра се гради от чист clone и проблемът не личи, локално build-ът се влачи.
+*/.venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
