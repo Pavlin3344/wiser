@@ -33,5 +33,28 @@ python mock_publisher.py --broken   # липсващ файл → satellite.dlq
 docker exec wiser-minio sh -c 'mc alias set local http://localhost:9000 "$MINIO_ROOT_USER" "$MINIO_ROOT_PASSWORD" >/dev/null && mc ls -r local/processed-products'
 ```
 
-> Mock publisher-ът замества Sentinel-2 fetcher-а на бекенда. Като той стане готов
-> (качва истински GeoTIFF + публикува `satellite.ingest`), worker-ът не се променя.
+> Реалният Sentinel-2 fetcher на бекенда вече качва GeoTIFF в MinIO и публикува
+> `satellite.ingest` — mock publisher-ът остава само за ръчна проверка и за DLQ пътя.
+
+## Тестове
+
+```bash
+pip install -r ../requirements-dev.txt
+python -m pytest
+```
+
+Пише истински двуканален GeoTIFF във временна папка и го чете обратно — кой канал е кой е
+половината от логиката тук. Покрива формулата, реда на каналите (обърнат ред = обърнат знак
+на NDVI), празните пиксели и това, че продуктът излиза един канал `float32`.
+
+## Ограничения
+
+Сцена над **20 мегапиксела** се отхвърля (→ `satellite.dlq`) вместо да убие контейнера по
+OOM. Разшири ли се bbox-ът на fetcher-а, вдигни заедно `NDVI_MAX_MEGAPIXELS` и `mem_limit`
+на `worker-ndvi`.
+
+## Покритие ⚠️
+
+Bbox-ът на fetcher-а е едно квадратче (`25.0–25.5, 42.4–42.8`, ~40×45 км при Казанлък), т.е.
+NDVI има за около 1% от страната. За всички останали зони `ndvi_mean` е NULL и NDVI корекцията
+в риск модела не прави нищо. Отворено — иска или няколко сцени в мозайка, или по-широк източник.
