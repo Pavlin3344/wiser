@@ -18,7 +18,7 @@ import { useLayerStore } from "@/store/use-layer-store"
 
 export function RiskAssessmentPage() {
   const { selectedDate, setSelectedDate, riskLevel, setRiskLevel } = useFilterStore()
-  const { showRiskGrid, setShowRiskGrid, showRiskZones, setShowRiskZones, showThermal, setShowThermal, showSmoke, setShowSmoke, showWind, setShowWind, showEvac, setShowEvac, showFuel, setShowFuel, showSettlement, setShowSettlement } = useLayerStore()
+  const { showRiskGrid, setShowRiskGrid, showRiskZones, setShowRiskZones, showThermal, setShowThermal, showWind, setShowWind, showEvac, setShowEvac, showFuel, setShowFuel, showSettlement, setShowSettlement } = useLayerStore()
   const riskZoneCount = useDataStore((s) => s.riskZoneCount)
   const minDate = subMonths(new Date(), 3)
 
@@ -114,17 +114,16 @@ export function RiskAssessmentPage() {
       <SidebarGroup>
         <div className='px-4 space-y-3'>
           <Label className='text-xs text-muted-foreground'>Map Indicators</Label>
-          <div className='flex items-center space-x-2'>
-            <Checkbox id='chk-thermal' checked={showThermal} onCheckedChange={(c) => setShowThermal(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
-            <Label htmlFor='chk-thermal' className='text-xs font-medium cursor-pointer'>
-              Thermal Anomalies
-            </Label>
-          </div>
-          <div className='flex items-center space-x-2'>
-            <Checkbox id='chk-smoke' checked={showSmoke} onCheckedChange={(c) => setShowSmoke(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
-            <Label htmlFor='chk-smoke' className='text-xs font-medium cursor-pointer'>
-              Smoke Plumes
-            </Label>
+          {/* Smoke Plumes used to sit here. It moved a boolean nothing read - there is
+              no smoke or aerosol layer to switch on - so it is gone rather than dead. */}
+          <div className='flex flex-col gap-1'>
+            <div className='flex items-center space-x-2'>
+              <Checkbox id='chk-thermal' checked={showThermal} onCheckedChange={(c) => setShowThermal(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />
+              <Label htmlFor='chk-thermal' className='text-xs font-medium cursor-pointer'>
+                EFFIS Thermal Anomalies
+              </Label>
+            </div>
+            <span className='pl-6 text-[10px] text-muted-foreground'>Copernicus hotspot raster, not clickable</span>
           </div>
           <div className='flex items-center space-x-2'>
             <Checkbox id='chk-wind' checked={showWind} onCheckedChange={(c) => setShowWind(c as boolean)} className='data-[state=checked]:bg-destructive! data-[state=checked]:border-destructive' />

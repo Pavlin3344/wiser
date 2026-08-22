@@ -120,7 +120,6 @@ describe("Zustand global stores", () => {
         showLabels: false,
         showRiskGrid: true,
         showThermal: true,
-        showSmoke: true,
         showWind: false,
         showEvac: false,
         showFuel: false,
@@ -146,7 +145,6 @@ describe("Zustand global stores", () => {
       store.setShowLabels(true)
       store.setShowRiskGrid(false)
       store.setShowThermal(false)
-      store.setShowSmoke(false)
       store.setShowWind(true)
       store.setShowEvac(true)
       store.setShowFuel(true)
@@ -158,7 +156,6 @@ describe("Zustand global stores", () => {
       expect(state.showLabels).toBe(true)
       expect(state.showRiskGrid).toBe(false)
       expect(state.showThermal).toBe(false)
-      expect(state.showSmoke).toBe(false)
       expect(state.showWind).toBe(true)
       expect(state.showEvac).toBe(true)
       expect(state.showFuel).toBe(true)

@@ -6,13 +6,17 @@ import { useFireData } from "@/hooks/use-fire-data"
 import { fetchActiveFires } from "@/services/fireService"
 import { syncLayers } from "@/hooks/use-map-layers"
 import { useFilterStore, SENSOR_MODIS, SENSOR_VIIRS } from "@/store/use-filter-store"
+import { useDataStore } from "@/store/use-data-store"
 
 // Mock dependencies
 vi.mock("@/services/fireService", () => ({
   fetchActiveFires: vi.fn(),
 }))
 
-vi.mock("@/hooks/use-map-layers", () => ({
+// Only syncLayers is faked. clipToBulgaria stays real: it decides which detections
+// count, so replacing it would hide exactly the behaviour worth asserting.
+vi.mock("@/hooks/use-map-layers", async (importActual) => ({
+  ...(await importActual<typeof import("@/hooks/use-map-layers")>()),
   syncLayers: vi.fn(),
 }))
 
@@ -219,6 +223,31 @@ describe("useFireData custom hook", () => {
 
     expect(fireDataRef.current.features).toHaveLength(1)
     expect(fireDataRef.current.features[0].properties?.source).toBe(SENSOR_MODIS)
+  })
+
+  // The counter read the whole feed while the map drew only the clipped subset, so the
+  // badge reported 207 detections over a country showing 105 dots.
+  it("should exclude detections outside Bulgaria from what the counter reports", async () => {
+    const mapRef = { current: mapMock } as any
+    mapMock.loaded.mockReturnValue(true)
+
+    vi.mocked(fetchActiveFires).mockResolvedValueOnce({
+      type: "FeatureCollection",
+      features: [
+        { type: "Feature", geometry: { type: "Point", coordinates: [25.5, 42.7] }, properties: { source: SENSOR_MODIS } },
+        // Bucharest and central Turkey - inside the feed, outside the country.
+        { type: "Feature", geometry: { type: "Point", coordinates: [26.1, 44.44] }, properties: { source: SENSOR_MODIS } },
+        { type: "Feature", geometry: { type: "Point", coordinates: [32.85, 39.93] }, properties: { source: SENSOR_MODIS } },
+      ],
+    })
+
+    renderHook(() => useFireData({ mapRef, fireDataRef }))
+    await act(async () => {
+      await Promise.resolve()
+    })
+
+    expect(fireDataRef.current.features).toHaveLength(1)
+    expect(useDataStore.getState().activeFireCount).toBe(1)
   })
 
   it("should clean up event listener and interval on unmount", () => {

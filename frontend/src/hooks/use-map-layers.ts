@@ -20,6 +20,24 @@ const EFFIS_VIIRS_TILES = [
 ]
 
 /**
+ * Drops detections outside the national border.
+ *
+ * The system monitors Bulgaria, and a fire it will never dispatch anyone to is noise.
+ * Exported so the map and the counter cannot disagree: the badge used to report the
+ * whole feed while the map drew only the clipped subset, and the two numbers differed
+ * by every detection in a neighbouring country.
+ */
+export function clipToBulgaria(fireData: FeatureCollection): FeatureCollection {
+  return {
+    ...fireData,
+    features: fireData.features.filter((f) => {
+      if (f.geometry.type !== "Point") return false
+      return isPointInPolygon(f.geometry.coordinates as [number, number], bulgariaBorder)
+    }),
+  }
+}
+
+/**
  * Adds all sources and layers once after initial style load.
  * Safe to call multiple times — each block guards with getSource/getLayer.
  */
@@ -159,7 +177,7 @@ export function initializeLayers(map: maplibregl.Map): void {
 
 /** Reads current store state and sets all layer visibilities + terrain. */
 export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): void {
-  const { showTerrain, showRiskGrid, showRiskZones, showFires, showEvac, showLabels } = useLayerStore.getState()
+  const { showTerrain, showRiskGrid, showRiskZones, showFires, showThermal, showEvac, showLabels } = useLayerStore.getState()
 
   const setVis = (id: string, visible: boolean) => {
     if (map.getLayer(id)) {
@@ -172,28 +190,17 @@ export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): vo
   setVis("effis-fwi-layer", showRiskGrid)
   setVis("risk-zones-fill", showRiskZones)
   setVis("risk-zones-outline", showRiskZones)
-  setVis("effis-viirs-layer", showFires)
+  // Its own toggle, not `showFires`: one fire drawn as both our point and a Copernicus
+  // pixel read as two independent findings, and only the point could be clicked.
+  setVis("effis-viirs-layer", showThermal)
   setVis("evac-routes-casing", showEvac)
   setVis("evac-routes-line", showEvac)
   setVis("fire-points", showFires)
   setVis("country-borders", showLabels)
   setVis("place-labels", showLabels)
 
-  // Detections outside the national border are dropped rather than drawn: the system
-  // monitors Bulgaria, and a fire it will never dispatch anyone to is noise on the map.
-  const filteredFireData: FeatureCollection = {
-    ...fireData,
-    features: fireData.features.filter((f) => {
-      if (f.geometry.type === "Point") {
-        const coords = f.geometry.coordinates as [number, number]
-        return isPointInPolygon(coords, bulgariaBorder)
-      }
-      return false
-    }),
-  }
-
   const src = map.getSource("active-fires") as maplibregl.GeoJSONSource | undefined
-  src?.setData(filteredFireData)
+  src?.setData(clipToBulgaria(fireData))
 
   // Evacuation routes are owned by useEvacuationRoutes, which fetches them per user
   // position - re-syncing layers must not overwrite what it loaded.
@@ -215,7 +222,7 @@ export function syncLayers(map: maplibregl.Map, fireData: FeatureCollection): vo
  * Uses a single flat dependency array — no synchronisation bugs.
  */
 export function useMapLayers(mapRef: RefObject<maplibregl.Map | null>, fireDataRef: RefObject<FeatureCollection>): void {
-  const { showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid, showRiskZones } = useLayerStore()
+  const { showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid, showRiskZones, showThermal } = useLayerStore()
   const { selectedDate } = useFilterStore()
 
   useEffect(() => {
@@ -223,7 +230,7 @@ export function useMapLayers(mapRef: RefObject<maplibregl.Map | null>, fireDataR
     if (!map?.isStyleLoaded()) return
     syncLayers(map, fireDataRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid, showRiskZones])
+  }, [showFires, showTerrain, showLabels, showWind, showEvac, showRiskGrid, showRiskZones, showThermal])
 
   useEffect(() => {
     const map = mapRef.current

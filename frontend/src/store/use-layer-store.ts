@@ -19,15 +19,16 @@ interface LayerState {
   showRiskZones: boolean
   setShowRiskZones: (show: boolean) => void
 
-  /** Placeholder — layer not yet implemented; toggle is reserved for a future
-   *  Sentinel-3 smoke/aerosol layer. Wired to the UI but has no map layer. */
+  /**
+   * Copernicus EFFIS VIIRS hotspot raster - an independent read of the same satellites
+   * our own detections come from. It used to ride on `showFires`, which drew both it
+   * and our points at once and made one fire look like two findings from two sources.
+   *
+   * There is deliberately no `showSmoke`: that toggle moved state nothing ever read,
+   * because no smoke or aerosol layer exists to switch on.
+   */
   showThermal: boolean
   setShowThermal: (show: boolean) => void
-
-  /** Placeholder — layer not yet implemented; toggle is reserved for a future
-   *  Sentinel-3 smoke/aerosol layer. Wired to the UI but has no map layer. */
-  showSmoke: boolean
-  setShowSmoke: (show: boolean) => void
 
   /** Placeholder — wind particle layer under active development (feature/wind).
    *  Toggle exists in the store so the branch can enable it without a store change. */
@@ -62,11 +63,8 @@ export const useLayerStore = create<LayerState>()(
       showRiskZones: false,
       setShowRiskZones: (showRiskZones) => set({ showRiskZones }),
 
-      showThermal: true,
+      showThermal: false,
       setShowThermal: (showThermal) => set({ showThermal }),
-
-      showSmoke: true,
-      setShowSmoke: (showSmoke) => set({ showSmoke }),
 
       showWind: false,
       setShowWind: (showWind) => set({ showWind }),
@@ -80,6 +78,12 @@ export const useLayerStore = create<LayerState>()(
       showSettlement: false,
       setShowSettlement: (showSettlement) => set({ showSettlement }),
     }),
-    { name: "wiser-layer-storage" },
+    {
+      name: "wiser-layer-storage",
+      // Bumped when showThermal stopped being an inert placeholder and started drawing
+      // the EFFIS raster. Browsers holding the old default of `true` would otherwise
+      // switch that layer on by themselves on first load after the deploy.
+      version: 1,
+    },
   ),
 )

@@ -2,7 +2,7 @@ import { useEffect, useRef, type RefObject } from "react"
 import type maplibregl from "maplibre-gl"
 import { toast } from "sonner"
 import type { FeatureCollection } from "geojson"
-import { syncLayers } from "@/hooks/use-map-layers"
+import { clipToBulgaria, syncLayers } from "@/hooks/use-map-layers"
 import { fetchActiveFires, FIRE_STREAM_URL } from "@/services/fireService"
 import { useDataStore } from "@/store/use-data-store"
 import { useFilterStore } from "@/store/use-filter-store"
@@ -12,11 +12,18 @@ const POLL_INTERVAL_MS = 5 * 60 * 1_000 // 5 minutes
 
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] }
 
-/** Applies the detection filters to whatever the backend last returned. */
+/**
+ * Applies the detection filters to whatever the backend last returned.
+ *
+ * Clipping to the border happens here rather than only at draw time so the counter and
+ * the map report the same set. They used to disagree by every detection abroad: the
+ * badge said 207 while 105 dots were drawn.
+ */
 function filterDetections(raw: FeatureCollection, minConfidence: number, enabledSensors: string[]): FeatureCollection {
+  const inCountry = clipToBulgaria(raw)
   return {
-    ...raw,
-    features: raw.features.filter((feature) => {
+    ...inCountry,
+    features: inCountry.features.filter((feature) => {
       const props = feature.properties ?? {}
       const confidence = typeof props.confidence === "number" ? props.confidence : 0
       if (confidence < minConfidence) return false

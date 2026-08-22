@@ -15,7 +15,7 @@ import { useMapStore } from "@/store/use-map-store"
 import { useLayerStore } from "@/store/use-layer-store"
 import { useDataStore } from "@/store/use-data-store"
 import { useFilterStore, SENSOR_MODIS, SENSOR_VIIRS } from "@/store/use-filter-store"
-import { syncLayers } from "@/hooks/use-map-layers"
+import { clipToBulgaria, syncLayers } from "@/hooks/use-map-layers"
 
 /** Confidence thresholds, matched against the value FIRMS reports per detection. */
 const CONFIDENCE_OPTIONS = [
@@ -46,7 +46,9 @@ export function DetectionPage() {
 
     fetchActiveFires()
       .then((data) => {
-        const visible = data.features.filter((feature) => {
+        // Clipped first, for the same reason useFireData does: the badge this sets and
+        // the dots the map draws have to be the same set.
+        const visible = clipToBulgaria(data).features.filter((feature) => {
           const props = feature.properties ?? {}
           const confidence = typeof props.confidence === "number" ? props.confidence : 0
           const source = typeof props.source === "string" ? props.source : null
