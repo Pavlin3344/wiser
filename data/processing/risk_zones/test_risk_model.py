@@ -1,8 +1,8 @@
 """Тестове на риск модела — контрактът е в shared/schemas/message-contracts.md раздел 7.
 
 Целта не е покритие заради покритието, а точките, на които се спори при ревю:
-границите на NDVI корекцията, кои NFFL кодове качват/свалят класа, и правилото че
-негоримото никога не свети червено.
+границите на NDVI корекцията, кои NFFL кодове качват/свалят класа, и какво прави
+моделът, когато fuel картата не дава горивен модел за клетката.
 """
 import pytest
 
@@ -31,7 +31,7 @@ def test_ndvi_correction_boundaries(ndvi, expected):
 @pytest.mark.parametrize(
     "code, expected",
     [
-        (0, None),      # негоримо — сигнал за "насила клас 1", не число
+        (0, 0),         # няма горивен модел — без корекция, виж теста по-долу
         (None, 0),      # извън покритието на fuel картата
         (1, -1),        # къса трева
         (9, -1),        # hardwood litter
@@ -49,10 +49,23 @@ def test_fuel_correction_per_nffl_code(code, expected):
     assert fuel_correction(code) == expected
 
 
-def test_nonfuel_forces_class_one():
-    """Правилото за доверие: град/вода/гола почва не светят червено при никакъв FWI."""
+def test_code_zero_does_not_silence_the_risk():
+    """Код 0 НЕ значи "не гори" и затова не сваля класа.
+
+    Този тест беше обратният: код 0 форсираше клас 1 с довода, че градът, водата и
+    голата почва не светят червено. EFFIS обаче дава горивен модел само на дива
+    растителност, така че 0 покрива и земеделската земя — ~47% от България, където
+    стърнищата са водещият тип пожар.
+
+    Измерено срещу живия feed, а не изведено: 975 от 1787 клетки излизаха "нисък
+    риск", 883 от тях при FWI клас 3+, и 76% от активните детекции падаха точно в
+    клетки, които картата показваше като зелени.
+
+    Зануляване може да се върне само срещу отделно доказателство за наистина негорима
+    повърхност (вода/град). Такъв източник още не е вързан.
+    """
     for fwi in range(1, 7):
-        assert risk_class(fwi, 0.25, 0) == 1
+        assert risk_class(fwi, None, 0) == fwi
 
 
 def test_clamped_at_six():
@@ -81,4 +94,5 @@ def test_missing_inputs_fall_back_to_fwi_alone():
 def test_risk_score_tracks_class():
     assert risk_score(6, None, MODERATE_FUEL) == 1.0
     assert risk_score(3, None, MODERATE_FUEL) == pytest.approx(0.5)
-    assert risk_score(1, 0.25, 0) == pytest.approx(1 / 6)  # негоримо → score на клас 1
+    # FWI 1 + сух стрес (+1), а код 0 не коригира → клас 2
+    assert risk_score(1, 0.25, 0) == pytest.approx(2 / 6)

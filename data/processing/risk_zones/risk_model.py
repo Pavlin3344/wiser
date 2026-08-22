@@ -1,26 +1,34 @@
 """Риск модел (MVP) — виж shared/schemas/message-contracts.md раздел 7.
 
 risk_class = clamp( fwi_class + ndvi_корекция + fuel_корекция , 1, 6 )
-град / вода / nonfuel → насила risk_class = 1.
 """
 
 # NFFL fire behavior модели (Anderson 1982) — EFFIS European Fuel Map.
-# 0 = негоримо (вода/град/гола почва); 1-10 = горивни модели.
+# 0 = няма горивен модел; 1-10 = горивни.
 _NFFL_HIGH = {3, 4, 10}   # висока трева, чапарал, timber + understory (ladder fuels)
 _NFFL_LOW = {1, 9}        # къса трева, hardwood litter (ниско разпространение)
 
 
 def fuel_correction(fuel_code):
-    """Корекция по NFFL код. None → насила клас 1 (негоримо)."""
-    if fuel_code == 0:        # негоримо
-        return None
+    """Корекция по NFFL код.
+
+    Код 0 НЕ занулява риска. EFFIS дава горивен модел само на дива растителност, така
+    че 0 покрива и вода, и град, и **земеделска земя** — а тя е ~47% от България и
+    стърнищата са водещият тип пожар тук. Докато правилото форсираше клас 1, 975 от
+    1787 клетки излизаха „нисък риск", 883 от тях при FWI клас 3+; проверка срещу
+    живия feed показа, че **76% от активните детекции** падат точно в тези клетки.
+    Ранно предупреждение, което мълчи, е по-лошо от липсващо.
+
+    Занулява се само това, за което имаме отделно доказателство (вода/град) — това
+    още не е вързано, затова тук няма форсиране.
+    """
     if fuel_code is None:     # няма fuel данни за точката → без корекция
         return 0
     if fuel_code in _NFFL_HIGH:
         return 1
     if fuel_code in _NFFL_LOW:
         return -1
-    return 0                  # умерени модели (2, 5, 6, 7, 8)
+    return 0                  # 0 (без модел) и умерените модели (2, 5, 6, 7, 8)
 
 
 def ndvi_correction(ndvi_mean):
@@ -34,10 +42,7 @@ def ndvi_correction(ndvi_mean):
 
 
 def risk_class(fwi_class: int, ndvi_mean, fuel_type) -> int:
-    fc = fuel_correction(fuel_type)
-    if fc is None:               # nonfuel / град / вода
-        return 1
-    raw = fwi_class + ndvi_correction(ndvi_mean) + fc
+    raw = fwi_class + ndvi_correction(ndvi_mean) + fuel_correction(fuel_type)
     return max(1, min(6, raw))
 
 
