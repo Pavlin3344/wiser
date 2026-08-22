@@ -4,7 +4,8 @@ import { toast } from "sonner"
 import type { Point } from "geojson"
 import { useMapStore } from "@/store/use-map-store"
 import { useLayerStore } from "@/store/use-layer-store"
-import { generateGlassPopupHTML, generateRiskZonePopupHTML, generateSectorPopupHTML } from "@/lib/popups"
+import { useFilterStore } from "@/store/use-filter-store"
+import { generateGlassPopupHTML, generateRiskZonePopupHTML } from "@/lib/popups"
 import { lngLatToMercator } from "@/utils/geo"
 import { intensityStyle } from "@/utils/helpers"
 import { fetchEffisWmsFeatureInfo } from "@/services/fireService"
@@ -38,9 +39,16 @@ async function fetchEffisInfo(
   e: maplibregl.MapMouseEvent,
   activePopupRef: React.RefObject<maplibregl.Popup | null>,
 ): Promise<void> {
-  const { showFires, showRiskGrid } = useLayerStore.getState()
-  // Only query EFFIS when a relevant layer is visible
-  if (!showFires && !showRiskGrid) return
+  // Only the hotspot layer is asked, and only when it is on screen.
+  //
+  // Two reasons this shrank. It used to key off showFires, which now controls our own
+  // detection points, so it queried the hotspot layer while that raster was hidden. And
+  // it fell back to mf010.fwi, which EFFIS declares `queryable="0"` in GetCapabilities -
+  // that request could never return anything, whatever was clicked. The fire weather
+  // value per cell is already in our own risk zone popup, from our own database.
+  const { showThermal } = useLayerStore.getState()
+  if (!showThermal) return
+  const layer = "viirs.hs"
 
   // Our own vector layers answer for themselves and have already opened their popup.
   // Without this the EFFIS round-trip would land a moment later and replace it.
@@ -50,31 +58,32 @@ async function fetchEffisInfo(
   if (ownFeatures.length > 0) return
 
   const { lng, lat } = e.lngLat
-  const canvas = map.getCanvas()
 
-  // BBOX must be in EPSG:3857 meters — getBounds() returns geographic degrees which
-  // would be treated as invalid Mercator coordinates by the WMS server.
-  const b = map.getBounds()
-  const [minX, minY] = lngLatToMercator(b.getWest(), b.getSouth())
-  const [maxX, maxY] = lngLatToMercator(b.getEast(), b.getNorth())
+  // A small window centred on the click, not the whole viewport.
+  //
+  // The viewport version derived its BBOX from getBounds(), which describes the visible
+  // ground but says nothing about where a pixel sits once the camera is pitched, rotated
+  // or on the globe projection - so X/Y pointed somewhere other than where the click
+  // landed and the server answered about the wrong ground. Unprojecting two corners of a
+  // box around the click is correct under any camera, and puts the click dead centre of
+  // the query image where the server's hit tolerance is.
+  const HALF_PX = 30
+  const sw = map.unproject([e.point.x - HALF_PX, e.point.y + HALF_PX])
+  const ne = map.unproject([e.point.x + HALF_PX, e.point.y - HALF_PX])
+  const [minX, minY] = lngLatToMercator(sw.lng, sw.lat)
+  const [maxX, maxY] = lngLatToMercator(ne.lng, ne.lat)
   const bbox = `${minX},${minY},${maxX},${maxY}`
-
-  // Use CSS pixel dimensions (clientWidth/clientHeight) to stay consistent with
-  // e.point.x / e.point.y which are also CSS pixels. canvas.width is device pixels
-  // (2× on retina) and would misalign the X/Y coordinates on high-DPI screens.
-  const width = canvas.clientWidth
-  const height = canvas.clientHeight
-
-  const layer = showFires ? "viirs.hs" : "mf010.fwi"
+  const size = HALF_PX * 2 + 1
 
   try {
     const text = await fetchEffisWmsFeatureInfo({
       layer,
       bbox,
-      width,
-      height,
-      x: Math.round(e.point.x),
-      y: Math.round(e.point.y),
+      width: size,
+      height: size,
+      x: HALF_PX,
+      y: HALF_PX,
+      time: useFilterStore.getState().selectedDate.split("T")[0],
     })
 
     if (text.includes("ServiceException")) {
@@ -83,13 +92,12 @@ async function fetchEffisInfo(
       return
     }
 
-    console.info("WMS GetFeatureInfo Response:", text)
-    toast.info("WMS GetFeatureInfo Response:" + text)
-
-    if (
-      !text.trim() ||
-      text.includes("Search returned no results")
-    ) {
+    if (!text.trim() || text.includes("Search returned no results")) {
+      // Said once, in plain words. This used to dump the raw WMS response into a toast
+      // on every single click, which is how a miss looked like a system error.
+      toast.info("No Copernicus hotspot there", {
+        description: "EFFIS records its own detections, which are not the ones we ingest. Ours are the red circles.",
+      })
       return
     }
 
@@ -105,24 +113,13 @@ async function fetchEffisInfo(
       props[key.trim()] = rest.join("=").trim()
     }
 
-    console.info("Parsed props:", props)
-    toast.info("Parsed props:" + props)
-
-    if (layer === "viirs.hs") {
+    {
       const date = props.FIREDATE ? new Date(props.FIREDATE as string).toLocaleDateString() : "Live"
       const { dot, text } = intensityStyle(Number(props.FRP ?? 0))
       openPopup(
         map,
         [lng, lat],
         generateGlassPopupHTML(date, "VIIRS Sat Active Ignition", `FRP: ${props.FRP ?? "--"} MW`, [lng, lat], dot, text),
-        activePopupRef,
-      )
-    } else {
-      const riskVal = props.GRAY_INDEX ?? props.value ?? "Analyzing"
-      openPopup(
-        map,
-        [lng, lat],
-        generateSectorPopupHTML("Copernicus Macro Matrix", `FWI Rating: ${riskVal}`, 0, 0, "bg-orange-500", "text-orange-500"),
         activePopupRef,
       )
     }

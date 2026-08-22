@@ -54,6 +54,7 @@ describe("fireService API service module", () => {
       height: 600,
       x: 100,
       y: 200,
+      time: "2026-08-22",
     }
 
     it("should construct the correct WMS URL and return response text on success", async () => {
@@ -72,6 +73,8 @@ describe("fireService API service module", () => {
       expect(calledUrl).toContain("&BBOX=20,40,30,50&WIDTH=800&HEIGHT=600")
       expect(calledUrl).toContain("&SRS=EPSG:3857&X=100&Y=200")
       expect(calledUrl).toContain("&STYLES=&INFO_FORMAT=text/plain")
+      // Without TIME the hotspot layer answers for its default day, 2020-01-01.
+      expect(calledUrl).toContain("&TIME=2026-08-22")
       
       expect(result).toBe(mockResponseText)
     })

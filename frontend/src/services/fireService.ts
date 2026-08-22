@@ -60,6 +60,9 @@ interface EffisFeatureInfoParams {
   height: number
   x: number
   y: number
+  /** YYYY-MM-DD. The hotspot layer is time-dimensioned and defaults to 2020-01-01
+   *  when this is omitted, so a query without it asks about the wrong day. */
+  time: string
 }
 
 /**
@@ -68,7 +71,7 @@ interface EffisFeatureInfoParams {
 export async function fetchEffisWmsFeatureInfo(params: EffisFeatureInfoParams): Promise<string> {
   const url =
     `/effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo` +
-    `&LAYERS=${params.layer}&QUERY_LAYERS=${params.layer}` +
+    `&LAYERS=${params.layer}&QUERY_LAYERS=${params.layer}&TIME=${params.time}` +
     `&BBOX=${params.bbox}&WIDTH=${params.width}&HEIGHT=${params.height}` +
     `&SRS=EPSG:3857&X=${params.x}&Y=${params.y}` +
     `&STYLES=&INFO_FORMAT=text/plain`

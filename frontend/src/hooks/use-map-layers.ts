@@ -11,13 +11,24 @@ function getFwiTilesUrl(isoDate: string): string[] {
   return [`effis-fwi://effis-wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=mf010.fwi&TIME=${dateStr}&STYLES=&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE`]
 }
 
-const EFFIS_VIIRS_TILES = [
-  `effis-viirs://maps.effis.emergency.copernicus.eu/effis` +
-  `?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap` +
-  `&LAYERS=viirs.hs&STYLES=` +
-  `&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256` +
-  `&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE`,
-]
+/**
+ * The hotspot layer is time-dimensioned and its capabilities declare
+ * `default="2020-01-01"`. Requested without TIME it therefore served hotspots from the
+ * first of January 2020 - verified by the response being byte-identical to an explicit
+ * TIME=2020-01-01, and different from today's. That is why these pixels never lined up
+ * with our own detections, and why the Sahel was solid green: 1 January is peak
+ * agricultural burning there.
+ */
+function getViirsTilesUrl(isoDate: string): string[] {
+  const dateStr = isoDate.split("T")[0]
+  return [
+    `effis-viirs://maps.effis.emergency.copernicus.eu/effis` +
+    `?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap` +
+    `&LAYERS=viirs.hs&TIME=${dateStr}&STYLES=` +
+    `&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256` +
+    `&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE`,
+  ]
+}
 
 /**
  * Drops detections outside the national border.
@@ -56,7 +67,7 @@ export function initializeLayers(map: maplibregl.Map): void {
     maxzoom: 14,
   })
   addSource("effis-fwi", { type: "raster", tiles: getFwiTilesUrl(selectedDate), tileSize: 256, attribution: "Copernicus EFFIS" })
-  addSource("effis-viirs", { type: "raster", tiles: EFFIS_VIIRS_TILES, tileSize: 256, attribution: "Copernicus EFFIS" })
+  addSource("effis-viirs", { type: "raster", tiles: getViirsTilesUrl(selectedDate), tileSize: 256, attribution: "Copernicus EFFIS" })
   // Wiser's own risk model. Empty until useRiskZones loads it from the backend.
   addSource("risk-zones", { type: "geojson", data: { type: "FeatureCollection", features: [] } })
   // Starts empty on purpose - routes only ever come from the backend, which computes
@@ -243,7 +254,7 @@ export function useMapLayers(mapRef: RefObject<maplibregl.Map | null>, fireDataR
 
     const viirsSource = map.getSource("effis-viirs") as maplibregl.Source & { setTiles?: (tiles: string[]) => void }
     if (viirsSource && typeof viirsSource.setTiles === "function") {
-      viirsSource.setTiles(EFFIS_VIIRS_TILES)
+      viirsSource.setTiles(getViirsTilesUrl(selectedDate))
     }
   }, [selectedDate, mapRef])
 }
