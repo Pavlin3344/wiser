@@ -4,6 +4,7 @@ import { Flame, Loader2, AlertTriangle } from "lucide-react"
 
 import { SidebarGroup, SidebarGroupLabel } from "@/components/ui/sidebar"
 import { fetchDailyFireCounts } from "@/services/fireService"
+import { BurnSeverityPanel } from "@/pages/phase3/BurnSeverityPanel"
 
 interface CustomTooltipProps {
   active?: boolean
@@ -167,6 +168,8 @@ export function AnalysisPage() {
               : `${totalFires} detection${totalFires > 1 ? "s" : ""} over the last 7 days${peakDay ? `, peaking on ${peakDay}` : ""}.`}
         </div>
       </SidebarGroup>
+
+      <BurnSeverityPanel />
     </div>
   )
 }

@@ -29,6 +29,7 @@ public class SecurityConfig {
                         // Read-only alert feed the dashboard renders; writes stay protected.
                         .requestMatchers(HttpMethod.GET, "/api/alerts").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/zones/risk").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/burn-severity").permitAll()
                         // The dashboard needs escape routes for whoever is looking at it,
                         // and it cannot hold a secret to ask for them.
                         .requestMatchers(HttpMethod.GET, "/api/evacuation/routes").permitAll()

@@ -229,6 +229,18 @@ jobs:
           docker compose up -d --build --remove-orphans
           echo "Deployment complete"
 
+      # Prometheus and Alertmanager read their config once, at container start, and
+      # their config files are bind mounts - so `up -d` leaves them running on whatever
+      # they loaded last time and a config-only change never takes effect. Four scrape
+      # targets (the three backend services and the data-processing exporter) had been
+      # committed for a while and were still not being scraped for exactly this reason.
+      # SIGHUP reloads in place, without dropping the series they already hold.
+      - name: Reload Prometheus and Alertmanager config
+        run: |
+          docker kill --signal=HUP wiser-prometheus
+          docker kill --signal=HUP wiser-alertmanager
+          echo "Config reloaded"
+
       - name: Verify container health
         working-directory: /home/pavlin/wiser-repo/infra/docker
         run: |
