@@ -1,6 +1,8 @@
 package com.wisertech.api;
 
 import java.util.List;
+
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -11,17 +13,28 @@ public class FireRepository {
     // Postgres to convert it to GeoJSON text (ST_AsGeoJSON) before it leaves the DB.
     // LIMIT is a safety cap, not real pagination - fine for now, revisit if the
     // table grows large.
+    //
+    // The time window is what makes "active" mean anything. Nothing ever expires or
+    // deletes a detection, so without it this returned every fire ever ingested and
+    // the map accumulated ones that burned out days ago. FIRMS is polled for the last
+    // 24 hours and both satellites revisit roughly twice a day, so a detection that
+    // stops being re-reported has either gone out or gone under cloud - either way it
+    // is no longer something to dispatch anyone to.
     private static final String ACTIVE_FIRES_SQL = """
         SELECT id, source, detected_at, confidence, frp,
                ST_AsGeoJSON(geom) AS geom_json,
                properties
         FROM active_fires
+        WHERE detected_at > NOW() - make_interval(hours => ?)
         ORDER BY detected_at DESC
         LIMIT 5000
         """;
 
     // Days with no detections still have to appear in the chart, otherwise a quiet
     // Tuesday silently vanishes and the week looks shorter than it was.
+    //
+    // Deliberately unwindowed: this is history, not a live picture, so it counts every
+    // detection recorded on each day whether or not that fire is still burning.
     private static final String DAILY_COUNTS_SQL = """
         SELECT d.day::date AS day, COUNT(f.id) AS fire_count
         FROM generate_series(
@@ -35,9 +48,13 @@ public class FireRepository {
         """;
 
     private final JdbcTemplate jdbcTemplate;
+    private final int activeWindowHours;
 
-    public FireRepository(JdbcTemplate jdbcTemplate) {
+    public FireRepository(
+            JdbcTemplate jdbcTemplate,
+            @Value("${wiser.active-fire-window-hours:24}") int activeWindowHours) {
         this.jdbcTemplate = jdbcTemplate;
+        this.activeWindowHours = activeWindowHours;
     }
 
     public List<DailyFireCount> findDailyCounts(int days) {
@@ -58,6 +75,6 @@ public class FireRepository {
             rs.getObject("frp") != null ? rs.getDouble("frp") : null,
             rs.getString("geom_json"),
             rs.getString("properties")
-        ));
+        ), activeWindowHours);
     }
 }
