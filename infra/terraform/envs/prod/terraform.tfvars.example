@@ -1,0 +1,19 @@
+# Copy to terraform.tfvars (gitignored) or supply these as TF_VAR_* environment variables.
+# Nothing here is committed - the repository has never held a secret and should not start.
+
+subscription_id = "00000000-0000-0000-0000-000000000000"
+
+# The tag CI pushed. Pin it; `latest` cannot be rolled back to.
+image_tag = "16585a6"
+
+postgres_administrator_password = "..."
+
+ssh_public_key     = "ssh-ed25519 AAAA..."
+tailscale_auth_key = "tskey-auth-..."
+
+alert_emails = ["bgpavlinyordanov@gmail.com"]
+
+secrets = {
+  "copernicus-client-secret" = "..."
+  "api-key"                  = "..."
+}

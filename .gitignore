@@ -9,6 +9,9 @@
 *.tfstate
 *.tfstate.*
 .terraform/
+# Реалните стойности носят пароли и Tailscale ключ; .example се комитва.
+*.tfvars
+!*.tfvars.example
 
 # Python (data/processing workers) — байткодът се генерира при всяко пускане
 __pycache__/

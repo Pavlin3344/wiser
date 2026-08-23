@@ -1,0 +1,18 @@
+#cloud-config
+# Subnet router: advertises the whole VNet into the tailnet so Hetzner-side Grafana and
+# ELK, and anyone holding psql, can reach resources that have no public endpoint.
+package_update: true
+package_upgrade: false
+
+write_files:
+  - path: /etc/sysctl.d/99-tailscale.conf
+    content: |
+      net.ipv4.ip_forward = 1
+      net.ipv6.conf.all.forwarding = 1
+
+runcmd:
+  - [ sh, -c, "curl -fsSL https://tailscale.com/install.sh | sh" ]
+  - [ sysctl, -p, /etc/sysctl.d/99-tailscale.conf ]
+  # --accept-dns=false: this box must keep Azure's resolver, because resolving the private
+  # endpoints is the whole reason it is here.
+  - [ sh, -c, "tailscale up --authkey='${auth_key}' --advertise-routes='${advertise_cidr}' --accept-dns=false --hostname=wiser-azure-router" ]

@@ -57,6 +57,35 @@ jobs:
             prom/alertmanager:v0.27.0 \
             check-config /etc/alertmanager/alertmanager.yml
   
+  # Не е в `needs` на deploy: Terraform описва Azure, а deploy пипа Hetzner. Счупен .tf
+  # не бива да спира деплой на продукцията, но и не бива да се открива чак при apply.
+  validate-terraform:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        root: [bootstrap, envs/prod]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.15.9
+
+      - name: Check formatting
+        working-directory: infra/terraform
+        run: terraform fmt -check -recursive
+
+      # -backend=false: валидацията не иска нито state, нито Azure креденшъли.
+      - name: Init without backend
+        working-directory: infra/terraform/${{ matrix.root }}
+        run: terraform init -backend=false -input=false
+
+      - name: Validate
+        working-directory: infra/terraform/${{ matrix.root }}
+        run: terraform validate
+
   validate-frontend:
     name: Validate frontend
     runs-on: ubuntu-latest
