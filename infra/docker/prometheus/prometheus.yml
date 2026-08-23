@@ -1,6 +1,10 @@
 global:
-  scrape_interval: 15s
-  evaluation_interval: 15s
+  # 30s, not 15s. Nothing here changes faster than hourly - EFFIS publishes once a day,
+  # FIRMS is polled hourly, the risk batch runs every six hours - so a 15s scrape doubled
+  # the sample count to describe data that had not moved. On Azure Monitor's managed
+  # Prometheus, which bills per ingested sample, that difference is the whole bill.
+  scrape_interval: 30s
+  evaluation_interval: 30s
 
 alerting:
   alertmanagers:
