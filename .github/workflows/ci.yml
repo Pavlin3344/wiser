@@ -21,6 +21,11 @@ jobs:
         run: |
           docker compose -f infra/docker/docker-compose.yml config --quiet
           docker compose -f infra/docker/docker-compose.dev.yml config --quiet
+          # Jobs-овете се валидират слети с базата, защото само така се пускат - сами по
+          # себе си нямат мрежа и зависимости. Без този ред грешка в тях се вижда чак на
+          # сървъра, в момента, в който някой пусне job.
+          docker compose -f infra/docker/docker-compose.yml \
+                         -f infra/docker/docker-compose.jobs.yml config --quiet
           echo "compose files are valid"
 
       # Валидираме със същите версии, които вървят на сървъра (не :latest)
