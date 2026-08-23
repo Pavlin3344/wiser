@@ -6,6 +6,13 @@
 #
 # fuel-loader is a one-time bootstrap of the EFFIS fuel raster.
 #
+# dnbr-scene-fetcher stands in for the Phase 3 producer the backend has not written yet.
+# It takes arguments, so it is always invoked with an explicit command:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.jobs.yml \
+#     run --rm dnbr-scene-fetcher \
+#     python dnbr/fetch_scene_pair.py --since 2026-08-15 --until 2026-08-21 --dry-run
+#
 # risk-zones used to live here as a one-shot driven by host cron. That cron was never
 # part of the repository and never existed on the host, so the `zones` table stayed
 # empty; it is now a scheduled service in docker-compose.yml. To run it once by hand:
@@ -29,6 +36,41 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     # YAML anchors do not carry across compose files, so this repeats the
     # x-default-logging block from docker-compose.yml rather than referencing it.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Fetches a real pre/post Sentinel-2 pair for a burned area and publishes the dNBR
+  # task. Not a service: it exists only until the backend produces `analysis.tasks`
+  # itself, and it needs arguments, so `run --rm` with an explicit command is the
+  # only way it is meant to be used.
+  #
+  # Reuses the dnbr image because it shares that worker's config.py, rasterio and pika -
+  # a second image would only duplicate the credentials plumbing.
+  dnbr-scene-fetcher:
+    build:
+      context: ../../data/processing
+      dockerfile: Dockerfile
+      args:
+        WORKER: dnbr
+    container_name: wiser-job-dnbr-scene-fetcher
+    restart: "no"
+    # Holds two float32 bands of one scene at a time, plus the encoded GeoTIFF.
+    mem_limit: 768m
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USER: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      COPERNICUS_CLIENT_ID: ${COPERNICUS_CLIENT_ID}
+      COPERNICUS_CLIENT_SECRET: ${COPERNICUS_CLIENT_SECRET}
     logging:
       driver: json-file
       options:
