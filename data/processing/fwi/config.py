@@ -5,6 +5,7 @@
 import os
 from pathlib import Path
 
+import boto3
 import pika
 from dotenv import load_dotenv
 
@@ -24,6 +25,17 @@ def rabbitmq_params() -> pika.ConnectionParameters:
         virtual_host=os.getenv("RABBITMQ_VHOST", "wiser"),
         credentials=creds,
         heartbeat=600,
+    )
+
+
+def s3_client():
+    """Същият клиент като в NDVI worker-а — FWI решетката идва по claim check."""
+    return boto3.client(
+        "s3",
+        endpoint_url=os.getenv("MINIO_ENDPOINT", "http://localhost:9000"),
+        aws_access_key_id=os.getenv("MINIO_ROOT_USER", "wiser"),
+        aws_secret_access_key=os.getenv("MINIO_ROOT_PASSWORD", ""),
+        region_name="us-east-1",  # MinIO не я ползва, но boto3 я изисква
     )
 
 

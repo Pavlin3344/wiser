@@ -11,7 +11,7 @@ import logging
 import pika
 import psycopg
 
-from config import rabbitmq_params, timescale_dsn
+from config import rabbitmq_params, s3_client, timescale_dsn
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,13 +32,25 @@ INSERT_SQL = """
 """
 
 
-def process_message(body: bytes, db) -> tuple[int, int]:
-    """Парсва съобщението и записва точките. Връща (записани, получени)."""
+def fetch_grid(bucket: str, path: str) -> list:
+    """Сваля решетката, към която сочи claim check съобщението."""
+    body = s3_client().get_object(Bucket=bucket, Key=path)["Body"].read()
+    return json.loads(body)["points"]
+
+
+def process_message(body: bytes, db, fetch=fetch_grid) -> tuple[int, int]:
+    """Парсва съобщението и записва точките. Връща (записани, получени).
+
+    Приема две форми. Новата носи `bucket` и `path` — решетката живее в обектното
+    хранилище, а съобщението е само референция (виж contract раздел 3). Старата носи
+    самите точки inline и се поддържа, за да не отиде в DLQ съобщение, което вече е
+    чакало в опашката при деплой.
+    """
     msg = json.loads(body)
     source = msg.get("source", "unknown")
     payload = msg["payload"]
     date = payload["date"]
-    points = payload["points"]
+    points = payload["points"] if "points" in payload else fetch(payload["bucket"], payload["path"])
 
     rows = [
         (date, p["lat"], p["lon"], source, p["fwi"], p["fwi_class"])

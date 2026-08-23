@@ -51,6 +51,22 @@ def message(points, date="2026-06-18", source="effis-downloader"):
     }).encode()
 
 
+def claim_check(date="2026-06-18", source="effis-downloader"):
+    """Формата, която downloader-ът праща вече — референция, не самите точки."""
+    return json.dumps({
+        "message_id": "11111111-2222-3333-4444-555555555555",
+        "timestamp": f"{date}T06:00:00Z",
+        "source": source,
+        "payload": {
+            "bucket": "processed-products",
+            "path": f"fwi/{date}/points.json",
+            "date": date,
+            "resolution_km": 8,
+            "point_count": 2,
+        },
+    }).encode()
+
+
 POINTS = [
     {"lat": 42.5, "lon": 25.0, "fwi": 18.4, "fwi_class": 4},
     {"lat": 42.6, "lon": 25.1, "fwi": 21.2, "fwi_class": 5},
@@ -105,7 +121,7 @@ def test_missing_source_falls_back():
     [
         (b"not json at all", "невалиден JSON"),
         (json.dumps({"source": "x"}).encode(), "липсва payload"),
-        (json.dumps({"payload": {"date": "2026-06-18"}}).encode(), "липсват points"),
+        (json.dumps({"payload": {"date": "2026-06-18"}}).encode(), "нито points, нито референция"),
         (message([{"lat": 42.5, "lon": 25.0, "fwi": 18.4}]), "точка без fwi_class"),
     ],
 )
@@ -113,3 +129,40 @@ def test_broken_messages_raise_so_they_reach_the_dlq(body, name):
     """Worker-ът разчита на изключение, за да nack-не съобщението към weather.dlq."""
     with pytest.raises(Exception):
         process_message(body, FakeDb(rowcount=0))
+
+
+# --- claim check: решетката идва от обектното хранилище, не от съобщението ---
+
+def test_claim_check_reads_the_grid_from_object_storage():
+    """Съобщението носи bucket и path; точките се свалят оттам и се записват както преди."""
+    seen = {}
+
+    def fake_fetch(bucket, path):
+        seen["bucket"], seen["path"] = bucket, path
+        return POINTS
+
+    db = FakeDb(rowcount=2)
+    assert process_message(claim_check(), db, fetch=fake_fetch) == (2, 2)
+    assert seen == {"bucket": "processed-products", "path": "fwi/2026-06-18/points.json"}
+    assert db.cursor().rows == [
+        ("2026-06-18", 42.5, 25.0, "effis-downloader", 18.4, 4),
+        ("2026-06-18", 42.6, 25.1, "effis-downloader", 21.2, 5),
+    ]
+
+
+def test_inline_points_still_work_during_rollout():
+    """Съобщение, чакало в опашката при деплой, не бива да отива в DLQ заради формата."""
+    def explode(*_):
+        raise AssertionError("не бива да се посяга към хранилището при inline съобщение")
+
+    db = FakeDb(rowcount=2)
+    assert process_message(message(POINTS), db, fetch=explode) == (2, 2)
+
+
+def test_unreachable_object_storage_reaches_the_dlq():
+    """Липсващ или недостъпен обект е грешка, не празен запис."""
+    def missing(*_):
+        raise RuntimeError("NoSuchKey")
+
+    with pytest.raises(RuntimeError):
+        process_message(claim_check(), FakeDb(rowcount=0), fetch=missing)

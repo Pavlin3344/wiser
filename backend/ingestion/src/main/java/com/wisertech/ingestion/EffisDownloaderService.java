@@ -28,9 +28,14 @@ import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageDeliveryMode;
 import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.resilience.annotation.Retryable;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -44,6 +49,14 @@ public class EffisDownloaderService {
     private static final String ROUTING_KEY = "weather.ingest";
     private static final int RESOLUTION_KM = 8;
 
+    // The grid is written here and the message carries a reference to it, the same
+    // claim-check shape SentinelFetcherService already uses for its GeoTIFF. Inline, the
+    // 2772 points serialise to about 223 KB in a single message - fine for RabbitMQ, but
+    // 87% of the 256 KB a broker like Azure Service Bus allows, and one lost message
+    // costs a whole day of fire weather. The fuel map is likewise externally sourced and
+    // lives in this bucket, so the placement has precedent.
+    private static final String PRODUCTS_BUCKET = "processed-products";
+
     // Bulgaria bounding box (west, south, east, north) - same bounds used elsewhere in this
     // project (data/processing/fuel/load_fuel.py) for consistency.
     private static final double WEST = 22.3;
@@ -56,13 +69,18 @@ public class EffisDownloaderService {
 
     private final RabbitTemplate rabbitTemplate;
     private final ObjectMapper objectMapper;
+    private final S3Client s3Client;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(30))
             .build();
 
-    public EffisDownloaderService(RabbitTemplate rabbitTemplate, ObjectMapper objectMapper) {
+    public EffisDownloaderService(
+            RabbitTemplate rabbitTemplate,
+            ObjectMapper objectMapper,
+            S3Client s3Client) {
         this.rabbitTemplate = rabbitTemplate;
         this.objectMapper = objectMapper;
+        this.s3Client = s3Client;
     }
 
     @Scheduled(fixedRate = 86_400_000) // daily - EFFIS only updates FWI once a day
@@ -71,8 +89,10 @@ public class EffisDownloaderService {
     public int fetchLatest() throws IOException, InterruptedException {
         byte[] tiff = fetchFwiRaster();
         List<Map<String, Object>> points = extractGridPoints(tiff);
-        publishMessage(points);
-        log.info("EFFIS FWI download complete: {} grid points published.", points.size());
+        String key = storeGrid(points);
+        publishMessage(key, points.size());
+        log.info("EFFIS FWI download complete: {} grid points stored at {}/{} and published.",
+                points.size(), PRODUCTS_BUCKET, key);
         return points.size();
     }
 
@@ -144,11 +164,36 @@ public class EffisDownloaderService {
         return 6;
     }
 
-    private void publishMessage(List<Map<String, Object>> points) {
+    /** Writes the day's grid to object storage and returns its key. */
+    private String storeGrid(List<Map<String, Object>> points) {
+        LocalDate today = LocalDate.now();
+        String key = "fwi/%s/points.json".formatted(today);
+
+        Map<String, Object> document = new LinkedHashMap<>();
+        document.put("date", today.toString());
+        document.put("resolution_km", RESOLUTION_KM);
+        document.put("points", points);
+
+        byte[] body = objectMapper.writeValueAsString(document).getBytes(StandardCharsets.UTF_8);
+        // Same key every day, so a rerun overwrites rather than accumulating - the run is
+        // already idempotent downstream thanks to the unique index on fire_weather_index.
+        s3Client.putObject(
+                PutObjectRequest.builder()
+                        .bucket(PRODUCTS_BUCKET)
+                        .key(key)
+                        .contentType("application/json")
+                        .build(),
+                RequestBody.fromBytes(body));
+        return key;
+    }
+
+    private void publishMessage(String key, int pointCount) {
         Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("bucket", PRODUCTS_BUCKET);
+        payload.put("path", key);
         payload.put("date", LocalDate.now().toString());
         payload.put("resolution_km", RESOLUTION_KM);
-        payload.put("points", points);
+        payload.put("point_count", pointCount);
 
         Map<String, Object> envelope = new LinkedHashMap<>();
         envelope.put("message_id", UUID.randomUUID().toString());

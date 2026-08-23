@@ -316,6 +316,10 @@ services:
       TIMESCALE_HOST: timescale
       TIMESCALE_PORT: 5432
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # The message is a claim check now - the grid itself is read from here.
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -323,6 +327,8 @@ services:
         condition: service_healthy
       flyway-timescale:
         condition: service_completed_successfully
+      minio:
+        condition: service_healthy
     logging: *default-logging
 
   worker-ndvi:
