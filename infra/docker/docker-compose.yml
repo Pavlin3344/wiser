@@ -141,6 +141,8 @@ services:
       - "100.116.156.92:15692:15692"
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      # Single-file mounts carry the same inode caveat as prometheus above - but RabbitMQ
+      # reads these only at boot anyway, so a config change already needs a recreate.
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
       - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
     # load_definitions makes RabbitMQ skip creating RABBITMQ_DEFAULT_USER, and
@@ -532,9 +534,14 @@ services:
     mem_limit: 512m
     ports:
       - "100.116.156.92:9090:9090"
+    # The whole directory, not prometheus.yml on its own. Docker binds a single-file
+    # mount to an inode, and `git reset --hard` in the deploy replaces the file rather
+    # than editing it - so the container went on reading the old inode. This config was
+    # frozen for 43 days: SIGHUP reloaded successfully every deploy and reloaded the same
+    # stale file. The rules kept updating precisely because they were already a directory
+    # mount, which is also how CI mounts this path when it runs promtool.
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./prometheus/rules:/etc/prometheus/rules:ro
+      - ./prometheus:/etc/prometheus:ro
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -575,8 +582,9 @@ services:
     mem_limit: 128m
     ports:
       - "127.0.0.1:9093:9093"
+    # Directory mount for the same reason as prometheus above.
     volumes:
-      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./alertmanager:/etc/alertmanager:ro
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9093/-/healthy >/dev/null || exit 1"]
       interval: 30s
@@ -614,6 +622,10 @@ services:
     # 0.0.0.0:5044 беше отворен beats endpoint към интернет.
     volumes:
       - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      # Deliberately still a single-file mount: /usr/share/logstash/config also holds
+      # jvm.options and log4j2.properties from the image, and a directory mount would
+      # hide them. That means a change to this file needs the container recreated, not
+      # just redeployed - see the note on prometheus.
       - ./logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
     depends_on:
       elasticsearch:
