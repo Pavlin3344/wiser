@@ -189,10 +189,17 @@ variable "scheduled_jobs" {
     }
     # Proximity alerts against the detections ingested in the same hour.
     alerts = {
-      image      = "wiser-alerts", cron = "30 * * * *"
-      cpu        = 0.5, memory = "1Gi", timeout_seconds = 900, retry_limit = 2
-      command    = [], args = []
-      env        = {}
+      image   = "wiser-alerts", cron = "30 * * * *"
+      cpu     = 0.5, memory = "1Gi", timeout_seconds = 900, retry_limit = 2
+      command = [], args = []
+      # Notification e-mail stays off - EmailNotificationService gates on this before it
+      # ever touches spring.mail, so leaving SMTP unset below is safe. To turn it on:
+      # add smtp-host/smtp-port/smtp-user/smtp-password/alerts-notify-to to `secrets` in
+      # terraform.tfvars, add matching entries to secret_env here, then flip this to true.
+      env = {
+        ALERTS_NOTIFY_ENABLED = "false"
+        ALERTS_NOTIFY_FROM    = "wiser@wisertech.com"
+      }
       secret_env = {}
     }
     # Rebuilds `zones` from FWI + NDVI + fuel. Every six hours because EFFIS does not
