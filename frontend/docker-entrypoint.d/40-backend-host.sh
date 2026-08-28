@@ -1,9 +1,12 @@
 #!/bin/sh
-# nginx.conf hardcodes the Compose service name "wiser-backend" as its upstream.
-# Rewrite it here when a real hostname is supplied (Azure Container Apps) - unset,
-# this is a no-op and Hetzner's Compose DNS still resolves "wiser-backend" itself.
+# nginx.conf hardcodes "http://wiser-backend:8080" as its upstream - the Compose service
+# name and its container port. That direct host:port works on Compose's DNS, but Azure
+# Container Apps' internal FQDN is a platform ingress endpoint, not the container itself:
+# other apps reach it over HTTPS on 443, not on the app's own target_port. Rewrite the
+# whole scheme+host+port here rather than just the host, so Azure can drop the port and
+# switch scheme; unset (Hetzner) it's a no-op.
 set -eu
 
-: "${BACKEND_HOST:=wiser-backend}"
+: "${BACKEND_UPSTREAM:=http://wiser-backend:8080}"
 
-sed -i "s/wiser-backend:8080/${BACKEND_HOST}:8080/g" /etc/nginx/conf.d/default.conf
+sed -i "s#http://wiser-backend:8080#${BACKEND_UPSTREAM}#g" /etc/nginx/conf.d/default.conf

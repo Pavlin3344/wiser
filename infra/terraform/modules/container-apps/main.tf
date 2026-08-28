@@ -118,13 +118,16 @@ resource "azurerm_container_app" "main" {
       cpu    = each.value.cpu
       memory = each.value.memory
 
-      # nginx.conf proxies to a fixed "wiser-backend:8080" upstream - that's the Docker
-      # Compose service name on Hetzner, which doesn't resolve here. The image's
-      # docker-entrypoint.d/40-backend-host.sh rewrites it at container start using this;
-      # unset (Hetzner) it defaults back to the Compose name and changes nothing.
+      # nginx.conf proxies to a fixed "http://wiser-backend:8080" upstream - that's the
+      # Compose service name and container port on Hetzner. Container Apps' internal FQDN
+      # is a platform ingress endpoint, not the container itself: other apps reach it over
+      # HTTPS on 443, not on api's own target_port, so this drops the port and switches
+      # scheme rather than just swapping the host. The image's
+      # docker-entrypoint.d/40-backend-host.sh applies it at container start; unset
+      # (Hetzner) it defaults back to the Compose upstream and changes nothing.
       dynamic "env" {
         for_each = merge(each.value.env, each.key == "frontend" ? {
-          BACKEND_HOST = "ca-${var.prefix}-api.internal.${azurerm_container_app_environment.main.default_domain}"
+          BACKEND_UPSTREAM = "https://ca-${var.prefix}-api.internal.${azurerm_container_app_environment.main.default_domain}"
         } : {})
         content {
           name  = env.key
