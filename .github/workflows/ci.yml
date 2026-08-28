@@ -297,3 +297,73 @@ jobs:
       # Frontend build-овете трупат стари image-и по диска
       - name: Prune dangling images
         run: docker image prune -f
+
+  # Azure, паралелно на Hetzner: образите се качват в ACR, за да може `terraform apply`
+  # да ги посочи по таг. Не е в `needs` на deploy и deploy не е в неговия - двата облака
+  # се деплойват независимо, и счупен Azure не бива да спира продукцията.
+  #
+  # Само push. `terraform apply` се пуска ръчно, защото иска и remote state, и петте
+  # тайни от terraform.tfvars - нито едното още го няма в CI.
+  azure-images:
+    name: Push images to ACR
+    needs: [validate-infra, validate-sql, validate-frontend, validate-backend, validate-data-processing, validate-shared-data, security-scan]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      # Федерираният токен към Azure. Без него azure/login няма какво да размени за
+      # достъп и гърми с AADSTS700016 - това е цялата разлика спрямо client secret.
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { image: wiser-frontend,           context: frontend }
+          - { image: wiser-api,                context: backend/api }
+          - { image: wiser-alerts,             context: backend/alerts }
+          - { image: wiser-ingestion,          context: backend/ingestion }
+          # Един Dockerfile за всички Python worker-и, WORKER избира кой се пакетира.
+          # Имената тук трябва да съвпадат с тези в modules/container-apps/variables.tf,
+          # иначе apply-ът сочи към таг, който CI никога не е качвал.
+          - { image: wiser-worker-fwi,         context: data/processing, worker: fwi }
+          - { image: wiser-worker-ndvi,        context: data/processing, worker: ndvi }
+          - { image: wiser-worker-dnbr,        context: data/processing, worker: dnbr }
+          - { image: wiser-worker-risk-zones,  context: data/processing, worker: risk_zones }
+          - { image: wiser-worker-fuel,        context: data/processing, worker: fuel }
+          - { image: wiser-data-metrics,       context: data/processing, worker: metrics }
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Log in to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Името на регистъра носи случаен суфикс (envs/prod/main.tf:119), затова се открива
+      # по време на изпълнение вместо да се записва тук и да се разминава след re-apply.
+      - name: Discover the registry
+        id: acr
+        run: |
+          server=$(az acr list -g rg-wiser-prod --query "[0].loginServer" -o tsv)
+          if [ -z "$server" ]; then
+            echo "Няма ACR в rg-wiser-prod. Пусни terraform apply веднъж преди този job."
+            exit 1
+          fi
+          echo "server=$server" >> "$GITHUB_OUTPUT"
+          az acr login --name "${server%%.*}"
+
+      # Тагът е късото SHA, същият формат като image_tag в terraform.tfvars.example.
+      # Нарочно без :latest - подвижен таг не се връща назад, а точно това ни трябва
+      # при демо, което може да се наложи да се откачи на предишна ревизия.
+      - name: Build and push
+        run: |
+          tag=${GITHUB_SHA::7}
+          ref="${{ steps.acr.outputs.server }}/${{ matrix.image }}"
+          docker build \
+            ${{ matrix.worker && format('--build-arg WORKER={0}', matrix.worker) || '' }} \
+            -t "$ref:$tag" \
+            "${{ matrix.context }}"
+          docker push "$ref:$tag"
+          echo "Pushed $ref:$tag"
