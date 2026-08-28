@@ -232,7 +232,7 @@ resource "azurerm_container_app_job" "scheduled" {
 resource "azurerm_container_app_job" "event" {
   for_each = var.event_jobs
 
-  name                         = substr("caj-${var.prefix}-${each.key}", 0, 32)  # 32-char ARM cap, see scheduled jobs above
+  name                         = substr("caj-${var.prefix}-${each.key}", 0, 32) # 32-char ARM cap, see scheduled jobs above
   location                     = var.location
   resource_group_name          = var.resource_group_name
   container_app_environment_id = azurerm_container_app_environment.main.id
@@ -320,7 +320,7 @@ resource "azurerm_container_app_job" "event" {
 resource "azurerm_container_app_job" "manual" {
   for_each = var.manual_jobs
 
-  name                         = substr("caj-${var.prefix}-${each.key}", 0, 32)  # 32-char ARM cap, see scheduled jobs above
+  name                         = substr("caj-${var.prefix}-${each.key}", 0, 32) # 32-char ARM cap, see scheduled jobs above
   location                     = var.location
   resource_group_name          = var.resource_group_name
   container_app_environment_id = azurerm_container_app_environment.main.id
