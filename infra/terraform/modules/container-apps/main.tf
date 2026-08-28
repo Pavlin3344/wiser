@@ -118,8 +118,14 @@ resource "azurerm_container_app" "main" {
       cpu    = each.value.cpu
       memory = each.value.memory
 
+      # nginx.conf proxies to a fixed "wiser-backend:8080" upstream - that's the Docker
+      # Compose service name on Hetzner, which doesn't resolve here. The image's
+      # docker-entrypoint.d/40-backend-host.sh rewrites it at container start using this;
+      # unset (Hetzner) it defaults back to the Compose name and changes nothing.
       dynamic "env" {
-        for_each = each.value.env
+        for_each = merge(each.value.env, each.key == "frontend" ? {
+          BACKEND_HOST = "ca-${var.prefix}-api.internal.${azurerm_container_app_environment.main.default_domain}"
+        } : {})
         content {
           name  = env.key
           value = env.value
