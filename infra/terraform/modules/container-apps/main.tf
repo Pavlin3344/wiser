@@ -160,7 +160,11 @@ resource "azurerm_container_app" "main" {
 resource "azurerm_container_app_job" "scheduled" {
   for_each = var.scheduled_jobs
 
-  name                         = "caj-${var.prefix}-${each.key}"
+  # ARM caps Container App Job names at 32 chars. "caj-wiser-prod-" already eats 15,
+  # and a couple of keys (ingest-air-quality, dnbr-scene-fetcher) run over on their own -
+  # truncate rather than rename them, since the keys are also what docker-compose.jobs.yml
+  # and the docs use on the Hetzner side.
+  name                         = substr("caj-${var.prefix}-${each.key}", 0, 32)
   location                     = var.location
   resource_group_name          = var.resource_group_name
   container_app_environment_id = azurerm_container_app_environment.main.id
@@ -228,7 +232,7 @@ resource "azurerm_container_app_job" "scheduled" {
 resource "azurerm_container_app_job" "event" {
   for_each = var.event_jobs
 
-  name                         = "caj-${var.prefix}-${each.key}"
+  name                         = substr("caj-${var.prefix}-${each.key}", 0, 32)  # 32-char ARM cap, see scheduled jobs above
   location                     = var.location
   resource_group_name          = var.resource_group_name
   container_app_environment_id = azurerm_container_app_environment.main.id
@@ -316,7 +320,7 @@ resource "azurerm_container_app_job" "event" {
 resource "azurerm_container_app_job" "manual" {
   for_each = var.manual_jobs
 
-  name                         = "caj-${var.prefix}-${each.key}"
+  name                         = substr("caj-${var.prefix}-${each.key}", 0, 32)  # 32-char ARM cap, see scheduled jobs above
   location                     = var.location
   resource_group_name          = var.resource_group_name
   container_app_environment_id = azurerm_container_app_environment.main.id

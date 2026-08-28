@@ -12,14 +12,15 @@ terraform {
     }
   }
 
-  # Created by infra/terraform/bootstrap. Fill storage_account_name from its output, or
-  # pass the whole block with -backend-config on init.
-  backend "azurerm" {
-    resource_group_name = "rg-wiser-tfstate"
-    container_name      = "tfstate"
-    key                 = "prod.terraform.tfstate"
-    # storage_account_name = "..."
-  }
+  # Демо на промо кредит в чужд акаунт (project_azure_demo_setup) - локален state, за да
+  # не се разправяме с bootstrap-а. Ако средата преживее демото, разкоментирай това и
+  # пусни infra/terraform/bootstrap веднъж, за да не остане state-ът само на един лаптоп.
+  # backend "azurerm" {
+  #   resource_group_name = "rg-wiser-tfstate"
+  #   container_name      = "tfstate"
+  #   key                 = "prod.terraform.tfstate"
+  #   storage_account_name = "..."
+  # }
 }
 
 provider "azurerm" {
