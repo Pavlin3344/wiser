@@ -124,6 +124,9 @@ module "container_apps" {
   servicebus_namespace_id   = module.messaging.namespace_id
   servicebus_namespace_name = module.messaging.namespace_name
 
+  postgres_fqdn  = module.database.server_fqdns["postgres"]
+  timescale_fqdn = module.database.server_fqdns["timescale"]
+
   image_tag      = var.image_tag
   zone_redundant = var.zone_redundant
 

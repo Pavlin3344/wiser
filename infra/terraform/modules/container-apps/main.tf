@@ -74,6 +74,14 @@ resource "azurerm_container_app_environment" "main" {
   # count - it was that both copies would have sat on the same machine.
   zone_redundancy_enabled = var.zone_redundant
 
+  # Azure creates this profile whether or not it's declared - every apply that left it
+  # undeclared showed a phantom diff trying to remove it. Declaring it matches reality
+  # and stops the drift; it does not change what the environment actually runs.
+  workload_profile {
+    name                  = "Consumption"
+    workload_profile_type = "Consumption"
+  }
+
   tags = var.tags
 }
 
@@ -119,15 +127,27 @@ resource "azurerm_container_app" "main" {
       memory = each.value.memory
 
       # nginx.conf proxies to a fixed "http://wiser-backend:8080" upstream - that's the
-      # Compose service name and container port on Hetzner. Container Apps' internal FQDN
-      # is a platform ingress endpoint, not the container itself: other apps reach it over
+      # Compose service name and container port on Hetzner. Container Apps' FQDN is a
+      # platform ingress endpoint, not the container itself: other apps reach it over
       # HTTPS on 443, not on api's own target_port, so this drops the port and switches
       # scheme rather than just swapping the host. The image's
       # docker-entrypoint.d/40-backend-host.sh applies it at container start; unset
       # (Hetzner) it defaults back to the Compose upstream and changes nothing.
+      #
+      # No ".internal." - api is external for now (see the comment on its entry in
+      # var.apps): this environment's internal-only ingress returns a platform 404 for
+      # every app that isn't external, unrelated to anything in this file.
+      #
+      # api's application.properties defaults spring.datasource.url to localhost - fine
+      # under Compose, where docker-compose.yml overrides it with the postgres service
+      # name. Nothing here did the equivalent for Azure, so api was trying to reach a
+      # database on its own loopback and crash-looping on a JDBC connect timeout.
       dynamic "env" {
         for_each = merge(each.value.env, each.key == "frontend" ? {
-          BACKEND_UPSTREAM = "https://ca-${var.prefix}-api.internal.${azurerm_container_app_environment.main.default_domain}"
+          BACKEND_UPSTREAM = "https://ca-${var.prefix}-api.${azurerm_container_app_environment.main.default_domain}"
+          } : each.key == "api" ? {
+          SPRING_DATASOURCE_URL = "jdbc:postgresql://${var.postgres_fqdn}:5432/wiser"
+          TIMESCALE_URL         = "jdbc:postgresql://${var.timescale_fqdn}:5432/wiser_timeseries"
         } : {})
         content {
           name  = env.key
@@ -136,10 +156,38 @@ resource "azurerm_container_app" "main" {
       }
 
       dynamic "env" {
-        for_each = each.value.secret_env
+        for_each = merge(each.value.secret_env, each.key == "api" ? {
+          POSTGRES_PASSWORD = "postgres-password"
+        } : {})
         content {
           name        = env.key
           secret_name = env.value
+        }
+      }
+
+      # Without an explicit probe, Container Apps' own default check gates whether the
+      # environment's ingress will route to a replica at all - separate from, and stricter
+      # than, the container just being alive. For api that default landed on Spring
+      # Security's "/" (403, permitAll doesn't cover it), so the app was reachable via
+      # `az containerapp exec` the whole time while ingress kept answering "stopped or
+      # does not exist" for every real request. Point it at Spring Boot's own readiness/
+      # liveness groups instead - unauthenticated, and (unlike plain /actuator/health)
+      # not dragged down by the still-unwired RabbitMQ indicator.
+      dynamic "liveness_probe" {
+        for_each = each.key == "api" ? [1] : []
+        content {
+          transport = "HTTP"
+          port      = each.value.port
+          path      = "/actuator/health/liveness"
+        }
+      }
+
+      dynamic "readiness_probe" {
+        for_each = each.key == "api" ? [1] : []
+        content {
+          transport = "HTTP"
+          port      = each.value.port
+          path      = "/actuator/health/readiness"
         }
       }
     }

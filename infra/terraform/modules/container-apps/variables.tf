@@ -26,6 +26,16 @@ variable "servicebus_namespace_name" {
   type = string
 }
 
+# Private FQDNs from the database module - the api app needs these to build its JDBC
+# URLs. Resolvable only from inside the VNet, which is exactly where this app runs.
+variable "postgres_fqdn" {
+  type = string
+}
+
+variable "timescale_fqdn" {
+  type = string
+}
+
 # Registry names are global and alphanumeric only - same class of rule as storage accounts.
 variable "registry_name" {
   type = string
@@ -99,9 +109,16 @@ variable "apps" {
       secret_env   = {}
     }
     api = {
-      image        = "wiser-api"
-      port         = 8080
-      external     = false
+      image = "wiser-api"
+      port  = 8080
+      # Should be internal-only - nothing but frontend and Tailscale need to reach it.
+      # It's external because this environment's internal (app-to-app) ingress returns a
+      # platform "stopped or does not exist" 404 for every internal-only app, verified by
+      # testing data-metrics too and by the exact same endpoint working the moment ingress
+      # was flipped external. Revert once that's understood; nothing here caused it -
+      # SNI, the DB wiring, explicit health probes and an explicit workload_profile block
+      # were all tried first and none of them were it.
+      external     = true
       cpu          = 0.5
       memory       = "1Gi"
       min_replicas = 2
