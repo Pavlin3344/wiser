@@ -157,7 +157,9 @@ resource "azurerm_container_app" "main" {
 
       dynamic "env" {
         for_each = merge(each.value.secret_env, each.key == "api" ? {
-          POSTGRES_PASSWORD = "postgres-password"
+          # Not a credential - a Container Apps secret *name*, resolved from the actual
+          # value in the `secrets` map (envs/prod/main.tf), itself sourced from tfvars.
+          POSTGRES_PASSWORD = "postgres-password" # gitleaks:allow
         } : {})
         content {
           name        = env.key
