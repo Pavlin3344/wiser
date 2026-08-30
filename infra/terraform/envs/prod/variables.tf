@@ -73,6 +73,27 @@ variable "tailscale_vm_size" {
   default = "Standard_B1s"
 }
 
+# Real MinIO/RabbitMQ servers, run as Container Apps - see messaging-storage.tf. Same
+# accounts as Hetzner's infra/docker/.env, reused rather than invented, since the buckets
+# and vhost topology already assume them.
+variable "minio_root_user" {
+  type = string
+}
+
+variable "minio_root_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "rabbitmq_user" {
+  type = string
+}
+
+variable "rabbitmq_password" {
+  type      = string
+  sensitive = true
+}
+
 variable "tags" {
   type    = map(string)
   default = {}

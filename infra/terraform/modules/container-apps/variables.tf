@@ -57,6 +57,24 @@ variable "internal_only" {
   default     = false
 }
 
+variable "minio_root_user" {
+  type = string
+}
+
+variable "minio_root_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "rabbitmq_user" {
+  type = string
+}
+
+variable "rabbitmq_password" {
+  type      = string
+  sensitive = true
+}
+
 variable "zone_redundant" {
   type    = bool
   default = true

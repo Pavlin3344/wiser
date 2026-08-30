@@ -145,15 +145,15 @@ resource "azurerm_container_app" "main" {
       dynamic "env" {
         for_each = merge(each.value.env, each.key == "frontend" ? {
           BACKEND_UPSTREAM = "https://ca-${var.prefix}-api.${azurerm_container_app_environment.main.default_domain}"
-          } : each.key == "api" ? {
-          SPRING_DATASOURCE_URL = "jdbc:postgresql://${var.postgres_fqdn}:5432/wiser"
-          TIMESCALE_URL         = "jdbc:postgresql://${var.timescale_fqdn}:5432/wiser_timeseries"
-          # The browser now calls api directly instead of through nginx's proxy (see
-          # project_azure_demo_setup memory: that proxy hop was unreliable on this
-          # platform's edge). A direct cross-origin browser call needs api to answer
-          # with Access-Control-Allow-Origin, which SecurityConfig reads from this.
-          WISER_CORS_ALLOWED_ORIGINS = "https://ca-${var.prefix}-frontend.${azurerm_container_app_environment.main.default_domain}"
-        } : {})
+          } : each.key == "api" ? merge(local.rabbitmq_env, {
+            SPRING_DATASOURCE_URL = "jdbc:postgresql://${var.postgres_fqdn}:5432/wiser"
+            TIMESCALE_URL         = "jdbc:postgresql://${var.timescale_fqdn}:5432/wiser_timeseries"
+            # The browser now calls api directly instead of through nginx's proxy (see
+            # project_azure_demo_setup memory: that proxy hop was unreliable on this
+            # platform's edge). A direct cross-origin browser call needs api to answer
+            # with Access-Control-Allow-Origin, which SecurityConfig reads from this.
+            WISER_CORS_ALLOWED_ORIGINS = "https://ca-${var.prefix}-frontend.${azurerm_container_app_environment.main.default_domain}"
+        }) : {})
         content {
           name  = env.key
           value = env.value
@@ -161,11 +161,11 @@ resource "azurerm_container_app" "main" {
       }
 
       dynamic "env" {
-        for_each = merge(each.value.secret_env, each.key == "api" ? {
+        for_each = merge(each.value.secret_env, each.key == "api" ? merge(local.rabbitmq_secret_env, {
           # Not a credential - a Container Apps secret *name*, resolved from the actual
           # value in the `secrets` map (envs/prod/main.tf), itself sourced from tfvars.
           POSTGRES_PASSWORD = "postgres-password" # gitleaks:allow
-        } : {})
+        }) : {})
         content {
           name        = env.key
           secret_name = env.value
@@ -269,8 +269,28 @@ resource "azurerm_container_app_job" "scheduled" {
       command = each.value.command
       args    = each.value.args
 
+      # ingestion and alerts are the same Spring Boot stack as api, reading the same
+      # SPRING_DATASOURCE_URL/TIMESCALE_URL/POSTGRES_PASSWORD - and hit the exact api
+      # crash-loop before this (JDBC connect to localhost, Hibernate can't determine a
+      # Dialect). Keyed on image rather than job name so it covers whichever schedules
+      # use these two images, not just the ones that exist today.
       dynamic "env" {
-        for_each = each.value.env
+        for_each = merge(
+          each.value.env,
+          contains(["wiser-ingestion", "wiser-alerts"], each.value.image) ? {
+            SPRING_DATASOURCE_URL = "jdbc:postgresql://${var.postgres_fqdn}:5432/wiser"
+            TIMESCALE_URL         = "jdbc:postgresql://${var.timescale_fqdn}:5432/wiser_timeseries"
+          } : {},
+          # MinIO and RabbitMQ run for real now (messaging-storage.tf) - same servers
+          # Hetzner runs, just reachable at a different host. AMQP is plain, no TLS:
+          # Container Apps' TCP ingress is raw passthrough, it doesn't terminate it.
+          each.value.image == "wiser-ingestion" ? merge(local.minio_env, local.rabbitmq_env) : {},
+          # risk-zones is Python (data/processing), not Spring - host/port apart, not a
+          # JDBC URL, and it reads TIMESCALE_HOST directly rather than a Java-style URL.
+          each.value.image == "wiser-worker-risk-zones" ? merge(
+            local.postgres_python_env, local.timescale_python_env, local.minio_env
+          ) : {}
+        )
         content {
           name  = env.key
           value = env.value
@@ -278,7 +298,19 @@ resource "azurerm_container_app_job" "scheduled" {
       }
 
       dynamic "env" {
-        for_each = each.value.secret_env
+        for_each = merge(
+          each.value.secret_env,
+          contains(["wiser-ingestion", "wiser-alerts", "wiser-worker-risk-zones"], each.value.image) ? local.postgres_python_secret_env : {},
+          # Both have safe REPLACE_ME_* defaults in application.properties, so wiring them
+          # for every ingestion schedule is harmless even for the ones that never read
+          # them - simpler than keying each var to the one WISER_JOB value that needs it.
+          each.value.image == "wiser-ingestion" ? merge(local.minio_secret_env, local.rabbitmq_secret_env, {
+            FIRMS_MAP_KEY            = "firms-map-key"
+            COPERNICUS_CLIENT_ID     = "copernicus-client-id"
+            COPERNICUS_CLIENT_SECRET = "copernicus-client-secret"
+          }) : {},
+          each.value.image == "wiser-worker-risk-zones" ? local.minio_secret_env : {}
+        )
         content {
           name        = env.key
           secret_name = env.value
@@ -304,6 +336,11 @@ resource "azurerm_container_app_job" "event" {
   replica_timeout_in_seconds = each.value.timeout_seconds
   replica_retry_limit        = each.value.retry_limit
 
+  # The workers themselves are RabbitMQ consumers (data/processing/*/config.py), and
+  # ingestion publishes to RabbitMQ exchanges (infra/docker/rabbitmq/definitions.json) -
+  # not Service Bus, which nothing in this whole pipeline ever reads from or writes to.
+  # KEDA's native RabbitMQ scaler polls the same broker the worker actually consumes,
+  # so a job only starts when a message is genuinely waiting for it.
   event_trigger_config {
     parallelism              = 1
     replica_completion_count = 1
@@ -314,17 +351,16 @@ resource "azurerm_container_app_job" "event" {
       polling_interval_in_seconds = 30
 
       rules {
-        name             = "servicebus-${each.key}"
-        custom_rule_type = "azure-servicebus"
+        name             = "rabbitmq-${each.key}"
+        custom_rule_type = "rabbitmq"
         metadata = {
-          queueName    = each.value.queue
-          namespace    = var.servicebus_namespace_name
-          messageCount = "1"
+          queueName   = each.value.queue
+          queueLength = "1"
         }
 
         authentication {
-          secret_name       = "servicebus-connection"
-          trigger_parameter = "connection"
+          secret_name       = "rabbitmq-connection-string"
+          trigger_parameter = "host"
         }
       }
     }
@@ -348,6 +384,11 @@ resource "azurerm_container_app_job" "event" {
     }
   }
 
+  secret {
+    name  = "rabbitmq-connection-string"
+    value = local.rabbitmq_connection_string
+  }
+
   template {
     container {
       name    = each.key
@@ -357,8 +398,17 @@ resource "azurerm_container_app_job" "event" {
       command = each.value.command
       args    = each.value.args
 
+      # All three are RabbitMQ consumers; fwi also reads Timescale, dnbr also reads
+      # Postgres, and none of them are Spring - see the locals in messaging-storage.tf.
+      # ndvi touches neither database, only the queue and blob storage.
       dynamic "env" {
-        for_each = each.value.env
+        for_each = merge(
+          each.value.env,
+          local.rabbitmq_env,
+          local.minio_env,
+          each.key == "worker-fwi" ? local.timescale_python_env : {},
+          each.key == "worker-dnbr" ? local.postgres_python_env : {}
+        )
         content {
           name  = env.key
           value = env.value
@@ -366,7 +416,12 @@ resource "azurerm_container_app_job" "event" {
       }
 
       dynamic "env" {
-        for_each = each.value.secret_env
+        for_each = merge(
+          each.value.secret_env,
+          local.rabbitmq_secret_env,
+          local.minio_secret_env,
+          contains(["worker-fwi", "worker-dnbr"], each.key) ? local.postgres_python_secret_env : {}
+        )
         content {
           name        = env.key
           secret_name = env.value
@@ -424,8 +479,17 @@ resource "azurerm_container_app_job" "manual" {
       command = each.value.command
       args    = each.value.args
 
+      # fuel-loader only ever writes the fuel raster to blob storage. dnbr-scene-fetcher
+      # shares data/processing/dnbr/config.py with worker-dnbr - same full set, plus the
+      # Copernicus credentials to actually download the scene pair it publishes about.
       dynamic "env" {
-        for_each = each.value.env
+        for_each = merge(
+          each.value.env,
+          each.value.image == "wiser-worker-fuel" ? local.minio_env : {},
+          each.value.image == "wiser-worker-dnbr" ? merge(
+            local.rabbitmq_env, local.postgres_python_env, local.minio_env
+          ) : {}
+        )
         content {
           name  = env.key
           value = env.value
@@ -433,7 +497,17 @@ resource "azurerm_container_app_job" "manual" {
       }
 
       dynamic "env" {
-        for_each = each.value.secret_env
+        for_each = merge(
+          each.value.secret_env,
+          each.value.image == "wiser-worker-fuel" ? local.minio_secret_env : {},
+          each.value.image == "wiser-worker-dnbr" ? merge(
+            local.rabbitmq_secret_env, local.postgres_python_secret_env, local.minio_secret_env,
+            {
+              COPERNICUS_CLIENT_ID     = "copernicus-client-id"
+              COPERNICUS_CLIENT_SECRET = "copernicus-client-secret"
+            }
+          ) : {}
+        )
         content {
           name        = env.key
           secret_name = env.value

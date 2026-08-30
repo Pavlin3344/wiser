@@ -333,7 +333,10 @@ jobs:
           - { image: wiser-worker-fwi,         context: data/processing, worker: fwi }
           - { image: wiser-worker-ndvi,        context: data/processing, worker: ndvi }
           - { image: wiser-worker-dnbr,        context: data/processing, worker: dnbr }
-          - { image: wiser-worker-risk-zones,  context: data/processing, worker: risk_zones }
+          # risk-zones runs as a Container Apps *job* (job.py, exits when done), not the
+          # long-lived queue-consumer loop the other workers use (worker.py) - matches
+          # the ENTRYPOINT_FILE build arg docker-compose.yml passes for the same service.
+          - { image: wiser-worker-risk-zones,  context: data/processing, worker: risk_zones, entrypoint_file: job.py }
           - { image: wiser-worker-fuel,        context: data/processing, worker: fuel }
           - { image: wiser-data-metrics,       context: data/processing, worker: metrics }
     steps:
@@ -368,6 +371,7 @@ jobs:
           ref="${{ steps.acr.outputs.server }}/${{ matrix.image }}"
           docker build \
             ${{ matrix.worker && format('--build-arg WORKER={0}', matrix.worker) || '' }} \
+            ${{ matrix.entrypoint_file && format('--build-arg ENTRYPOINT_FILE={0}', matrix.entrypoint_file) || '' }} \
             ${{ matrix.api_base_url && format('--build-arg VITE_API_BASE_URL={0}', vars.AZURE_API_BASE_URL) || '' }} \
             -t "$ref:$tag" \
             "${{ matrix.context }}"

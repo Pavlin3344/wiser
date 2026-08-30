@@ -127,6 +127,11 @@ module "container_apps" {
   postgres_fqdn  = module.database.server_fqdns["postgres"]
   timescale_fqdn = module.database.server_fqdns["timescale"]
 
+  minio_root_user     = var.minio_root_user
+  minio_root_password = var.minio_root_password
+  rabbitmq_user       = var.rabbitmq_user
+  rabbitmq_password   = var.rabbitmq_password
+
   image_tag      = var.image_tag
   zone_redundant = var.zone_redundant
 
@@ -134,6 +139,8 @@ module "container_apps" {
   secrets = merge(var.secrets, {
     "postgres-password"     = var.postgres_administrator_password
     "servicebus-connection" = module.messaging.default_connection_string
+    "minio-root-password"   = var.minio_root_password
+    "rabbitmq-password"     = var.rabbitmq_password
   })
 
   tags = local.tags
