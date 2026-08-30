@@ -25,7 +25,7 @@ locals {
     MINIO_ROOT_USER = var.minio_root_user
   }
   minio_secret_env = {
-    MINIO_ROOT_PASSWORD = "minio-root-password"
+    MINIO_ROOT_PASSWORD = "minio-root-password" # gitleaks:allow - secret name, not a value
   }
   # Postgres and Timescale are separate Flexible Server instances (module.database) that
   # happen to share one admin password - the Python client libraries take host/port
@@ -122,7 +122,7 @@ resource "azurerm_container_app" "minio" {
       }
       env {
         name        = "MINIO_ROOT_PASSWORD"
-        secret_name = "minio-root-password"
+        secret_name = "minio-root-password" # gitleaks:allow - secret name, not a value
       }
 
       volume_mounts {
@@ -139,7 +139,7 @@ resource "azurerm_container_app" "minio" {
   }
 
   secret {
-    name  = "minio-root-password"
+    name  = "minio-root-password" # gitleaks:allow - secret name, not a value
     value = var.minio_root_password
   }
 
@@ -199,7 +199,7 @@ resource "azurerm_container_app" "rabbitmq" {
       }
       env {
         name        = "RABBITMQ_DEFAULT_PASS"
-        secret_name = "rabbitmq-password"
+        secret_name = "rabbitmq-password" # gitleaks:allow - secret name, not a value
       }
       env {
         name  = "RABBITMQ_DEFAULT_VHOST"
@@ -225,7 +225,7 @@ resource "azurerm_container_app" "rabbitmq" {
   }
 
   secret {
-    name  = "rabbitmq-password"
+    name  = "rabbitmq-password" # gitleaks:allow - secret name, not a value
     value = var.rabbitmq_password
   }
 
