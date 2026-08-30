@@ -1,13 +1,14 @@
 import type { FeatureCollection } from "geojson"
+import { API_BASE_URL } from "@/lib/api"
 
 /** Server-Sent Events endpoint pushing active fire updates as they are ingested. */
-export const FIRE_STREAM_URL = "/api/v1/fires/stream"
+export const FIRE_STREAM_URL = `${API_BASE_URL}/api/v1/fires/stream`
 
 /**
  * Fetches real active fire data from the backend.
  */
 export async function fetchActiveFires(): Promise<FeatureCollection> {
-  const r = await fetch("/api/v1/fires/active")
+  const r = await fetch(`${API_BASE_URL}/api/v1/fires/active`)
   if (!r.ok) {
     throw new Error(`HTTP error ${r.status}`)
   }
@@ -31,7 +32,7 @@ interface Page<T> {
 
 /** Proximity alerts raised by the alerts service. */
 export async function fetchAlerts(): Promise<Alert[]> {
-  const res = await fetch("/api/alerts?size=50&sort=sentAt,desc")
+  const res = await fetch(`${API_BASE_URL}/api/alerts?size=50&sort=sentAt,desc`)
   if (!res.ok) {
     throw new Error(`HTTP error ${res.status}`)
   }
@@ -46,7 +47,7 @@ export interface DailyFireCount {
 
 /** Detections per day for the trends chart. */
 export async function fetchDailyFireCounts(days = 7): Promise<DailyFireCount[]> {
-  const res = await fetch(`/api/v1/fires/daily-counts?days=${days}`)
+  const res = await fetch(`${API_BASE_URL}/api/v1/fires/daily-counts?days=${days}`)
   if (!res.ok) {
     throw new Error(`HTTP error ${res.status}`)
   }

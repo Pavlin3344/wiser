@@ -1,4 +1,5 @@
 import type { Polygon } from "geojson"
+import { API_BASE_URL } from "@/lib/api"
 
 /**
  * One completed post-fire analysis, as the API serialises the `burn_severity` row.
@@ -29,7 +30,7 @@ export interface BurnSeverityAnalysis {
 
 /** Completed dNBR analyses, most recently burned first. */
 export async function fetchBurnSeverity(limit = 20): Promise<BurnSeverityAnalysis[]> {
-  const res = await fetch(`/api/burn-severity?limit=${limit}`)
+  const res = await fetch(`${API_BASE_URL}/api/burn-severity?limit=${limit}`)
   if (!res.ok) {
     throw new Error(`HTTP error ${res.status}`)
   }

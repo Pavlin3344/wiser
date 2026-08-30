@@ -1,5 +1,6 @@
 import type { Polygon } from "geojson"
 import type { RiskZoneCollection, RiskZoneProperties } from "@/types/types"
+import { API_BASE_URL } from "@/lib/api"
 
 /** One row of the `zones` table as the API serialises it. */
 interface ZoneRow extends RiskZoneProperties {
@@ -14,7 +15,7 @@ interface ZoneRow extends RiskZoneProperties {
  * being rebuilt at every call site.
  */
 export async function fetchRiskZones(): Promise<RiskZoneCollection> {
-  const res = await fetch("/api/zones/risk")
+  const res = await fetch(`${API_BASE_URL}/api/zones/risk`)
   if (!res.ok) {
     throw new Error(`HTTP error ${res.status}`)
   }

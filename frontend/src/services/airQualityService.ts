@@ -3,6 +3,7 @@
  * so both endpoints can return nulls: a pollutant the upstream model did not publish
  * for that hour stays null rather than being reported as zero.
  */
+import { API_BASE_URL } from "@/lib/api"
 
 /** Most recent reading for one grid point. Concentrations are µg/m³. */
 export interface AirQualityReading {
@@ -27,7 +28,7 @@ export interface AirQualityAverage {
 
 /** Latest reading per sampling point, from the last 24 hours. */
 export async function fetchLatestAirQuality(): Promise<AirQualityReading[]> {
-  const res = await fetch("/api/v1/air-quality/latest")
+  const res = await fetch(`${API_BASE_URL}/api/v1/air-quality/latest`)
   if (!res.ok) {
     throw new Error(`HTTP error ${res.status}`)
   }
@@ -36,7 +37,7 @@ export async function fetchLatestAirQuality(): Promise<AirQualityReading[]> {
 
 /** Hourly country-wide averages, for showing how pollution moved during a fire. */
 export async function fetchAirQualityHistory(hours = 24): Promise<AirQualityAverage[]> {
-  const res = await fetch(`/api/v1/air-quality/history?hours=${hours}`)
+  const res = await fetch(`${API_BASE_URL}/api/v1/air-quality/history?hours=${hours}`)
   if (!res.ok) {
     throw new Error(`HTTP error ${res.status}`)
   }

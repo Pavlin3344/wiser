@@ -318,7 +318,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { image: wiser-frontend,           context: frontend }
+          # api_base_url: the browser calls api directly on Azure now (nginx proxying
+          # between the two Container Apps proved unreliable - see the fix commits and
+          # project_azure_demo_setup memory). Baked in at build time; set the
+          # AZURE_API_BASE_URL repo variable to api's current public URL, and rebuild
+          # after any environment recreation changes that URL's domain suffix.
+          - { image: wiser-frontend,           context: frontend, api_base_url: true }
           - { image: wiser-api,                context: backend/api }
           - { image: wiser-alerts,             context: backend/alerts }
           - { image: wiser-ingestion,          context: backend/ingestion }
@@ -363,6 +368,7 @@ jobs:
           ref="${{ steps.acr.outputs.server }}/${{ matrix.image }}"
           docker build \
             ${{ matrix.worker && format('--build-arg WORKER={0}', matrix.worker) || '' }} \
+            ${{ matrix.api_base_url && format('--build-arg VITE_API_BASE_URL={0}', vars.AZURE_API_BASE_URL) || '' }} \
             -t "$ref:$tag" \
             "${{ matrix.context }}"
           docker push "$ref:$tag"

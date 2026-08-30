@@ -148,6 +148,11 @@ resource "azurerm_container_app" "main" {
           } : each.key == "api" ? {
           SPRING_DATASOURCE_URL = "jdbc:postgresql://${var.postgres_fqdn}:5432/wiser"
           TIMESCALE_URL         = "jdbc:postgresql://${var.timescale_fqdn}:5432/wiser_timeseries"
+          # The browser now calls api directly instead of through nginx's proxy (see
+          # project_azure_demo_setup memory: that proxy hop was unreliable on this
+          # platform's edge). A direct cross-origin browser call needs api to answer
+          # with Access-Control-Allow-Origin, which SecurityConfig reads from this.
+          WISER_CORS_ALLOWED_ORIGINS = "https://ca-${var.prefix}-frontend.${azurerm_container_app_environment.main.default_domain}"
         } : {})
         content {
           name  = env.key
