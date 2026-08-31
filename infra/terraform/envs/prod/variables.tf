@@ -40,6 +40,12 @@ variable "image_tag" {
   type        = string
 }
 
+variable "custom_domain" {
+  description = "Apex or subdomain to bind to the frontend app with a free Azure-managed certificate (e.g. \"fire-cast.com\"). Empty skips it. See modules/container-apps/custom-domain.tf for the DNS records it needs first."
+  type        = string
+  default     = ""
+}
+
 variable "zone_redundant" {
   type    = bool
   default = true

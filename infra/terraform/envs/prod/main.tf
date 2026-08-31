@@ -134,6 +134,7 @@ module "container_apps" {
 
   image_tag      = var.image_tag
   zone_redundant = var.zone_redundant
+  custom_domain  = var.custom_domain
 
   # Every app and job gets the same secret names; each declares which ones it reads.
   secrets = merge(var.secrets, {

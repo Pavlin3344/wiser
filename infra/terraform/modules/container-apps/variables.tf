@@ -328,3 +328,9 @@ variable "manual_jobs" {
     }
   }
 }
+
+variable "custom_domain" {
+  description = "Apex or subdomain to bind to the frontend app with a free Azure-managed certificate (e.g. \"fire-cast.com\"). Empty skips the binding entirely. The DNS records it needs have to already resolve before applying - see custom-domain.tf."
+  type        = string
+  default     = ""
+}
