@@ -103,6 +103,7 @@ resource "azurerm_container_app" "minio" {
   resource_group_name          = var.resource_group_name
   container_app_environment_id = azurerm_container_app_environment.main.id
   revision_mode                = "Single"
+  workload_profile_name        = "Consumption" # see azurerm_container_app.main in main.tf
 
   template {
     min_replicas = 1
@@ -164,6 +165,7 @@ resource "azurerm_container_app" "rabbitmq" {
   resource_group_name          = var.resource_group_name
   container_app_environment_id = azurerm_container_app_environment.main.id
   revision_mode                = "Single"
+  workload_profile_name        = "Consumption" # see azurerm_container_app.main in main.tf
 
   template {
     min_replicas = 1

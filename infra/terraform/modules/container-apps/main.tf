@@ -95,6 +95,12 @@ resource "azurerm_container_app" "main" {
   container_app_environment_id = azurerm_container_app_environment.main.id
   revision_mode                = "Single"
 
+  # Same phantom diff the environment's workload_profile block above fixes, one level
+  # down: Azure assigns every app and job to the Consumption profile whether or not it is
+  # declared, so leaving it out made all 17 resources show "Consumption -> null" on every
+  # single plan. Declaring it matches reality and does not change what they run.
+  workload_profile_name = "Consumption"
+
   identity {
     type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.apps.id]
@@ -242,6 +248,7 @@ resource "azurerm_container_app_job" "scheduled" {
   location                     = var.location
   resource_group_name          = var.resource_group_name
   container_app_environment_id = azurerm_container_app_environment.main.id
+  workload_profile_name        = "Consumption" # see azurerm_container_app.main above
 
   replica_timeout_in_seconds = each.value.timeout_seconds
   replica_retry_limit        = each.value.retry_limit
@@ -342,6 +349,7 @@ resource "azurerm_container_app_job" "event" {
   location                     = var.location
   resource_group_name          = var.resource_group_name
   container_app_environment_id = azurerm_container_app_environment.main.id
+  workload_profile_name        = "Consumption" # see azurerm_container_app.main above
 
   replica_timeout_in_seconds = each.value.timeout_seconds
   replica_retry_limit        = each.value.retry_limit
@@ -453,6 +461,7 @@ resource "azurerm_container_app_job" "manual" {
   location                     = var.location
   resource_group_name          = var.resource_group_name
   container_app_environment_id = azurerm_container_app_environment.main.id
+  workload_profile_name        = "Consumption" # see azurerm_container_app.main above
 
   replica_timeout_in_seconds = each.value.timeout_seconds
   replica_retry_limit        = each.value.retry_limit
