@@ -213,14 +213,20 @@ variable "scheduled_jobs" {
       env        = { WISER_JOB = "sentinel" }
       secret_env = {}
     }
-    # OSM critical infrastructure. Monthly, and off unless enabled: Overpass is a shared
-    # public service and a country-wide amenity query is expensive, while hospitals and
-    # schools rarely move. Easy to miss - it is a fifth ingestion schedule, not a fourth.
+    # OSM critical infrastructure. Monthly, because Overpass is a shared public service and
+    # a country-wide amenity query is expensive, while hospitals and schools rarely move.
+    # Easy to miss - it is a fifth ingestion schedule, not a fourth.
+    #
+    # Enabled, unlike the Compose default. Nothing else fills critical_infrastructure, and
+    # empty it takes proximity alerts down with it: with the table empty, an hourly alert
+    # pass over 51 active detections produced "0 new alerts created" every time, and the
+    # evacuation endpoints have no assembly points to route to either. Monthly against
+    # Overpass is a fair price for the two features that depend on it.
     ingest-osm = {
       image      = "wiser-ingestion", cron = "0 3 1 * *"
       cpu        = 0.5, memory = "1Gi", timeout_seconds = 3600, retry_limit = 1
       command    = [], args = []
-      env        = { WISER_JOB = "osm", OSM_IMPORT_SCHEDULED = "false" }
+      env        = { WISER_JOB = "osm", OSM_IMPORT_SCHEDULED = "true" }
       secret_env = {}
     }
     # Proximity alerts against the detections ingested in the same hour.
