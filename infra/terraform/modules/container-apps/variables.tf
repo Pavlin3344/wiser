@@ -161,10 +161,11 @@ variable "apps" {
   }
 }
 
-# ⚠ The Java entries assume `alerts` and `ingestion` have gained a one-shot mode that runs
-# a single task and exits. They are `@Scheduled` batch that boots Tomcat today, and until
-# that refactor lands these jobs will start, serve nothing and time out. That is step 5 of
-# the migration plan, not something Terraform can do.
+# The Java entries rely on the one-shot mode `alerts` and `ingestion` gained in
+# IngestionApplication/AlertsApplication: WISER_JOB names the single task to run, and the
+# app skips Tomcat, skips arming its @Scheduled timers, does that one thing and exits.
+# Before it existed every one of these jobs ran its work correctly and was then killed at
+# replica_timeout and recorded as Failed - a healthy pipeline that looked broken.
 variable "scheduled_jobs" {
   type = map(object({
     image           = string
@@ -232,6 +233,10 @@ variable "scheduled_jobs" {
       # add smtp-host/smtp-port/smtp-user/smtp-password/alerts-notify-to to `secrets` in
       # terraform.tfvars, add matching entries to secret_env here, then flip this to true.
       env = {
+        # Unlike ingestion's five feeds this service has only one task, so the value just
+        # selects one-shot mode rather than naming the work. Without it the app starts
+        # Tomcat, arms the hourly timer and never exits.
+        WISER_JOB             = "alerts"
         ALERTS_NOTIFY_ENABLED = "false"
         ALERTS_NOTIFY_FROM    = "wiser@wisertech.com"
       }
