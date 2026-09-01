@@ -152,7 +152,17 @@ resource "azurerm_container_app" "main" {
             # project_azure_demo_setup memory: that proxy hop was unreliable on this
             # platform's edge). A direct cross-origin browser call needs api to answer
             # with Access-Control-Allow-Origin, which SecurityConfig reads from this.
-            WISER_CORS_ALLOWED_ORIGINS = "https://ca-${var.prefix}-frontend.${azurerm_container_app_environment.main.default_domain}"
+            #
+            # The custom domain has to be listed too, and it is the one that matters:
+            # visitors arrive at https://fire-cast.com, so that - not the app's default
+            # hostname - is the Origin api actually sees. With only the default listed,
+            # every browser call from the real site was rejected with no
+            # Access-Control-Allow-Origin, taking the active-fire feed and the SSE stream
+            # down together while the API itself answered fine to curl.
+            WISER_CORS_ALLOWED_ORIGINS = join(",", compact([
+              "https://ca-${var.prefix}-frontend.${azurerm_container_app_environment.main.default_domain}",
+              var.custom_domain != "" ? "https://${var.custom_domain}" : "",
+            ]))
         }) : {})
         content {
           name  = env.key
