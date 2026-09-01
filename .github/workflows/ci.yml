@@ -337,7 +337,12 @@ jobs:
           # long-lived queue-consumer loop the other workers use (worker.py) - matches
           # the ENTRYPOINT_FILE build arg docker-compose.yml passes for the same service.
           - { image: wiser-worker-risk-zones,  context: data/processing, worker: risk_zones, entrypoint_file: job.py }
-          - { image: wiser-worker-fuel,        context: data/processing, worker: fuel }
+          # fuel is the same story as risk-zones above: a one-shot loader (load_fuel.py),
+          # not a queue consumer, so it has no worker.py for the Dockerfile's default
+          # entrypoint to find. Missing here, the image built fine and then died on every
+          # start with "can't open file '/app/data/processing/fuel/worker.py'". Matches
+          # the build arg docker-compose.jobs.yml passes for the same job.
+          - { image: wiser-worker-fuel,        context: data/processing, worker: fuel, entrypoint_file: load_fuel.py }
           - { image: wiser-data-metrics,       context: data/processing, worker: metrics }
     steps:
       - uses: actions/checkout@v7
