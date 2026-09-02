@@ -6,6 +6,12 @@ output "apps_subnet_id" {
   value = azurerm_subnet.apps.id
 }
 
+# The apps and jobs get their addresses from here and none of them is individually stable,
+# so anything that has to name them - an NSG rule, a route - names the range instead.
+output "apps_subnet_address_prefix" {
+  value = one(azurerm_subnet.apps.address_prefixes)
+}
+
 output "private_endpoints_subnet_id" {
   value = azurerm_subnet.private_endpoints.id
 }

@@ -1,6 +1,17 @@
 #cloud-config
-# Subnet router: advertises the whole VNet into the tailnet so Hetzner-side Grafana and
-# ELK, and anyone holding psql, can reach resources that have no public endpoint.
+# Subnet router, in both directions.
+#
+# Outbound (Hetzner -> Azure): --advertise-routes puts the whole VNet into the tailnet, so
+# Grafana and ELK on Hetzner, and anyone holding psql, can reach resources with no public
+# endpoint.
+#
+# Inbound (Azure -> Hetzner): the apps and jobs ship their logs to Logstash, which lives
+# only at a tailnet address. That needs the masquerade unit below - see its comment.
+#
+# ⚠ azurerm_linux_virtual_machine.tailscale carries ignore_changes = [custom_data], because
+# editing this file would otherwise destroy and recreate the VM and take the tunnel down
+# with it. Changes here apply to the NEXT rebuild; to change the running box, run the same
+# commands over SSH (docs/team/connection-guide.md).
 package_update: true
 package_upgrade: false
 
@@ -10,9 +21,43 @@ write_files:
       net.ipv4.ip_forward = 1
       net.ipv6.conf.all.forwarding = 1
 
+  # --snat-subnet-routes (on by default) masquerades traffic going *to* the advertised
+  # routes - that is Hetzner -> Azure, which is why ELK already sees this box as
+  # 10.60.2.36. It does nothing for the opposite direction, and Tailscale offers no flag
+  # that does. Without this rule the apps' log packets arrive at Hetzner still carrying
+  # 10.60.0.x, which Hetzner has no route back to, and the connection simply hangs.
+  #
+  # It cannot collide with the existing direction: that path is -i tailscale0 -o eth0 and
+  # never matches -o tailscale0. Traffic the router originates itself picks a 100.x source
+  # and never matches -s 10.60.0.0/21.
+  - path: /etc/systemd/system/tailscale-vnet-snat.service
+    content: |
+      [Unit]
+      Description=Masquerade VNet traffic leaving through the tailnet
+      After=tailscaled.service
+      Requires=tailscaled.service
+
+      [Service]
+      Type=oneshot
+      RemainAfterExit=yes
+      ExecStart=/bin/sh -c "iptables -t nat -C POSTROUTING -s ${advertise_cidr} -o tailscale0 -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -s ${advertise_cidr} -o tailscale0 -j MASQUERADE"
+
+      [Install]
+      WantedBy=multi-user.target
+
 runcmd:
   - [ sh, -c, "curl -fsSL https://tailscale.com/install.sh | sh" ]
   - [ sysctl, -p, /etc/sysctl.d/99-tailscale.conf ]
   # --accept-dns=false: this box must keep Azure's resolver, because resolving the private
   # endpoints is the whole reason it is here.
+  #
+  # No --accept-routes: 100.116.156.92 is a plain tailnet node address, which tailscaled
+  # routes on its own. That flag governs subnet routes advertised by *other* nodes, and
+  # accepting those is a way to pick up a route that collides with 10.60.0.0/21.
   - [ sh, -c, "tailscale up --authkey='${auth_key}' --advertise-routes='${advertise_cidr}' --accept-dns=false --hostname=wiser-azure-router" ]
+  # Separate from `up` on purpose: 1.66 shipped stateful filtering enabled by default, and
+  # it drops precisely the forwarded-into-the-tailnet traffic this router now carries. The
+  # install script pulls the latest release on every rebuild, so pin it - but keep it out
+  # of `up`, so an unknown flag on some future version cannot stop the node joining at all.
+  - [ sh, -c, "tailscale set --snat-subnet-routes=true --stateful-filtering=false || true" ]
+  - [ systemctl, enable, --now, tailscale-vnet-snat.service ]

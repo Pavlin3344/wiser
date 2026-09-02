@@ -185,6 +185,26 @@ resource "azurerm_network_security_group" "tailscale" {
   location            = var.location
   resource_group_name = azurerm_resource_group.main.name
 
+  # The one hole in the deny below, and narrower than it looks. An NSG on a NIC is
+  # evaluated for traffic passing *through* it, not only traffic addressed to it, and a
+  # forwarded packet still carries its original destination - so this names Hetzner's
+  # tailnet address, not this VM's. "VirtualNetwork" would not match: 100.116.156.92 is
+  # outside the VNet. Nothing that is not the apps subnet, speaking TCP, to that one host,
+  # on that one port, gets past priority 4096.
+  security_rule {
+    name                       = "allow-apps-to-hetzner-logs"
+    priority                   = 100
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = tostring(var.logstash_port)
+    source_address_prefix      = module.network.apps_subnet_address_prefix
+    destination_address_prefix = "${var.hetzner_tailscale_ip}/32"
+  }
+
+  # Everything else stays shut. Note this rule outranks Azure's own AllowVnetInBound
+  # (65000), which is why the exception above has to be explicit.
   security_rule {
     name                       = "deny-all-inbound"
     priority                   = 4096
@@ -200,6 +220,42 @@ resource "azurerm_network_security_group" "tailscale" {
   tags = local.tags
 }
 
+# --- Azure -> Hetzner, the return direction -------------------------------------------
+#
+# The router already carries Hetzner -> Azure; that is what lets Grafana and psql reach
+# private resources. This is the other way round: the apps and jobs ship their logs to
+# Logstash, which lives only at a tailnet address. Three things have to line up - a route
+# that aims the packets at the router instead of the internet, the NSG rule above that
+# lets the router forward them, and a masquerade on the router itself so Hetzner has a
+# source address it can reply to. Miss any one of them and the connection times out
+# rather than fails, which is the slowest kind of fault to chase.
+resource "azurerm_route_table" "tailnet" {
+  name                = "rt-${local.prefix}-tailnet"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.tags
+}
+
+# One host, not the whole 100.64.0.0/10 tailnet range. A workload-profiles Container Apps
+# environment reserves 100.100.0.0/17 and three /19 blocks for its own infrastructure, and
+# every one of them sits inside that /10 - routing it would hand the platform's own
+# addressing to a B1s VM. Logs need exactly one address.
+resource "azurerm_route" "hetzner" {
+  name                   = "hetzner-tailnet"
+  resource_group_name    = azurerm_resource_group.main.name
+  route_table_name       = azurerm_route_table.tailnet.name
+  address_prefix         = "${var.hetzner_tailscale_ip}/32"
+  next_hop_type          = "VirtualAppliance"
+  next_hop_in_ip_address = azurerm_network_interface.tailscale.private_ip_address
+}
+
+# The apps subnet only. Associating snet-tailscale as well would route the router's own
+# traffic for this address straight back at itself.
+resource "azurerm_subnet_route_table_association" "apps" {
+  subnet_id      = module.network.apps_subnet_id
+  route_table_id = azurerm_route_table.tailnet.id
+}
+
 resource "azurerm_network_interface" "tailscale" {
   name                = "nic-${local.prefix}-tailscale"
   location            = var.location
@@ -210,9 +266,14 @@ resource "azurerm_network_interface" "tailscale" {
   ip_forwarding_enabled = true
 
   ip_configuration {
-    name                          = "internal"
-    subnet_id                     = module.network.tailscale_subnet_id
-    private_ip_address_allocation = "Dynamic"
+    name      = "internal"
+    subnet_id = module.network.tailscale_subnet_id
+    # Static, and pinned to the address the NIC already holds. azurerm_route.hetzner uses
+    # this as its next hop; under Dynamic a recreated NIC could take a different lease and
+    # the route would quietly point at nothing - logs would stop with no error anywhere.
+    # Not ForceNew, so switching costs an in-place update and does not touch the VM.
+    private_ip_address_allocation = "Static"
+    private_ip_address            = "10.60.2.36"
     public_ip_address_id          = azurerm_public_ip.tailscale.id
   }
 
@@ -257,6 +318,18 @@ resource "azurerm_linux_virtual_machine" "tailscale" {
     auth_key       = var.tailscale_auth_key
     advertise_cidr = var.address_space
   }))
+
+  lifecycle {
+    # custom_data is ForceNew: editing the cloud-init destroys and recreates this VM. That
+    # costs a new tailnet identity, re-approval of the advertised 10.60.0.0/21, and an auth
+    # key that has to still be valid - i.e. Grafana, Kibana and every psql session over the
+    # tunnel go dark for as long as that takes.
+    #
+    # So the YAML stays the source of truth for the next rebuild, and changes to it are
+    # applied to the running box by hand instead. If a plan ever shows this VM being
+    # replaced, that is a mistake, not an upgrade.
+    ignore_changes = [custom_data]
+  }
 
   tags = local.tags
 }

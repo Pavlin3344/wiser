@@ -20,6 +20,20 @@ variable "address_space" {
   default = "10.60.0.0/21"
 }
 
+# --- Log shipping to the Hetzner box --------------------------------------------------
+
+variable "hetzner_tailscale_ip" {
+  description = "Tailnet address of the box running Logstash. Not a public IP - it resolves only inside the tailnet, which is why the apps reach it through the subnet router rather than over the internet."
+  type        = string
+  default     = "100.116.156.92"
+}
+
+variable "logstash_port" {
+  description = "Port the Hetzner Logstash accepts application logs on. Deliberately not 5044: that input speaks the beats/Lumberjack protocol, so a Logback appender connects to it and is then dropped, which looks like a network fault. See infra/docker/logstash/pipeline/wiser.conf."
+  type        = number
+  default     = 5045
+}
+
 variable "postgres_administrator_password" {
   type      = string
   sensitive = true
