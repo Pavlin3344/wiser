@@ -285,6 +285,23 @@ jobs:
           git fetch origin main
           git reset --hard ${{ github.sha }}
 
+      # Каквото е минало в профил "full" вече не е част от активната конфигурация, но
+      # контейнерът му продължава да върви от предишния деплой. Дали --remove-orphans
+      # пипа профилирани услуги се е променяло между версиите на Compose, а тук разликата
+      # е дали машината наистина освобождава паметта - затова ги спираме поименно.
+      # Идемпотентно: списъкът се смята от самия compose файл, не е зашит, и втори пробег
+      # не намира какво да спре. Volume-ите остават - `rm -s` маха контейнера, не данните.
+      - name: Stop services that now run on Azure
+        working-directory: /home/pavlin/wiser-repo/infra/docker
+        run: |
+          active=$(docker compose config --services)
+          for svc in $(COMPOSE_PROFILES=full docker compose config --services); do
+            if ! echo "$active" | grep -qx "$svc"; then
+              COMPOSE_PROFILES=full docker compose rm -sf "$svc" 2>/dev/null || true
+            fi
+          done
+          echo "Profiled-out services stopped"
+
       - name: Apply changes
         working-directory: /home/pavlin/wiser-repo/infra/docker
         run: |
