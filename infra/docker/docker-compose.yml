@@ -5,8 +5,22 @@ x-default-logging: &default-logging
     max-size: "10m"
     max-file: "3"
 
+# Всичко, което вече върви на Azure, е в профил "full" и НЕ се вдига по подразбиране.
+# Приложенията, базите, брокерът, обектното хранилище и Python worker-ите живеят в
+# Container Apps; тук те само дублираха продукцията и държаха паметта заета — 17 услуги
+# с ~7.4 GB декларирани лимити на машина със 7.5 GB общо. Остава наблюдателният стек:
+# Prometheus, Grafana, Alertmanager, ELK и двата host експортъра.
+#
+#   docker compose up -d                          # само наблюдение (по подразбиране)
+#   COMPOSE_PROFILES=full docker compose up -d    # целият стек, както преди
+#
+# Профилът е механизъм за връщане, не за изтриване: определенията стоят непокътнати и
+# един env var ги вдига обратно. Внимание - CI-ят също вдига без профила, тоест докато
+# това стои така, push към main спира да деплойва приложенията тук.
 services:
   postgres:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     image: pgrouting/pgrouting:16-3.5-4.0
     container_name: wiser-postgres
     restart: unless-stopped
@@ -30,6 +44,8 @@ services:
   # който работи само при празен volume). Файловете са в db/postgres/migrations
   # с Flyway naming: V1__init.sql, V2__xxx.sql...
   flyway-postgres:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     image: flyway/flyway:11-alpine
     container_name: wiser-flyway-postgres
     restart: "no"
@@ -51,6 +67,8 @@ services:
     logging: *default-logging
 
   timescale:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     image: timescale/timescaledb:2.28.1-pg16
     container_name: wiser-timescale
     restart: unless-stopped
@@ -71,6 +89,8 @@ services:
     logging: *default-logging
 
   flyway-timescale:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     image: flyway/flyway:11-alpine
     container_name: wiser-flyway-timescale
     restart: "no"
@@ -90,6 +110,8 @@ services:
     logging: *default-logging
 
   minio:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z.hotfix.7aa24e772
     container_name: wiser-minio
     restart: unless-stopped
@@ -111,6 +133,8 @@ services:
     logging: *default-logging
 
   minio-init:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
     container_name: wiser-minio-init
     restart: "no"
@@ -127,6 +151,8 @@ services:
     logging: *default-logging
 
   rabbitmq:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     image: rabbitmq:3-management
     container_name: wiser-rabbitmq
     restart: unless-stopped
@@ -174,6 +200,8 @@ services:
     logging: *default-logging
 
   wiser-frontend:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     build:
       context: ../../frontend
       dockerfile: Dockerfile
@@ -190,6 +218,8 @@ services:
     logging: *default-logging
 
   wiser-backend:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     build:
       context: ../../backend/api
       dockerfile: Dockerfile
@@ -227,6 +257,8 @@ services:
     logging: *default-logging
 
   wiser-alerts:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     build:
       context: ../../backend/alerts
       dockerfile: Dockerfile
@@ -257,6 +289,8 @@ services:
     logging: *default-logging
 
   wiser-ingestion:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     build:
       context: ../../backend/ingestion
       dockerfile: Dockerfile
@@ -303,6 +337,8 @@ services:
   # bootstrap kept in docker-compose.jobs.yml so it does not hold memory on a RAM-tight
   # host.
   worker-fwi:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     build:
       context: ../../data/processing
       dockerfile: Dockerfile
@@ -334,6 +370,8 @@ services:
     logging: *default-logging
 
   worker-ndvi:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     build:
       context: ../../data/processing
       dockerfile: Dockerfile
@@ -361,6 +399,8 @@ services:
   # works when something publishes a pre/post scene pair to `analysis.tasks`, so it sits
   # idle most of the time. Memory sized for the peak: two Sentinel-2 bands per scene.
   worker-dnbr:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     build:
       context: ../../data/processing
       dockerfile: Dockerfile
@@ -401,6 +441,8 @@ services:
   # One-off run (backfill, or after changing the model):
   #   docker compose run --rm -e RISK_ZONES_INTERVAL_SECONDS=0 risk-zones
   risk-zones:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     build:
       context: ../../data/processing
       dockerfile: Dockerfile
@@ -442,6 +484,8 @@ services:
   #
   # Read-only: it queries both databases and lists MinIO, and writes nothing.
   data-metrics:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     build:
       context: ../../data/processing
       dockerfile: Dockerfile
@@ -516,6 +560,8 @@ services:
     logging: *default-logging
 
   postgres-exporter:
+    # Дублира се с Azure - виж профила в края на файла.
+    profiles: ["full"]
     image: prometheuscommunity/postgres-exporter:v0.15.0
     container_name: wiser-postgres-exporter
     restart: unless-stopped
@@ -610,16 +656,28 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    logging: *default-logging
 
   logstash:
     image: docker.elastic.co/logstash/logstash:8.13.0
     container_name: wiser-logstash
     restart: unless-stopped
-    mem_limit: 1g
+    # 1g не стигаше и контейнерът беше в мълчалив OOM цикъл: cAdvisor показваше десет
+    # отделни инстанции за един час, всяка растяща до ~976 MiB преди да бъде убита.
+    # Логовете спряха на 2026-08-20, два дни след като data-metrics стегна паметта.
+    # Heap-ът е 512m и не е проблемът - извън heap-а JVM-ът иска metaspace, direct
+    # buffers и буферите на входовете, и точно те не се събираха в оставащия половин
+    # гигабайт. След като профил "full" освободи ~7.4 GB, 2g е далеч по-евтино от
+    # още едно тримесечие без логове.
+    mem_limit: 2g
     environment:
       - "LS_JAVA_OPTS=-Xms512m -Xmx512m"
-    # Без публикуван порт — filebeat говори с logstash:5044 през docker мрежата.
-    # 0.0.0.0:5044 беше отворен beats endpoint към интернет.
+    ports:
+      # Само beats портът остава непубликуван - filebeat го стига по docker мрежата, а
+      # 0.0.0.0:5044 навремето беше отворен beats endpoint към интернет. TCP входът за
+      # Azure е вързан за Tailscale адреса, същия модел като Kibana/Grafana/Prometheus
+      # по-долу: достъпен през тунела, невидим от интернет.
+      - "100.116.156.92:5045:5045"
     volumes:
       - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
       # Deliberately still a single-file mount: /usr/share/logstash/config also holds
@@ -630,6 +688,16 @@ services:
     depends_on:
       elasticsearch:
         condition: service_healthy
+    # Липсата на този healthcheck е причината провалът да остане невидим три месеца:
+    # deploy gate-ът в ci.yml филтрира по "health=unhealthy", а контейнер без
+    # healthcheck никога не е unhealthy - мъртъв Logstash минаваше за зелен деплой.
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9600/_node/stats || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    logging: *default-logging
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.13.0
@@ -648,11 +716,15 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+    logging: *default-logging
 
   filebeat:
     image: docker.elastic.co/beats/filebeat:8.13.0
     container_name: wiser-filebeat
     restart: unless-stopped
+    # Единственият контейнер тук без лимит досега. Filebeat държи регистър за всеки
+    # харвестван файл, а на тази машина те са всички под /var/lib/docker/containers.
+    mem_limit: 256m
     user: root
     command: ["--strict.perms=false"]
     volumes:
@@ -661,6 +733,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - logstash
+    healthcheck:
+      test: ["CMD-SHELL", "filebeat test output | grep -q 'talk to server... OK' || exit 1"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+      start_period: 30s
+    logging: *default-logging
 
 volumes:
   postgres_data:

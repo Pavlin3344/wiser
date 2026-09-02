@@ -56,6 +56,34 @@ jobs:
             --entrypoint amtool \
             prom/alertmanager:v0.27.0 \
             check-config /etc/alertmanager/alertmanager.yml
+
+      # Prometheus и Alertmanager се валидираха, ELK — не. Затова счупен pipeline се
+      # виждаше едва като Logstash boot loop на сървъра, а деплоят минаваше зелен:
+      # контейнерът нямаше healthcheck, а gate-ът филтрира по "health=unhealthy".
+      # Логовете спряха на 2026-08-20 и никой не разбра три месеца.
+      - name: Validate Logstash pipeline
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/infra/docker/logstash/pipeline:/usr/share/logstash/pipeline:ro \
+            -e "LS_JAVA_OPTS=-Xms256m -Xmx256m" \
+            docker.elastic.co/logstash/logstash:8.13.0 \
+            logstash --config.test_and_exit --path.settings /usr/share/logstash/config
+
+      - name: Validate Filebeat config
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/infra/docker/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro \
+            docker.elastic.co/beats/filebeat:8.13.0 \
+            --strict.perms=false test config
+
+      # Шаблонът и ILM политиката се качват с curl, не от Compose, така че единственото
+      # място, където синтаксисът им може да се хване преди сървъра, е тук.
+      - name: Validate Elasticsearch template and ILM JSON
+        run: |
+          for f in infra/docker/elasticsearch/*.json; do
+            python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$f"
+            echo "$f is valid JSON"
+          done
   
   # Не е в `needs` на deploy: Terraform описва Azure, а deploy пипа Hetzner. Счупен .tf
   # не бива да спира деплой на продукцията, но и не бива да се открива чак при apply.

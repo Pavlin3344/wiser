@@ -1,0 +1,24 @@
+{
+  "policy": {
+    "phases": {
+      "hot": {
+        "actions": {
+          "rollover": {
+            "max_primary_shard_size": "10gb",
+            "max_age": "1d"
+          }
+        }
+      },
+      "delete": {
+        "min_age": "14d",
+        "actions": {
+          "delete": {}
+        }
+      }
+    },
+    "_meta": {
+      "why_14d": "The box has 74.7 GB of disk and was at 79% on 2026-09-02, approaching Elasticsearch's 85% low watermark. Nothing here is an audit trail - logs are for debugging the last few days, and Prometheus keeps 90 days of metrics for anything longer.",
+      "why_rollover_too": "max_age alone leaves a single bad day unbounded. A burst of stack traces from one crash-looping container can outgrow the disk before the delete phase ever runs."
+    }
+  }
+}

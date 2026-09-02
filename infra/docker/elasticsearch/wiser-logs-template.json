@@ -1,0 +1,29 @@
+{
+  "index_patterns": ["wiser-logs-*"],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "wiser-logs",
+      "index.refresh_interval": "10s"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": { "type": "date" },
+        "service":    { "type": "keyword" },
+        "category":   { "type": "keyword" },
+        "origin":     { "type": "keyword" },
+        "log_level":  { "type": "keyword" },
+        "logger":     { "type": "keyword" },
+        "thread":     { "type": "keyword" },
+        "message":    { "type": "text" },
+        "stack_trace": { "type": "text" }
+      }
+    }
+  },
+  "_meta": {
+    "why_no_replicas": "Single-node cluster. A replica can never be assigned, so every index sat yellow with an unassigned shard - 481 of them by 2026-09-02, doubling shard count for nothing.",
+    "why_keyword": "service/category/origin/log_level are filtered and aggregated on, never full-text searched. keyword skips the analyzer and keeps the doc_values that make Kibana's filters fast."
+  }
+}
