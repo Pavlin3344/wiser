@@ -729,6 +729,12 @@ services:
     command: ["--strict.perms=false"]
     volumes:
       - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      # The registry - which file was read to which offset. It lived inside the container
+      # and therefore died with it, so every recreation re-read every Docker log from the
+      # start. That is how three months of already-deleted lines came back the moment the
+      # pipeline was unblocked, landing in indices dated as far back as June, because the
+      # index name comes from the event's own timestamp.
+      - filebeat_data:/usr/share/filebeat/data
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
@@ -754,3 +760,6 @@ volumes:
   prometheus_data:
   grafana_data:
   elasticsearch_data:
+  # Filebeat's read offsets. Without it every container recreation replays every log file
+  # it can see, from the beginning.
+  filebeat_data:

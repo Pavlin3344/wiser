@@ -1,14 +1,6 @@
 {
   "policy": {
     "phases": {
-      "hot": {
-        "actions": {
-          "rollover": {
-            "max_primary_shard_size": "10gb",
-            "max_age": "1d"
-          }
-        }
-      },
       "delete": {
         "min_age": "14d",
         "actions": {
@@ -17,8 +9,9 @@
       }
     },
     "_meta": {
-      "why_14d": "The box has 74.7 GB of disk and was at 79% on 2026-09-02, approaching Elasticsearch's 85% low watermark. Nothing here is an audit trail - logs are for debugging the last few days, and Prometheus keeps 90 days of metrics for anything longer.",
-      "why_rollover_too": "max_age alone leaves a single bad day unbounded. A burst of stack traces from one crash-looping container can outgrow the disk before the delete phase ever runs."
+      "why_no_rollover": "A rollover action needs index.lifecycle.rollover_alias, which a date-named index has no way to carry - every index went straight to the ERROR step and the delete phase below was never reached. The daily name IS the rollover here; there is nothing for the action to do.",
+      "why_14d": "The box has 74.7 GB of disk and was at 79% before the cleanup, near Elasticsearch's 85% low watermark. Nothing here is an audit trail - logs are for debugging the last few days, and Prometheus keeps 90 days of metrics for anything longer.",
+      "ages_from_the_name": "wiser-logs-template.json sets index.lifecycle.parse_origination_date, so min_age counts from the date in the index name rather than from when the index was created. Without it, a backfill - filebeat re-reading old container logs after losing its registry - would keep three-month-old lines for a further fourteen days."
     }
   }
 }

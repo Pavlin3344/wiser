@@ -6,7 +6,8 @@
       "number_of_shards": 1,
       "number_of_replicas": 0,
       "index.lifecycle.name": "wiser-logs",
-      "index.refresh_interval": "10s"
+      "index.refresh_interval": "10s",
+      "index.lifecycle.parse_origination_date": true
     },
     "mappings": {
       "properties": {
@@ -24,6 +25,7 @@
   },
   "_meta": {
     "why_no_replicas": "Single-node cluster. A replica can never be assigned, so every index sat yellow with an unassigned shard - 481 of them by 2026-09-02, doubling shard count for nothing.",
-    "why_keyword": "service/category/origin/log_level are filtered and aggregated on, never full-text searched. keyword skips the analyzer and keeps the doc_values that make Kibana's filters fast."
+    "why_keyword": "service/category/origin/log_level are filtered and aggregated on, never full-text searched. keyword skips the analyzer and keeps the doc_values that make Kibana's filters fast.",
+    "why_parse_origination_date": "The index name comes from the event's own @timestamp, not from today - so a filebeat that lost its registry and re-read three months of container logs creates indices dated back to June. Without this, ILM would age them from their creation date and keep every one of them for a further fourteen days. With it, min_age counts from the date in the name and the backfill expires on contact."
   }
 }
