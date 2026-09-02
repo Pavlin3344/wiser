@@ -1,0 +1,29 @@
+apiVersion: 1
+
+# Логовете се гледаха само в Kibana, а метриките само в Grafana - две табла за един въпрос
+# ("защо това число падна?"). С този datasource панел с логове застава до графиката, която
+# го е повдигнала.
+#
+# Kibana остава: тя е по-добра за ровене и за data views. Това е за корелация.
+datasources:
+  - name: Elasticsearch
+    type: elasticsearch
+    uid: elasticsearch
+    access: proxy
+    url: http://elasticsearch:9200
+    # Един индекс на ден за всички услуги, service е поле. Виж logstash/pipeline/wiser.conf
+    # за причината старата схема (по индекс на услуга на ден) да бъде изоставена.
+    database: "wiser-logs-*"
+    isDefault: false
+    editable: false
+    jsonData:
+      index: "wiser-logs-*"
+      timeField: "@timestamp"
+      esVersion: "8.13.0"
+      # Съвпада с index.refresh_interval в wiser-logs-template.json - по-кратък интервал
+      # само би карал Grafana да пита за данни, които още не са търсими.
+      interval: Daily
+      timeInterval: "10s"
+      maxConcurrentShardRequests: 5
+      logMessageField: message
+      logLevelField: log_level

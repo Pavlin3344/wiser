@@ -2,7 +2,7 @@
   "title": "Wiser Overview",
   "uid": "5b9f6fe8-b3f1-4f3e-9cf2-826bc724b36d",
   "schemaVersion": 39,
-  "version": 9,
+  "version": 10,
   "editable": true,
   "liveNow": false,
   "tags": [
@@ -95,11 +95,11 @@
                 "color": "red"
               },
               {
-                "value": 14,
+                "value": 8,
                 "color": "yellow"
               },
               {
-                "value": 15,
+                "value": 9,
                 "color": "green"
               }
             ]
@@ -107,10 +107,12 @@
           "color": {
             "mode": "thresholds"
           },
-          "mappings": []
+          "mappings": [],
+          "max": 9
         },
         "overrides": []
-      }
+      },
+      "description": "Контейнери с име wiser-*, видени през последната минута. Наблюдателният стек е 9; приложенията вече вървят на Azure и са зад профил \"full\"."
     },
     {
       "id": 2,
@@ -475,6 +477,16 @@
           "expr": "(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100",
           "legendFormat": "RAM",
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "expr": "(1 - (node_filesystem_avail_bytes{mountpoint=\"/\"} / node_filesystem_size_bytes{mountpoint=\"/\"})) * 100",
+          "legendFormat": "Disk /",
+          "range": true,
+          "refId": "C"
         }
       ],
       "options": {
@@ -544,7 +556,8 @@
           "mappings": []
         },
         "overrides": []
-      }
+      },
+      "description": "Трендът зад трите гейджа отгоре. Дискът е тук, защото точно той пълзи бавно и незабелязано - Elasticsearch спира да пише на 85%."
     },
     {
       "id": 8,
@@ -693,162 +706,6 @@
             ]
           }
         ]
-      }
-    },
-    {
-      "id": 9,
-      "title": "RabbitMQ Queue Depth",
-      "type": "timeseries",
-      "gridPos": {
-        "x": 12,
-        "y": 13,
-        "w": 12,
-        "h": 8
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "rabbitmq_queue_messages_ready",
-          "legendFormat": "{{queue}}",
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "value": null,
-                "color": "green"
-              },
-              {
-                "value": 80,
-                "color": "red"
-              }
-            ]
-          },
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "smooth",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "never",
-            "spanNulls": true,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": []
-        },
-        "overrides": []
-      }
-    },
-    {
-      "id": 10,
-      "title": "DLQ Messages (Total)",
-      "type": "stat",
-      "gridPos": {
-        "x": 12,
-        "y": 21,
-        "w": 12,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum(rabbitmq_queue_messages_ready{queue=~\".*\\.dlq\"})",
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "horizontal",
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "area",
-        "justifyMode": "center"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "value": null,
-                "color": "green"
-              },
-              {
-                "value": 1,
-                "color": "red"
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": []
-        },
-        "overrides": []
       }
     }
   ]

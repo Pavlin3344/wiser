@@ -14,7 +14,12 @@ alerting:
 rule_files:
   - /etc/prometheus/rules/*.yml
 
+# The application now runs on Azure Container Apps; this box keeps only the observability
+# stack (see the "full" profile in docker-compose.yml). So the targets below split in two:
+# what is still local - the host, its containers, Prometheus itself - and what has to be
+# scraped across the internet.
 scrape_configs:
+  # --- local to this box -------------------------------------------------------------
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
@@ -23,41 +28,55 @@ scrape_configs:
     static_configs:
       - targets: ['node-exporter:9100']
 
-  - job_name: 'postgres'
-    static_configs:
-      - targets: ['postgres-exporter:9187']
-
-  - job_name: 'rabbitmq'
-    static_configs:
-      - targets: ['rabbitmq:15692']
-
   - job_name: 'cadvisor'
     static_configs:
       - targets: ['cadvisor:8080']
 
-  # Spring Boot services expose Micrometer metrics on the actuator path rather than
-  # the Prometheus default of /metrics.
+  # --- Azure ---------------------------------------------------------------------------
+  #
+  # Scraped over the public ingress rather than through the Tailscale router. api is
+  # already external (this environment's internal-only ingress returns a platform 404,
+  # see modules/container-apps/variables.tf) and /actuator/prometheus is permitAll, so
+  # there is nothing to authenticate and nothing extra to open.
   - job_name: 'wiser-backend'
     metrics_path: /actuator/prometheus
+    scheme: https
     static_configs:
-      - targets: ['wiser-backend:8080']
-
-  - job_name: 'wiser-alerts'
-    metrics_path: /actuator/prometheus
-    static_configs:
-      - targets: ['wiser-alerts:8082']
-
-  - job_name: 'wiser-ingestion'
-    metrics_path: /actuator/prometheus
-    static_configs:
-      - targets: ['wiser-ingestion:8081']
+      - targets: ['ca-wiser-prod-api.ambitioussand-73e9150a.swedencentral.azurecontainerapps.io']
+        labels:
+          env: azure
 
   # The Python workers have no actuator equivalent, so a small exporter reports the
-  # freshness of what they produce (zones, FWI rows, NDVI rasters) instead.
+  # freshness of what they produce (zones, FWI rows, NDVI rasters) instead. This is the
+  # job behind every panel of the "Wiser — Данни и покритие" dashboard.
   - job_name: 'wiser-data-metrics'
-    # Every scrape opens a connection to both databases and lists MinIO, and freshness
-    # moves on the scale of hours - the global 15s would be four times a minute for
+    # Every scrape opens a connection to both databases and lists blob storage, and
+    # freshness moves on the scale of hours - the global 30s would be twice a minute for
     # nothing. The alerts here are all measured in hours, so a minute of lag is free.
     scrape_interval: 60s
+    metrics_path: /metrics
+    scheme: https
     static_configs:
-      - targets: ['data-metrics:9105']
+      - targets: ['ca-wiser-prod-data-metrics.ambitioussand-73e9150a.swedencentral.azurecontainerapps.io']
+        labels:
+          env: azure
+
+# --- Deliberately not scraped any more -------------------------------------------------
+#
+# postgres-exporter: it only ever read the local `wiser` database, which is now an Azure
+#   Flexible Server behind a Private Endpoint. Azure Monitor covers that server's metrics;
+#   pointing the exporter at it would need the Tailscale route and a second set of
+#   credentials for a dashboard nobody has built. PostgreSQLDown in rules/infrastructure.yml
+#   goes quiet as a result - it reads pg_up.
+#
+# rabbitmq: the broker runs as a Container App now and only its AMQP port (5672) has
+#   ingress. The Prometheus plugin's 15692 answers 404 from outside, verified 2026-09-02.
+#   That takes rabbitmq_queue_messages_ready with it, so DeadLetterQueueNotEmpty and
+#   IngestQueueBacklog in rules/data-processing.yml can no longer fire. To get them back,
+#   give the rabbitmq app a second ingress on 15692 - queue depth is genuinely worth
+#   having, it is just not worth a public port opened by accident.
+#
+# alerts/ingestion: they are Container Apps *Jobs* now. A job that exists for thirty
+#   seconds every hour cannot be scraped on a 30s interval - Prometheus would mostly find
+#   nothing there. Their work is visible through data-metrics (what they produced) and
+#   through job execution status in Azure, which is the better signal anyway.
