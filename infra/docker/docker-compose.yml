@@ -733,8 +733,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - logstash
+    # --strict.perms=false is not optional here, even though it looks like a duplicate of
+    # `command` above: that flag applies to the container's own process, and a healthcheck
+    # is a separate invocation. Without it filebeat refuses to load a bind-mounted config
+    # at all - "config file can only be writable by the owner" - so the check failed while
+    # filebeat itself was shipping logs perfectly well, and took the deploy down with it.
     healthcheck:
-      test: ["CMD-SHELL", "filebeat test output | grep -q 'talk to server... OK' || exit 1"]
+      test: ["CMD-SHELL", "filebeat --strict.perms=false test output 2>&1 | grep -q 'talk to server... OK'"]
       interval: 60s
       timeout: 15s
       retries: 3
