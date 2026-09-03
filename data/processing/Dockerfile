@@ -20,6 +20,18 @@ RUN pip install --no-cache-dir -r ./${WORKER}/requirements.txt
 
 COPY ${WORKER}/ ./${WORKER}/
 
+# Half the workers do not use the default worker.py - risk_zones has job.py, fuel has
+# load_fuel.py, metrics has exporter.py - and every caller has to pass ENTRYPOINT_FILE for
+# those. Three times now that was forgotten somewhere: the image built cleanly, was pushed,
+# was deployed, and only then died on every start with "can't open file". data-metrics ran
+# that way for weeks without anyone noticing, because a container restarting quietly looks
+# a lot like a container running. Fail here instead, where the mistake is made.
+RUN test -f "./${WORKER}/${ENTRYPOINT_FILE}" || { \
+      echo "ENTRYPOINT_FILE=${ENTRYPOINT_FILE} does not exist in ${WORKER}/. Found:"; \
+      ls -1 "./${WORKER}/"; \
+      exit 1; \
+    }
+
 # Shared by every worker, unlike config.py which each one keeps its own copy of. The
 # workers run as `python <worker>/<entrypoint>.py`, so sys.path[0] is the worker directory
 # and a module one level up is not importable without help - hence PYTHONPATH below.

@@ -388,7 +388,12 @@ jobs:
           # start with "can't open file '/app/data/processing/fuel/worker.py'". Matches
           # the build arg docker-compose.jobs.yml passes for the same job.
           - { image: wiser-worker-fuel,        context: data/processing, worker: fuel, entrypoint_file: load_fuel.py }
-          - { image: wiser-data-metrics,       context: data/processing, worker: metrics }
+          # Third worker with its own entrypoint, after risk-zones and fuel. The image built
+          # without this and then died on every start with "can't open file
+          # metrics/worker.py" - which is why data-metrics has never once run on Azure, and
+          # why every wiser_data_* metric on the Grafana dashboards came from the Hetzner
+          # copy. The Dockerfile now fails the build rather than letting this reach runtime.
+          - { image: wiser-data-metrics,       context: data/processing, worker: metrics, entrypoint_file: exporter.py }
     steps:
       - uses: actions/checkout@v7
 
