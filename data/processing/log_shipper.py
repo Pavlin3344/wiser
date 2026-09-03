@@ -10,6 +10,13 @@
 Пише се на ръка вместо с библиотека (`python-logstash-async`) по две причини: това е
 трийсетина реда, а всеки worker има собствен `requirements.txt` и собствен `.venv`, така
 че всяка нова зависимост се плаща пет пъти.
+
+Модулът е един за всички worker-и и стои едно ниво над тях, а те се пускат от собствените
+си папки - затова пътят до него се урежда на три места:
+  * в образа - `PYTHONPATH` в `data/processing/Dockerfile`;
+  * при тестове - `pythonpath = .` в `data/processing/pytest.ini`;
+  * при ръчно пускане отвън Docker - `PYTHONPATH=..` или пускане от `data/processing`:
+    `PYTHONPATH=. python fwi/worker.py`.
 """
 
 import atexit
