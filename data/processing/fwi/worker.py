@@ -12,12 +12,17 @@ import pika
 import psycopg
 
 from config import rabbitmq_params, s3_client, timescale_dsn
+import log_shipper
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
 log = logging.getLogger("fwi-worker")
+
+# Праща същите редове и към Logstash, ако LOGSTASH_HOST е зададен (Azure).
+# На Compose е no-op: там filebeat чете stdout от docker json файловете.
+log_shipper.install("worker-fwi")
 
 QUEUE = "weather.ingest"
 

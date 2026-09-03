@@ -10,6 +10,7 @@ Risk zones job-ът после семплира оттам.
 Употреба (Python 3.11, rasterio):
     python load_fuel.py
 """
+import logging
 import os
 import ssl
 import subprocess
@@ -20,8 +21,16 @@ from pathlib import Path
 
 import boto3
 from dotenv import load_dotenv
+import log_shipper
 
 load_dotenv(Path(__file__).resolve().parents[3] / ".env")
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+log = logging.getLogger("fuel-loader")
+
+# Праща същите редове и към Logstash, ако LOGSTASH_HOST е зададен (Azure).
+# На Compose е no-op: там filebeat чете stdout от docker json файловете.
+log_shipper.install("fuel-loader")
 
 URL = ("https://data.effis.emergency.copernicus.eu/effis/"
        "applications/data-and-services/FuelMap_LAEA.zip")
@@ -45,7 +54,7 @@ def main() -> None:
         tmp = Path(tmp)
         zip_path = tmp / "fuel.zip"
 
-        print("Сваляне на EFFIS fuel карта (~17 MB)...")
+        log.info("Сваляне на EFFIS fuel карта (~17 MB)...")
         # EFFIS сървърът има изтекъл SSL сертификат → пропускаме проверката.
         ctx = ssl.create_default_context()
         ctx.check_hostname = False
@@ -59,7 +68,7 @@ def main() -> None:
         src = next(tmp.glob("*NFFL*.tif"))
 
         out = tmp / "bg_fuel.tif"
-        print("Изрязвам България (EPSG:4326, ~250m, nearest)...")
+        log.info("Изрязвам България (EPSG:4326, ~250m, nearest)...")
         subprocess.run(
             ["rio", "warp", str(src), str(out), "--dst-crs", "EPSG:4326",
              "--bounds", *BG_BOUNDS, "--res", "0.0025",
@@ -67,9 +76,9 @@ def main() -> None:
             check=True,
         )
 
-        print(f"Качвам в MinIO {OUT_BUCKET}/{OUT_KEY}...")
+        log.info("Качвам в MinIO %s/%s...", OUT_BUCKET, OUT_KEY)
         s3_client().upload_file(str(out), OUT_BUCKET, OUT_KEY)
-        print("Готово.")
+        log.info("Готово.")
 
 
 if __name__ == "__main__":

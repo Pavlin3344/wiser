@@ -149,7 +149,7 @@ resource "azurerm_container_app" "main" {
       # name. Nothing here did the equivalent for Azure, so api was trying to reach a
       # database on its own loopback and crash-looping on a JDBC connect timeout.
       dynamic "env" {
-        for_each = merge(each.value.env, each.key == "frontend" ? {
+        for_each = merge(each.value.env, local.logstash_env, each.key == "frontend" ? {
           BACKEND_UPSTREAM = "https://ca-${var.prefix}-api.${azurerm_container_app_environment.main.default_domain}"
           } : each.key == "api" ? merge(local.rabbitmq_env, {
             SPRING_DATASOURCE_URL = "jdbc:postgresql://${var.postgres_fqdn}:5432/wiser"
@@ -294,6 +294,7 @@ resource "azurerm_container_app_job" "scheduled" {
       dynamic "env" {
         for_each = merge(
           each.value.env,
+          local.logstash_env,
           contains(["wiser-ingestion", "wiser-alerts"], each.value.image) ? {
             SPRING_DATASOURCE_URL = "jdbc:postgresql://${var.postgres_fqdn}:5432/wiser"
             TIMESCALE_URL         = "jdbc:postgresql://${var.timescale_fqdn}:5432/wiser_timeseries"
@@ -422,6 +423,7 @@ resource "azurerm_container_app_job" "event" {
       dynamic "env" {
         for_each = merge(
           each.value.env,
+          local.logstash_env,
           local.rabbitmq_env,
           local.minio_env,
           each.key == "worker-fwi" ? local.timescale_python_env : {},
@@ -504,6 +506,7 @@ resource "azurerm_container_app_job" "manual" {
       dynamic "env" {
         for_each = merge(
           each.value.env,
+          local.logstash_env,
           each.value.image == "wiser-worker-fuel" ? local.minio_env : {},
           each.value.image == "wiser-worker-dnbr" ? merge(
             local.rabbitmq_env, local.postgres_python_env, local.minio_env

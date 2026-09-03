@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Ships this service's logs to Logstash on the Hetzner box, and only when told to.
+
+  Under Compose nothing here activates: LOGSTASH_HOST is unset, the appender is never
+  attached, and filebeat keeps reading stdout from the Docker json files as before. On
+  Container Apps there is no host to read those files from, so the process sends them
+  itself, over the tailnet through the subnet router.
+
+  The console appender stays in both cases - it is what Azure Log Analytics captures, and
+  losing it would mean losing the logs entirely whenever Logstash is unreachable.
+-->
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+    <include resource="org/springframework/boot/logging/logback/console-appender.xml"/>
+
+    <springProperty scope="context" name="logstashHost" source="wiser.logstash.host" defaultValue=""/>
+    <springProperty scope="context" name="logstashPort" source="wiser.logstash.port" defaultValue="5045"/>
+
+    <!-- A batch job lives for about thirty seconds. Without this the JVM can exit with the
+         last lines - including whatever explains a failure - still sitting in the ring
+         buffer, which is exactly when they matter most. -->
+    <shutdownHook class="ch.qos.logback.core.hook.DefaultShutdownHook"/>
+
+    <if condition='!"".equals(property("logstashHost"))'>
+        <then>
+            <appender name="LOGSTASH" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+                <destination>${logstashHost}:${logstashPort}</destination>
+
+                <!-- Bounded, and it drops rather than blocks. A B1s subnet router now sits in
+                     the log path; if it stalls, this service must keep serving requests. -->
+                <ringBufferSize>2048</ringBufferSize>
+                <writeBufferSize>16384</writeBufferSize>
+                <keepAliveDuration>5 minutes</keepAliveDuration>
+
+                <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                    <!-- wiser.conf derives `service` from a Docker compose label, which no
+                         Container App sends. Without this every Azure line would land as
+                         "unknown" and the field would be useless for filtering. -->
+                    <customFields>{"service":"ingestion","origin":"azure"}</customFields>
+                    <fieldNames>
+                        <timestamp>@timestamp</timestamp>
+                        <level>log_level</level>
+                        <logger>logger</logger>
+                        <thread>thread</thread>
+                        <message>message</message>
+                        <stackTrace>stack_trace</stackTrace>
+                        <version>[ignore]</version>
+                        <levelValue>[ignore]</levelValue>
+                    </fieldNames>
+                </encoder>
+            </appender>
+
+            <root level="INFO">
+                <appender-ref ref="CONSOLE"/>
+                <appender-ref ref="LOGSTASH"/>
+            </root>
+        </then>
+        <else>
+            <root level="INFO">
+                <appender-ref ref="CONSOLE"/>
+            </root>
+        </else>
+    </if>
+</configuration>

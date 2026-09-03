@@ -20,7 +20,13 @@ RUN pip install --no-cache-dir -r ./${WORKER}/requirements.txt
 
 COPY ${WORKER}/ ./${WORKER}/
 
+# Shared by every worker, unlike config.py which each one keeps its own copy of. The
+# workers run as `python <worker>/<entrypoint>.py`, so sys.path[0] is the worker directory
+# and a module one level up is not importable without help - hence PYTHONPATH below.
+COPY log_shipper.py ./log_shipper.py
+
 ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/data/processing
 ENV WORKER_DIR=${WORKER}
 ENV WORKER_ENTRYPOINT=${ENTRYPOINT_FILE}
 

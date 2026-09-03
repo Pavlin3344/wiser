@@ -75,6 +75,17 @@ variable "rabbitmq_password" {
   sensitive = true
 }
 
+variable "logstash_host" {
+  description = "Tailnet address of the Hetzner Logstash. Empty disables shipping entirely - the appenders stay inert and logs go only to the console, which Log Analytics still captures."
+  type        = string
+  default     = ""
+}
+
+variable "logstash_port" {
+  type    = number
+  default = 5045
+}
+
 variable "zone_redundant" {
   type    = bool
   default = true

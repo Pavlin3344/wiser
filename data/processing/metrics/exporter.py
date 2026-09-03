@@ -22,9 +22,14 @@ from prometheus_client import REGISTRY, start_http_server
 from prometheus_client.core import GaugeMetricFamily
 
 from config import postgres_dsn, s3_client, timescale_dsn
+import log_shipper
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("data-metrics")
+
+# Праща същите редове и към Logstash, ако LOGSTASH_HOST е зададен (Azure).
+# На Compose е no-op: там filebeat чете stdout от docker json файловете.
+log_shipper.install("data-metrics")
 
 PORT = int(os.getenv("DATA_METRICS_PORT", "9105"))
 PRODUCTS_BUCKET = "processed-products"

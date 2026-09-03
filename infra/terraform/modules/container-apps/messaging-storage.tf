@@ -42,6 +42,16 @@ locals {
     POSTGRES_PASSWORD = "postgres-password" # gitleaks:allow - secret name, not a value
   }
 
+  # Every app and job gets this: unlike the Hetzner stack, there is no host here whose
+  # Docker json files filebeat could read, so each process ships its own logs over the
+  # tailnet. Java picks it up in logback-spring.xml, Python in data/processing/log_shipper.py,
+  # and both stay inert when it is unset - which is what keeps Compose unchanged.
+  # The route and NSG rule that make this address reachable are in envs/prod/main.tf.
+  logstash_env = var.logstash_host == "" ? {} : {
+    LOGSTASH_HOST = var.logstash_host
+    LOGSTASH_PORT = tostring(var.logstash_port)
+  }
+
   # KEDA's rabbitmq scale rule authenticates with a full connection URI, not separate
   # user/password fields - this is the one secret that has to be computed rather than
   # just referencing the shared `secrets` map.

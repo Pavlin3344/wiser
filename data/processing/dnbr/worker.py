@@ -26,9 +26,14 @@ from burn_severity import (
     severity_stats,
 )
 from config import postgres_dsn, rabbitmq_params, s3_client
+import log_shipper
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("dnbr-worker")
+
+# Праща същите редове и към Logstash, ако LOGSTASH_HOST е зададен (Azure).
+# На Compose е no-op: там filebeat чете stdout от docker json файловете.
+log_shipper.install("worker-dnbr")
 
 QUEUE = "analysis.tasks"
 OUTPUT_BUCKET = "processed-products"

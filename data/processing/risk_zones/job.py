@@ -20,9 +20,14 @@ import rasterio
 
 from config import postgres_dsn, timescale_dsn, s3_client
 from risk_model import risk_class, risk_score
+import log_shipper
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("risk-zones")
+
+# Праща същите редове и към Logstash, ако LOGSTASH_HOST е зададен (Azure).
+# На Compose е no-op: там filebeat чете stdout от docker json файловете.
+log_shipper.install("risk-zones")
 
 PRODUCTS_BUCKET = "processed-products"
 FUEL_KEY = "fuel/bg_fuel.tif"  # EFFIS NFFL fuel карта, изрязана за България

@@ -98,6 +98,23 @@
 			<artifactId>testcontainers-junit-jupiter</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- Ships logs to Logstash over TCP. Needed only where there is no host to read
+		     the container's stdout from: under Compose filebeat does that, but Container
+		     Apps has no such host, so the process has to send them itself.
+		     logback-spring.xml keeps the appender inert unless LOGSTASH_HOST is set. -->
+		<dependency>
+			<groupId>net.logstash.logback</groupId>
+			<artifactId>logstash-logback-encoder</artifactId>
+			<version>8.0</version>
+		</dependency>
+		<!-- logback's <if> condition in logback-spring.xml is evaluated by Janino. Without
+		     it on the classpath the condition is skipped silently and the Logstash appender
+		     is simply never attached - which would look exactly like a network problem. -->
+		<dependency>
+			<groupId>org.codehaus.janino</groupId>
+			<artifactId>janino</artifactId>
+			<version>3.1.12</version>
+		</dependency>
 	</dependencies>
 
 	<build>

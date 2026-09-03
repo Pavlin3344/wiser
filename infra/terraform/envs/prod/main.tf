@@ -132,6 +132,10 @@ module "container_apps" {
   rabbitmq_user       = var.rabbitmq_user
   rabbitmq_password   = var.rabbitmq_password
 
+  # Reachable only because of the route table and NSG rule below - see the comment there.
+  logstash_host = var.hetzner_tailscale_ip
+  logstash_port = var.logstash_port
+
   image_tag      = var.image_tag
   zone_redundant = var.zone_redundant
   custom_domain  = var.custom_domain
