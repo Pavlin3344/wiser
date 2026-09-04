@@ -2,7 +2,7 @@
   "title": "Wiser Backend",
   "uid": "c1d7a4e2-9b3f-4a61-8e5d-2f7c6a0b1d94",
   "schemaVersion": 39,
-  "version": 3,
+  "version": 4,
   "editable": true,
   "liveNow": false,
   "tags": [
@@ -39,7 +39,7 @@
       "gridPos": {
         "x": 0,
         "y": 0,
-        "w": 6,
+        "w": 8,
         "h": 5
       },
       "datasource": {
@@ -98,95 +98,13 @@
       "description": "alerts и ingestion вече са Container Apps Jobs - живеят по трийсет секунди на час и не могат да се скрейпват смислено. Тяхното здраве се вижда по свежестта на данните, които произвеждат."
     },
     {
-      "id": 2,
-      "title": "FIRMS Ingestion Configured",
-      "type": "stat",
-      "gridPos": {
-        "x": 6,
-        "y": 0,
-        "w": 6,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "wiser_ingestion_firms_configured",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "auto"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "value": null,
-                "color": "red"
-              },
-              {
-                "value": 1,
-                "color": "green"
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [
-            {
-              "type": "value",
-              "options": {
-                "0": {
-                  "text": "NO KEY",
-                  "index": 0
-                }
-              }
-            },
-            {
-              "type": "value",
-              "options": {
-                "1": {
-                  "text": "OK",
-                  "index": 1
-                }
-              }
-            }
-          ]
-        },
-        "overrides": []
-      }
-    },
-    {
       "id": 3,
       "title": "Live Dashboard Streams (SSE)",
       "type": "stat",
       "gridPos": {
-        "x": 12,
+        "x": 8,
         "y": 0,
-        "w": 6,
+        "w": 8,
         "h": 5
       },
       "datasource": {
@@ -237,66 +155,6 @@
         },
         "overrides": []
       }
-    },
-    {
-      "id": 4,
-      "title": "Внесени детекции (от старта)",
-      "type": "stat",
-      "gridPos": {
-        "x": 18,
-        "y": 0,
-        "w": 6,
-        "h": 5
-      },
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "expr": "sum(wiser_ingestion_detections_imported_total) or vector(0)",
-          "legendFormat": "__auto",
-          "range": true,
-          "refId": "A"
-        }
-      ],
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "orientation": "auto",
-        "textMode": "value",
-        "colorMode": "value",
-        "graphMode": "area",
-        "justifyMode": "auto"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "value": null,
-                "color": "orange"
-              }
-            ]
-          },
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "description": "Монотонен брояч: колко горещи точки е внесъл ingestion, откакто процесът е стартирал - НЕ колко горят сега. За активните виж /api/v1/fires/active или дашборда \"Данни и покритие\"."
     },
     {
       "id": 5,
@@ -422,8 +280,8 @@
       "gridPos": {
         "x": 0,
         "y": 13,
-        "w": 12,
-        "h": 8
+        "w": 24,
+        "h": 6
       },
       "datasource": {
         "type": "prometheus",
@@ -435,7 +293,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "sum by(job) (rate(http_server_requests_seconds_count{status=~\"5..\"}[5m]))",
+          "expr": "sum by(job) (rate(http_server_requests_seconds_count{status=~\"5..\"}[5m])) or vector(0)",
           "legendFormat": "{{job}}",
           "range": true,
           "refId": "A"
@@ -466,17 +324,18 @@
           "mode": "multi",
           "sort": "none"
         }
-      }
+      },
+      "description": "Празно означаваше нула сървърни грешки - най-доброто възможно състояние, показано като тревога. Сега се вижда като 0."
     },
     {
       "id": 8,
       "title": "JVM Heap Used",
       "type": "timeseries",
       "gridPos": {
-        "x": 12,
-        "y": 13,
-        "w": 12,
-        "h": 8
+        "x": 16,
+        "y": 0,
+        "w": 8,
+        "h": 5
       },
       "datasource": {
         "type": "prometheus",

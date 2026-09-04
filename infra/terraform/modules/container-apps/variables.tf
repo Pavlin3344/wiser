@@ -159,9 +159,14 @@ variable "apps" {
     # sitting empty for weeks while every container was green. It must be scraped, so it
     # is an app with internal ingress and not a job.
     data-metrics = {
-      image        = "wiser-data-metrics"
-      port         = 9105
-      external     = false
+      image = "wiser-data-metrics"
+      port  = 9105
+      # External for the same platform reason api, minio and rabbitmq are: internal-only
+      # ingress answers a platform 404 for everything in this environment. Prometheus runs
+      # on the Hetzner box and has to reach this over the public ingress, and it is the
+      # only source of every wiser_data_* series - the whole "Данни и покритие" dashboard
+      # is empty without it. The endpoint exposes counts and timestamps, nothing sensitive.
+      external     = true
       cpu          = 0.25
       memory       = "0.5Gi"
       min_replicas = 1
