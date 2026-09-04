@@ -169,7 +169,15 @@ resource "azurerm_container_app" "main" {
               "https://ca-${var.prefix}-frontend.${azurerm_container_app_environment.main.default_domain}",
               var.custom_domain != "" ? "https://${var.custom_domain}" : "",
             ]))
-        }) : {})
+            # data-metrics is Python and reads all three the way the workers do - host and
+            # port apart, not a JDBC URL. It had none of them, so every probe fell back to
+            # its localhost default and the exporter served
+            # wiser_data_scrape_success{source=...} 0 for postgres, timescale and minio
+            # while looking perfectly healthy. That is the exact failure this exporter was
+            # written to catch, happening to the exporter itself.
+          }) : each.key == "data-metrics" ? merge(
+          local.postgres_python_env, local.timescale_python_env, local.minio_env
+        ) : {})
         content {
           name  = env.key
           value = env.value
@@ -177,11 +185,17 @@ resource "azurerm_container_app" "main" {
       }
 
       dynamic "env" {
-        for_each = merge(each.value.secret_env, each.key == "api" ? merge(local.rabbitmq_secret_env, {
-          # Not a credential - a Container Apps secret *name*, resolved from the actual
-          # value in the `secrets` map (envs/prod/main.tf), itself sourced from tfvars.
-          POSTGRES_PASSWORD = "postgres-password" # gitleaks:allow
-        }) : {})
+        for_each = merge(
+          each.value.secret_env,
+          each.key == "api" ? merge(local.rabbitmq_secret_env, {
+            # Not a credential - a Container Apps secret *name*, resolved from the actual
+            # value in the `secrets` map (envs/prod/main.tf), itself sourced from tfvars.
+            POSTGRES_PASSWORD = "postgres-password" # gitleaks:allow
+          }) : {},
+          each.key == "data-metrics" ? merge(
+            local.postgres_python_secret_env, local.minio_secret_env
+          ) : {}
+        )
         content {
           name        = env.key
           secret_name = env.value
