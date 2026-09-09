@@ -320,6 +320,26 @@ jobs:
           docker kill --signal=HUP wiser-alertmanager
           echo "Config reloaded"
 
+      # config.reload.automatic в logstash.yml прави промените в pipeline-а живи, но
+      # самия logstash.yml Logstash чете само при старт - а той е bind mount, тоест
+      # `up -d` не пресъздава контейнера и новите настройки не влизат в сила. Маркерът
+      # държи хеша на последно заредения файл: при първо пускане го няма и контейнерът
+      # се пресъздава (което е точно каквото трябва, за да влезе самият auto-reload),
+      # после мълчи, докато файлът не се смени. Рестарт при всеки деплой би струвал
+      # деветдесет секунди, в които входът от Azure е затворен.
+      - name: Recreate Logstash when its settings file changed
+        working-directory: /home/pavlin/wiser-repo/infra/docker
+        run: |
+          marker="$HOME/.wiser-logstash-yml.sha"
+          current=$(sha256sum logstash/config/logstash.yml | cut -d' ' -f1)
+          if [ "$(cat "$marker" 2>/dev/null || true)" != "$current" ]; then
+            docker compose up -d --force-recreate logstash
+            echo "$current" > "$marker"
+            echo "Logstash recreated: its settings file changed"
+          else
+            echo "logstash.yml unchanged; the pipeline reloads on its own"
+          fi
+
       - name: Verify container health
         working-directory: /home/pavlin/wiser-repo/infra/docker
         run: |
