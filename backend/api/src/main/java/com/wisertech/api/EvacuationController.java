@@ -59,8 +59,20 @@ public class EvacuationController {
                 evacuationRepository.findSafeDestinations(lng, lat, fireBufferMeters, maxDestinations);
         List<Integer> endVertices = EvacuationRepository.routableVertices(destinations);
 
+        // The box the router may use: the caller plus every assembly point, widened for
+        // detours. Loading the whole country per request is what made this endpoint take
+        // over two minutes on the real road network.
+        double[] points = new double[2 + destinations.size() * 2];
+        points[0] = lng;
+        points[1] = lat;
+        for (int i = 0; i < destinations.size(); i++) {
+            points[2 + i * 2] = destinations.get(i).lng();
+            points[3 + i * 2] = destinations.get(i).lat();
+        }
+        EvacuationRepository.Bbox bbox = EvacuationRepository.Bbox.around(points);
+
         List<EvacuationRepository.EvacuationRoute> routes =
-                evacuationRepository.findRoutesAvoidingFires(start, endVertices, fireBufferMeters);
+                evacuationRepository.findRoutesAvoidingFires(start, endVertices, fireBufferMeters, bbox);
 
         List<Object> features = new ArrayList<>();
         for (EvacuationRepository.EvacuationRoute route : routes) {
@@ -101,7 +113,10 @@ public class EvacuationController {
             return ResponseEntity.notFound().build();
         }
 
-        return evacuationRepository.findShortestPath(start, end)
+        EvacuationRepository.Bbox bbox = EvacuationRepository.Bbox.around(
+                request.fromLng(), request.fromLat(), request.toLng(), request.toLat());
+
+        return evacuationRepository.findShortestPath(start, end, bbox)
                 .map(row -> ResponseEntity.ok(Map.<String, Object>of(
                         "type", "Feature",
                         "geometry", objectMapper.readTree(row.geometryJson()),

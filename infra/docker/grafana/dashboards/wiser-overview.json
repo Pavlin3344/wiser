@@ -1,5 +1,5 @@
 {
-  "title": "Wiser Overview",
+  "title": "Hetzner — хостът на наблюдението",
   "uid": "5b9f6fe8-b3f1-4f3e-9cf2-826bc724b36d",
   "schemaVersion": 39,
   "version": 10,
@@ -708,5 +708,6 @@
         ]
       }
     }
-  ]
+  ],
+  "description": "node-exporter и cAdvisor на Hetzner машината: ELK, Prometheus, Grafana, мостът. Приложенията не са тук — те са в таблото Wiser — Azure."
 }

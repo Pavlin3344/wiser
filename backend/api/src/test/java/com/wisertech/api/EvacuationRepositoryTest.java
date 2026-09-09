@@ -43,6 +43,11 @@ class EvacuationRepositoryTest {
 
     private static final double BUFFER_METERS = 5_000;
 
+    // Origin A(0,0) and shelter C(2,0). The southern detour runs a whole degree south of
+    // both, so this also checks that the box widens enough to keep a detour reachable
+    // rather than clipping it to a thin strip between the endpoints.
+    private static final EvacuationRepository.Bbox NETWORK_BOX = EvacuationRepository.Bbox.around(0, 0, 2, 0);
+
     @Autowired
     private JdbcTemplate jdbc;
 
@@ -110,7 +115,7 @@ class EvacuationRepositoryTest {
         assertThat(destinations).hasSize(1);
 
         List<EvacuationRepository.EvacuationRoute> routes = repository.findRoutesAvoidingFires(
-                1, EvacuationRepository.routableVertices(destinations), BUFFER_METERS);
+                1, EvacuationRepository.routableVertices(destinations), BUFFER_METERS, NETWORK_BOX);
 
         assertThat(routes).hasSize(1);
         assertThat(routes.getFirst().segments()).isEqualTo(2);
@@ -124,12 +129,36 @@ class EvacuationRepositoryTest {
 
         List<EvacuationRepository.Destination> destinations = repository.findSafeDestinations(0, 0, BUFFER_METERS, 3);
         List<EvacuationRepository.EvacuationRoute> routes = repository.findRoutesAvoidingFires(
-                1, EvacuationRepository.routableVertices(destinations), BUFFER_METERS);
+                1, EvacuationRepository.routableVertices(destinations), BUFFER_METERS, NETWORK_BOX);
 
         assertThat(routes).hasSize(1);
         assertThat(routes.getFirst().segments())
                 .describedAs("should take the 3-segment southern detour, not the 2-segment corridor past the fire")
                 .isEqualTo(3);
+    }
+
+    // A detection from last week is not a fire. Before the window this kept the corridor
+    // cut for good, because nothing ever deletes a detection.
+    @Test
+    void ignoresDetectionsOutsideTheActiveWindow() {
+        jdbc.update("INSERT INTO active_fires (source, detected_at, geom) VALUES ('TEST', NOW() - INTERVAL '7 days', ST_SetSRID(ST_MakePoint(1, 0), 4326))");
+
+        List<EvacuationRepository.Destination> destinations = repository.findSafeDestinations(0, 0, BUFFER_METERS, 3);
+        List<EvacuationRepository.EvacuationRoute> routes = repository.findRoutesAvoidingFires(
+                1, EvacuationRepository.routableVertices(destinations), BUFFER_METERS, NETWORK_BOX);
+
+        assertThat(routes).hasSize(1);
+        assertThat(routes.getFirst().segments()).isEqualTo(2);
+    }
+
+    @Test
+    void boxWidensSoADetourStaysReachable() {
+        EvacuationRepository.Bbox box = EvacuationRepository.Bbox.around(0, 0, 2, 0);
+        assertThat(box.minLat()).isLessThanOrEqualTo(-1.0);
+        assertThat(box.maxLat()).isGreaterThanOrEqualTo(1.0);
+
+        EvacuationRepository.Bbox tight = EvacuationRepository.Bbox.around(23.35, 42.65, 23.36, 42.66);
+        assertThat(tight.maxLng() - tight.minLng()).isGreaterThanOrEqualTo(0.2);
     }
 
     @Test
@@ -146,7 +175,7 @@ class EvacuationRepositoryTest {
 
         List<EvacuationRepository.Destination> destinations = repository.findSafeDestinations(0, 0, BUFFER_METERS, 3);
         List<EvacuationRepository.EvacuationRoute> routes = repository.findRoutesAvoidingFires(
-                1, EvacuationRepository.routableVertices(destinations), BUFFER_METERS);
+                1, EvacuationRepository.routableVertices(destinations), BUFFER_METERS, NETWORK_BOX);
 
         assertThat(routes).isEmpty();
     }
