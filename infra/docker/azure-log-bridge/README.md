@@ -57,35 +57,37 @@ Log Analytics вече събира и трите (console appender-ът и stdo
 Самоличността е отделна от `wiser-github-deploy`: той влиза през OIDC без парола, а тук
 трябва парола, защото машината не е в Azure. Правата са само за четене на един workspace.
 
+Пуска се **от машината на Павлин, в PowerShell** — не на сървъра. `az` тук е `az.cmd`,
+така че присвояването в променлива работи, но обратната наклонена черта за продължение
+на ред не работи: в PowerShell тя не значи нищо и всеки следващ ред тръгва като нова
+команда с `--`, което дава `Missing expression after unary operator '--'`.
+
+```powershell
+$appId = az ad app create --display-name wiser-log-reader --sign-in-audience AzureADMyOrg --query appId -o tsv
+az ad sp create --id $appId
+
+# Паролата се показва само сега.
+$secret = az ad app credential reset --id $appId --years 2 --query password -o tsv
+
+# Права: само четене, само върху този workspace.
+$scope = az monitor log-analytics workspace show -g rg-wiser-prod -n log-wiser-prod --query id -o tsv
+az role assignment create --assignee $appId --role "Log Analytics Reader" --scope $scope
+
+# Четирите реда за .env, готови за копиране.
+"AZURE_TENANT_ID=$(az account show --query tenantId -o tsv)"
+"AZURE_LOG_READER_CLIENT_ID=$appId"
+"AZURE_LOG_READER_CLIENT_SECRET=$secret"
+"AZURE_LOG_ANALYTICS_WORKSPACE_ID=$(az monitor log-analytics workspace show -g rg-wiser-prod -n log-wiser-prod --query customerId -o tsv)"
+```
+
+Ако вече е пускано веднъж, `az ad app list --display-name wiser-log-reader` показва дали
+приложението съществува — второ `create` прави дубликат, не преизползва старото.
+
+Стойностите отиват в `/home/pavlin/wiser-repo/.env` на сървъра (`.env` не влиза в git),
+след което мостът трябва да се вдигне наново, защото променливите се четат при старт:
+
 ```bash
-# 1. Приложение + service principal
-appId=$(az ad app create --display-name wiser-log-reader \
-  --sign-in-audience AzureADMyOrg --query appId -o tsv)
-az ad sp create --id "$appId"
-
-# 2. Парола (запиши я веднага - показва се само сега)
-az ad app credential reset --id "$appId" --years 2 --query password -o tsv
-
-# 3. Права: само четене, само върху този workspace
-az role assignment create \
-  --assignee "$appId" \
-  --role "Log Analytics Reader" \
-  --scope "$(az monitor log-analytics workspace show -g rg-wiser-prod \
-              -n log-wiser-prod --query id -o tsv)"
-
-# 4. Стойностите за .env
-az account show --query tenantId -o tsv
-az monitor log-analytics workspace show -g rg-wiser-prod -n log-wiser-prod \
-  --query customerId -o tsv
-```
-
-Попълват се в `/home/pavlin/wiser-repo/.env` на сървъра (`.env` не влиза в git):
-
-```
-AZURE_TENANT_ID=<tenantId от стъпка 4>
-AZURE_LOG_READER_CLIENT_ID=<appId от стъпка 1>
-AZURE_LOG_READER_CLIENT_SECRET=<паролата от стъпка 2>
-AZURE_LOG_ANALYTICS_WORKSPACE_ID=<customerId от стъпка 4>
+docker compose -f infra/docker/docker-compose.yml up -d --force-recreate azure-log-bridge
 ```
 
 ⚠ **Паролата изтича след две години.** Когато изтече, симптомът е `Log Analytics върна

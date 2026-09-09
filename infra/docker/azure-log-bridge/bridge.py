@@ -358,8 +358,22 @@ def main() -> int:
         ) if not value
     ]
     if missing:
-        LOG.error("Липсват %s - мостът не тръгва. Виж .env.example.", ", ".join(missing))
-        return 1
+        # Не излиза, а спи. Изходът тук вкарваше контейнера в restart цикъл, а gate-ът
+        # за деплой (ci.yml, "Verify container health") го хващаше като unhealthy и
+        # проваляше целия деплой - тоест липсваща настройка на един допълнителен
+        # компонент събаряше проверката на останалите десет контейнера.
+        #
+        # Спящ процес остава "starting" през start_period-а, минава gate-а, и чак после
+        # става unhealthy - където му е мястото: видимо в наблюдението, без да блокира
+        # деплоя. Не е тихо: това остава единственото, което пише, и контейнерът никога
+        # не позеленява.
+        LOG.error(
+            "Липсват %s - мостът няма какво да чете. Виж infra/docker/azure-log-bridge/"
+            "README.md; контейнерът остава unhealthy, докато не бъдат зададени.",
+            ", ".join(missing),
+        )
+        while True:
+            time.sleep(3600)
 
     la = LogAnalytics(workspace, TokenCache(tenant, client_id, client_secret))
     logstash_host = os.getenv("LOGSTASH_HOST", "logstash")
