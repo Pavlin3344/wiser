@@ -10,7 +10,7 @@
   "graphTooltip": 1,
   "refresh": "30s",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "time": {
     "from": "now-6h",
     "to": "now"
@@ -111,8 +111,8 @@
         "overrides": [
           {
             "matcher": {
-              "id": "byRegexp",
-              "options": ".*@timestamp.*"
+              "id": "byName",
+              "options": "Max"
             },
             "properties": [
               {
@@ -163,7 +163,7 @@
       "id": 3,
       "type": "stat",
       "title": "Сервизи с ред в прозореца",
-      "description": "Различни service стойности за избрания прозорец. 17 е пълният набор.",
+      "description": "Брой различни сервизи с поне един ред в прозореца. 17 е пълният набор.",
       "gridPos": {
         "x": 10,
         "y": 1,
@@ -186,11 +186,22 @@
           "metrics": [
             {
               "id": "1",
-              "type": "cardinality",
-              "field": "service"
+              "type": "count"
             }
           ],
-          "bucketAggs": []
+          "bucketAggs": [
+            {
+              "id": "2",
+              "type": "terms",
+              "field": "service",
+              "settings": {
+                "size": "30",
+                "order": "desc",
+                "orderBy": "_count",
+                "min_doc_count": "1"
+              }
+            }
+          ]
         }
       ],
       "fieldConfig": {
@@ -214,7 +225,7 @@
       "options": {
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "count"
           ],
           "fields": "",
           "values": false
@@ -223,7 +234,18 @@
         "graphMode": "none",
         "textMode": "value",
         "orientation": "auto"
-      }
+      },
+      "transformations": [
+        {
+          "id": "reduce",
+          "options": {
+            "reducers": [
+              "sum"
+            ],
+            "mode": "seriesToRows"
+          }
+        }
+      ]
     },
     {
       "id": 4,
@@ -255,7 +277,18 @@
               "type": "count"
             }
           ],
-          "bucketAggs": []
+          "bucketAggs": [
+            {
+              "id": "3",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ]
         }
       ],
       "fieldConfig": {
@@ -287,7 +320,7 @@
       "options": {
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "sum"
           ],
           "fields": "",
           "values": false
@@ -328,7 +361,18 @@
               "type": "count"
             }
           ],
-          "bucketAggs": []
+          "bucketAggs": [
+            {
+              "id": "3",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ]
         }
       ],
       "fieldConfig": {
@@ -356,7 +400,7 @@
       "options": {
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "sum"
           ],
           "fields": "",
           "values": false
@@ -523,7 +567,18 @@
               "type": "count"
             }
           ],
-          "bucketAggs": []
+          "bucketAggs": [
+            {
+              "id": "3",
+              "type": "date_histogram",
+              "field": "@timestamp",
+              "settings": {
+                "interval": "auto",
+                "min_doc_count": "0",
+                "trimEdges": "0"
+              }
+            }
+          ]
         }
       ],
       "fieldConfig": {
@@ -547,7 +602,7 @@
       "options": {
         "reduceOptions": {
           "calcs": [
-            "lastNotNull"
+            "sum"
           ],
           "fields": "",
           "values": false
