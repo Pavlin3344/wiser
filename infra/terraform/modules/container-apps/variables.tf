@@ -343,6 +343,25 @@ variable "manual_jobs" {
       env        = {}
       secret_env = {}
     }
+    # The road network with its pgRouting topology. Nothing populates `roads`
+    # automatically - the OSM importer in the ingestion service only writes
+    # critical_infrastructure - so without this run, `GET /api/evacuation/routes` answers
+    # 409 routing_topology_missing and the map shows no evacuation routes at all.
+    #
+    # Four vCPU and 8 GiB is the Consumption ceiling, and it is asked for because
+    # osm2pgrouting parses the whole OSM XML in memory. The script cuts the extract down
+    # to the seventeen highway classes the car profile accepts before converting, which is
+    # what keeps that parse inside this box.
+    #
+    # An hour is generous for a run measured in tens of minutes; the cost of guessing low
+    # is a job killed at 95% with the staging tables half written.
+    roads-import = {
+      image      = "wiser-roads-import"
+      cpu        = 4.0, memory = "8Gi", timeout_seconds = 3600, retry_limit = 0
+      command    = [], args = []
+      env        = {}
+      secret_env = {}
+    }
     # Stands in for the Phase 3 producer until the backend publishes `analysis.tasks`
     # itself. Takes arguments, so it is always started with an override.
     dnbr-scene-fetcher = {

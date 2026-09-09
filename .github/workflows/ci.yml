@@ -394,6 +394,12 @@ jobs:
           # why every wiser_data_* metric on the Grafana dashboards came from the Hetzner
           # copy. The Dockerfile now fails the build rather than letting this reach runtime.
           - { image: wiser-data-metrics,       context: data/processing, worker: metrics, entrypoint_file: exporter.py }
+          # Not an application - the osm2pgrouting import, packaged so it can run as a job
+          # inside the VNet. It used to be a list of docker commands in a README aimed at
+          # `docker exec wiser-postgres` on a network called docker_default; both went away
+          # with the migration, and `roads` has been empty on Azure ever since. Its own
+          # base image (pgrouting-extra), so no WORKER build arg applies.
+          - { image: wiser-roads-import,       context: db/postgres/scripts }
     steps:
       - uses: actions/checkout@v7
 
