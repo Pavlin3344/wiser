@@ -205,9 +205,17 @@ resource "azurerm_container_app" "rabbitmq" {
       # Same provisioning script Hetzner's compose file runs: definitions.json carries
       # no credentials (would be a password hash in git), so the broker boots with no
       # users at all otherwise, and every client gets ACCESS_REFUSED.
+      #
+      # The replace() is not decoration. Terraform hands this heredoc to Azure byte for
+      # byte, and a Windows checkout with core.autocrlf=true ends every line with CR LF.
+      # To sh a backslash before CR is an escaped CR, not a line continuation, so the
+      # '|| rabbitmqctl add_user' line stood on its own and the container died on start
+      # with 'Syntax error: "||" unexpected' - revision 0000002, 2026-09-09, the first
+      # apply after this file had been touched. .gitattributes now pins *.tf to LF; this
+      # keeps the script correct even if that is ever lost again.
       command = ["sh", "-c"]
       args = [
-        <<-EOT
+        replace(<<-EOT
         (
           until rabbitmqctl await_startup >/dev/null 2>&1; do sleep 2; done
           rabbitmqctl list_users 2>/dev/null | grep -qx "$RABBITMQ_DEFAULT_USER.*" \
@@ -218,6 +226,7 @@ resource "azurerm_container_app" "rabbitmq" {
         ) &
         exec rabbitmq-server
         EOT
+        , "\r", "")
       ]
 
       env {

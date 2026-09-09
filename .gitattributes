@@ -2,3 +2,14 @@
 # checked out on Windows - CRLF makes /bin/sh fail with "illegal option".
 mvnw text eol=lf
 *.sh text eol=lf
+
+# Terraform reads heredocs and templatefile() sources byte for byte and ships them to
+# Azure. Checked out with CRLF on Windows (core.autocrlf=true), the RabbitMQ bootstrap
+# script arrived with CR on every line: to sh, backslash-CR is an escaped CR and not a
+# line continuation, the next line began with "||", and the container died on start
+# with "Syntax error" - revision 0000002, 2026-09-09. The repo blob was LF the whole
+# time; only the working tree was not.
+*.tf     text eol=lf
+*.tfvars text eol=lf
+*.yaml   text eol=lf
+*.yml    text eol=lf
