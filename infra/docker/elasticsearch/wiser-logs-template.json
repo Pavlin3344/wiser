@@ -19,13 +19,41 @@
         "logger":     { "type": "keyword" },
         "thread":     { "type": "keyword" },
         "message":    { "type": "text" },
-        "stack_trace": { "type": "text" }
+        "stack_trace": { "type": "text" },
+
+        "via":         { "type": "keyword" },
+        "stream":      { "type": "keyword" },
+        "revision":    { "type": "keyword" },
+        "replica":     { "type": "keyword" },
+        "reason":      { "type": "keyword" },
+        "event_source": { "type": "keyword" },
+
+        "http": {
+          "properties": {
+            "client_ip":     { "type": "keyword" },
+            "forwarded_for": { "type": "keyword" },
+            "user":          { "type": "keyword" },
+            "time":          { "type": "keyword" },
+            "method":        { "type": "keyword" },
+            "path":          { "type": "keyword", "ignore_above": 1024 },
+            "version":       { "type": "keyword" },
+            "status":        { "type": "short" },
+            "bytes":         { "type": "long" },
+            "duration_ms":   { "type": "long" },
+            "query":         { "type": "keyword", "ignore_above": 1024 },
+            "referrer":      { "type": "keyword", "ignore_above": 1024 },
+            "user_agent":    { "type": "keyword", "ignore_above": 512 }
+          }
+        }
       }
     }
   },
   "_meta": {
     "why_no_replicas": "Single-node cluster. A replica can never be assigned, so every index sat yellow with an unassigned shard - 481 of them by 2026-09-02, doubling shard count for nothing.",
     "why_keyword": "service/category/origin/log_level are filtered and aggregated on, never full-text searched. keyword skips the analyzer and keeps the doc_values that make Kibana's filters fast.",
+    "why_http_object_is_shared": "api's RequestLogFilter writes the same object nginx's access log is parsed into, so http.status >= 500 is one Kibana filter across the edge and the API instead of two. duration_ms and query only ever come from api; bytes, referrer and user_agent only from nginx.",
+    "why_http_object": "frontend is nginx, and its access log is the busiest stream in the index. Left to dynamic mapping every field would land as text+keyword - two copies of a user agent string per request. Declared here it is one keyword each, and status is a short, so 'show me the 5xx' is an aggregation rather than a substring search.",
+    "why_client_ip_is_keyword": "Not the ip type, tempting as it is: %{IPORHOST} also matches a hostname, and a single non-IP value would be rejected by the mapping and take the whole document with it. A log pipeline must not drop lines over a field nobody ranges on.",
     "why_parse_origination_date": "The index name comes from the event's own @timestamp, not from today - so a filebeat that lost its registry and re-read three months of container logs creates indices dated back to June. Without this, ILM would age them from their creation date and keep every one of them for a further fourteen days. With it, min_age counts from the date in the name and the backfill expires on contact."
   }
 }

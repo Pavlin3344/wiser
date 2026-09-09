@@ -17,6 +17,15 @@
     <springProperty scope="context" name="logstashHost" source="wiser.logstash.host" defaultValue=""/>
     <springProperty scope="context" name="logstashPort" source="wiser.logstash.port" defaultValue="5045"/>
 
+    <!-- The name this process files its logs under. One image runs under several names on
+         Azure: wiser-ingestion is the same jar for ingest-effis, ingest-firms,
+         ingest-air-quality, ingest-sentinel and ingest-osm, and with the name hardcoded
+         all five landed in Kibana as a single "ingestion" - so "which feed failed" was a
+         question the logs could not answer. Container Apps sets WISER_LOG_SERVICE to the
+         job key (modules/container-apps/main.tf); unset, this stays what it always was and
+         Compose is untouched. -->
+    <springProperty scope="context" name="logService" source="wiser.log-service" defaultValue="alerts"/>
+
     <!-- A batch job lives for about thirty seconds. Without this the JVM can exit with the
          last lines - including whatever explains a failure - still sitting in the ring
          buffer, which is exactly when they matter most. -->
@@ -37,7 +46,20 @@
                     <!-- wiser.conf derives `service` from a Docker compose label, which no
                          Container App sends. Without this every Azure line would land as
                          "unknown" and the field would be useless for filtering. -->
-                    <customFields>{"service":"alerts","origin":"azure"}</customFields>
+                    <customFields>{"service":"${logService}"}</customFields>
+
+                    <!-- origin used to be set here as well, and the tcp input in wiser.conf
+                         adds it too. Logstash does not overwrite an existing field - it
+                         appends - so every Azure document reached Elasticsearch with
+                         origin: ["azure","azure"], and any pipeline condition comparing
+                         origin to a string could never match it. One writer per field. -->
+
+                    <!-- logstashHost and logstashPort are springProperty values with
+                         scope="context", and LogstashEncoder copies the whole context onto
+                         every event. The log server's own address was being stamped on each
+                         line it received: two dead keyword fields per document, on the
+                         busiest index we have. -->
+                    <includeContext>false</includeContext>
                     <fieldNames>
                         <timestamp>@timestamp</timestamp>
                         <level>log_level</level>
