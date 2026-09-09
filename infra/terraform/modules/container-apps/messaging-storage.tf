@@ -52,6 +52,21 @@ locals {
     LOGSTASH_PORT = tostring(var.logstash_port)
   }
 
+  # Alongside it, every app and job also gets WISER_LOG_SERVICE = its own key - written
+  # inline at each of the four env blocks in main.tf, because it depends on each.key and
+  # a local cannot. It is what a log line calls itself in Kibana.
+  #
+  # One image runs under several names here: wiser-ingestion is the same jar for
+  # ingest-effis, ingest-firms, ingest-air-quality, ingest-sentinel and ingest-osm. With
+  # the name compiled into logback-spring.xml all five filed their logs as "ingestion",
+  # so "which feed failed last night" was a question the logs could not answer - and the
+  # answer had to be pieced together from timestamps against the cron expressions here.
+  #
+  # The keys match the container names Azure reports (ContainerName_s), which is what the
+  # azure-log-bridge on the Hetzner box uses for the containers that cannot ship their own
+  # logs. Both paths therefore produce the same `service` value, and Kibana sees one name
+  # per service rather than one per delivery route.
+
   # KEDA's rabbitmq scale rule authenticates with a full connection URI, not separate
   # user/password fields - this is the one secret that has to be computed rather than
   # just referencing the shared `secrets` map.

@@ -132,6 +132,13 @@ def install(service: str) -> bool:
     if not host:
         return False
 
+    # Container Apps подава WISER_LOG_SERVICE = ключа на job-а (виж
+    # modules/container-apps/main.tf) и Java страната го чете по същия начин. Тук досега
+    # името идваше само от аргумента - вярно за днешните worker-и, защото всеки има свой
+    # образ, но env var, който платформата задава, а процесът мълчаливо игнорира, е точно
+    # видът разминаване, който се открива в Kibana месец по-късно.
+    service = os.getenv("WISER_LOG_SERVICE", "").strip() or service
+
     port = int(os.getenv("LOGSTASH_PORT", "5045"))
     handler = _LogstashTcpHandler(host, port, service)
 

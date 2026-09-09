@@ -1,2 +1,10 @@
 http.host: "0.0.0.0"
 xpack.monitoring.enabled: false
+
+# Pipeline-ът е bind mount, а Logstash го чете веднъж - при старт. Без това редакция в
+# wiser.conf стои на диска неизползвана до следващото пресъздаване на контейнера, а
+# `docker compose up -d` не пресъздава контейнер, чиято дефиниция не се е сменила.
+# Тоест деплой минава зелен, файлът е нов, а работещият pipeline е старият. Точно този
+# вид тишина вече е струвал на този стек три месеца логове.
+config.reload.automatic: true
+config.reload.interval: 30s

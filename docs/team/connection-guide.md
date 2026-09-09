@@ -4,12 +4,47 @@
 
 ## Достъп до сървъра
 
-Всички сервизи са достъпни само през **Tailscale VPN**.
+Всичко минава през **Tailscale VPN**. Без него няма достъп до нищо.
+Setup: виж `docs/team/onboarding.md`.
 
-- **Сървър IP**: `100.116.156.92`
-- Без Tailscale няма достъп до нищо
+### Къде какво живее (след миграцията към Azure)
 
-Setup на Tailscale: виж `docs/team/onboarding.md`.
+⚠️ **Hetzner (`100.116.156.92`) вече НЕ държи базите, брокера и хранилището.** Те са в
+Azure. На Hetzner остана само наблюдателният стек. Ако някой инструмент те праща към
+`100.116.156.92:5432`, той чете стара документация — контейнерът `wiser-postgres` не
+върви там от миграцията насам. (Определенията му стоят в `docker-compose.yml` под профил
+`full`, за връщане назад, но профилът не се вдига.)
+
+| Кое | Къде | Как се стига |
+|---|---|---|
+| Prometheus, Grafana, Kibana, Alertmanager, ELK | Hetzner `100.116.156.92` | директно по tailnet-а |
+| PostgreSQL, TimescaleDB | Azure, частен endpoint в `10.60.0.0/21` | през subnet router-а — виж по-долу |
+| RabbitMQ, MinIO | Azure Container Apps | по HTTPS на публичния им FQDN |
+| api, frontend, всички job-ове | Azure Container Apps | — |
+
+### Достъп до частните адреси в Azure (10.60.x)
+
+Базите нямат публичен адрес (`public_network_access_enabled = false`). Стига се до тях
+през `wiser-azure-router` — Tailscale subnet router вътре във VNet-а, който обявява
+`10.60.0.0/21` в tailnet-а.
+
+За да проработи, трябват **две** неща, и ако липсва което и да е от тях, симптомът е
+един и същ — connection timeout, без съобщение за грешка:
+
+1. **Маршрутът да е одобрен** в Tailscale admin console: Machines → `wiser-azure-router`
+   → Subnet routes → `10.60.0.0/21`. Одобрението е за конкретна машина и **отпада, ако
+   VM-ът бъде пресъздаден** (затова `custom_data` е под `ignore_changes` в
+   `envs/prod/main.tf` — пресъздаването губи и tailnet идентичността, и одобрението).
+2. **Твоята машина да приема маршрути**: `tailscale up --accept-routes`
+   (Windows: Preferences → „Use subnet routes"). Без това пакетът тръгва по default
+   route-а и излиза в интернет.
+
+Проверка, че двете са налице:
+
+```bash
+tailscale status --json | grep -A3 wiser-azure-router   # трябва да се вижда 10.60.0.0/21
+tailscale ping 10.60.2.6                                # трябва да отговори през router-а
+```
 
 ---
 
@@ -107,16 +142,31 @@ evalscript. Обхватът също: закованият bbox `[25.0, 42.4, 2
 
 Основна релационна база с пространствени разширения. Тук живеят `critical_infrastructure`, `roads`, `active_fires`, `alerts`.
 
+Azure Database for PostgreSQL Flexible Server, без публичен адрес.
+
 | Параметър | Стойност |
 |-----------|----------|
-| Host | `100.116.156.92` |
+| Host | `10.60.2.6` (частен endpoint, само през subnet router-а) |
 | Port | `5432` |
 | Database | `wiser` |
 | User | `wiser` |
-| Password | пита Pavlin (в `.env`) |
+| Password | пита Pavlin (`POSTGRES_PASSWORD`) |
+| SSL | задължителен — `sslmode=require` |
 
-**Connection string:** 
-postgresql://wiser:<PASSWORD>@100.116.156.92:5432/wiser
+**Connection string:**
+`postgresql://wiser:<PASSWORD>@10.60.2.6:5432/wiser?sslmode=require`
+
+Свързваме се по IP, а не по име. `psql-wiser-prod-postgres.postgres.database.azure.com`
+се резолвва публично към адрес, който отказва връзка — private DNS зоната важи вътре във
+VNet-а, а твоята машина пита публичния DNS. `sslmode=require` криптира, без да проверява
+името в сертификата, така че IP-то не пречи; `verify-full` няма да мине.
+
+```bash
+psql "postgresql://wiser:<PASSWORD>@10.60.2.6:5432/wiser?sslmode=require"
+```
+
+Timeout вместо отговор почти винаги значи маршрут, не парола — виж „Достъп до частните
+адреси в Azure" в началото на документа.
 
 **Достъпни таблици:**
 
@@ -135,16 +185,20 @@ postgresql://wiser:<PASSWORD>@100.116.156.92:5432/wiser
 
 Time-series база за метеорологични и качествени данни. 3-месечен retention.
 
+Отделен Flexible Server, също без публичен адрес. Портът е `5432`, а не `5433` — на
+Hetzner двете бази делеха една машина и втората беше изместена; тук са два сървъра.
+
 | Параметър | Стойност |
 |-----------|----------|
-| Host | `100.116.156.92` |
-| Port | `5433` |
+| Host | `10.60.2.5` (частен endpoint) |
+| Port | `5432` |
 | Database | `wiser_timeseries` |
 | User | `wiser` |
 | Password | същата като PostgreSQL |
+| SSL | задължителен — `sslmode=require` |
 
 **Connection string:**
-`postgresql://wiser:<PASSWORD>@100.116.156.92:5433/wiser_timeseries`
+`postgresql://wiser:<PASSWORD>@10.60.2.5:5432/wiser_timeseries?sslmode=require`
 
 ---
 
@@ -152,14 +206,21 @@ Time-series база за метеорологични и качествени �
 
 Message bus за pipeline-ите. vhost: `wiser`.
 
+Върви като Container App в Azure. Ingress-ът е external по неприятна причина: в тази
+среда internal-only ingress връща платформено 404 за всичко (виж коментара в
+`modules/container-apps/messaging-storage.tf`). Паролата е това, което пази достъпа.
+
 | Параметър | Стойност |
 |-----------|----------|
-| Host | `100.116.156.92` |
-| Port | `5672` (AMQP) · `15672` (management UI) |
+| Host | `ca-wiser-prod-rabbitmq.ambitioussand-73e9150a.swedencentral.azurecontainerapps.io` |
+| Port | `5672` (AMQP, през edge-а на 443) |
+| vhost | `wiser` |
 | User | `wiser` |
-| Password | пита Pavlin (в `.env`) |
+| Password | пита Pavlin (`RABBITMQ_PASSWORD`) |
 
-**Connection string:** `amqp://wiser:<PASSWORD>@100.116.156.92:5672/wiser`
+Опашките се пресъздават от `definitions.json` при всеки старт — за `/var/lib/rabbitmq`
+няма volume, защото Azure Files не може да наложи правата, които RabbitMQ иска на
+`.erlang.cookie`. Тоест **натрупаните съобщения не преживяват рестарт**; топологията да.
 
 ### Exchanges и Queues
 
@@ -211,10 +272,9 @@ Message bus за pipeline-ите. vhost: `wiser`.
 
 | Параметър | Стойност |
 |-----------|----------|
-| Endpoint | http://100.116.156.92:9000 |
-| Console UI | http://100.116.156.92:9001 |
-| Access Key | пита Pavlin (`MINIO_ROOT_USER` в `.env`) |
-| Secret Key | пита Pavlin (`MINIO_ROOT_PASSWORD` в `.env`) |
+| Endpoint | `https://ca-wiser-prod-minio.ambitioussand-73e9150a.swedencentral.azurecontainerapps.io` |
+| Access Key | пита Pavlin (`MINIO_ROOT_USER`) |
+| Secret Key | пита Pavlin (`MINIO_ROOT_PASSWORD`) |
 
 **Buckets:**
 
@@ -229,14 +289,16 @@ import boto3
 
 s3 = boto3.client(
     's3',
-    endpoint_url='http://100.116.156.92:9000',
+    endpoint_url='https://ca-wiser-prod-minio.ambitioussand-73e9150a.swedencentral.azurecontainerapps.io',
     aws_access_key_id='<MINIO_ROOT_USER>',
     aws_secret_access_key='<MINIO_ROOT_PASSWORD>',
     region_name='us-east-1'  # MinIO не я ползва, но boto3 я изисква
 )
 ```
 
-⚠️ При Azure миграция endpoint-ът ще се смени към Azure Blob Storage, но S3-съвместимият API позволява лесен преход.
+ℹ️ Остава MinIO и в Azure, а не Blob Storage: същият образ и същият S3 API като на
+Hetzner значи, че `data/processing/*/config.py` не се пипа при местене в която и да е от
+двете посоки.
 
 ---
 

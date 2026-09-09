@@ -752,6 +752,47 @@ services:
       start_period: 30s
     logging: *default-logging
 
+  # Логовете на Azure, които никой друг не носи. Приложенията, които пишем ние, пращат
+  # сами (logback-spring.xml в Java, log_shipper.py в Python), но frontend (nginx),
+  # minio и rabbitmq са чужди образи и не умеят - а системните събития на платформата
+  # (стартирал job, провален image pull, KEDA без съобщения в опашката) нямат контейнер,
+  # от който изобщо да излязат. Log Analytics вече ги събира и трите; това ги чете.
+  #
+  # Стои тук, а не в Azure, по същата причина, по която Prometheus и ELK стоят тук:
+  # наблюдателният стек е на тази машина и събирачът стои при събраното. Освен това
+  # така пише направо в logstash по docker мрежата - без tailnet, без NSG правило.
+  #
+  # Без AZURE_* променливите излиза с грешка и Docker го рестартира със забавяне; целият
+  # останал стек се вдига независимо. Подробно: ./azure-log-bridge/bridge.py
+  azure-log-bridge:
+    build:
+      context: ./azure-log-bridge
+    container_name: wiser-azure-log-bridge
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_CLIENT_ID: ${AZURE_LOG_READER_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_LOG_READER_CLIENT_SECRET:-}
+      AZURE_LOG_ANALYTICS_WORKSPACE_ID: ${AZURE_LOG_ANALYTICS_WORKSPACE_ID:-}
+      LOGSTASH_HOST: logstash
+      LOGSTASH_PORT: "5045"
+    volumes:
+      - azure_log_bridge_state:/state
+    depends_on:
+      logstash:
+        condition: service_healthy
+    # Пулсът се пише само след успешен цикъл срещу Log Analytics, не при старт на
+    # процеса - иначе това щеше да е поредният healthcheck, който мери живот вместо
+    # работа. Точно този вид проверка липсваше на Logstash три месеца.
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import os,sys,time; sys.exit(0 if time.time()-os.path.getmtime('/state/heartbeat') < 300 else 1)\""]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    logging: *default-logging
+
 volumes:
   postgres_data:
   timescale_data:
@@ -763,3 +804,6 @@ volumes:
   # Filebeat's read offsets. Without it every container recreation replays every log file
   # it can see, from the beginning.
   filebeat_data:
+  # Докъде е стигнал преносът от Log Analytics. Без него всеки рестарт на моста
+  # започва от студен старт и препраща същия половин час наново.
+  azure_log_bridge_state:

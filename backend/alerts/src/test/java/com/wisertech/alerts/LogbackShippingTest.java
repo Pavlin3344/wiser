@@ -53,9 +53,10 @@ class LogbackShippingTest {
 
         assertThat(xml)
                 .as("service name is what Kibana filters on")
-                .contains("\"service\":\"alerts\"")
-                .as("origin separates Azure from the filebeat-fed Hetzner lines")
-                .contains("\"origin\":\"azure\"");
+                .contains("\"service\":\"${logService}\"")
+                .as("and it must still fall back to this service's own name off Azure")
+                .contains("name=\"logService\"")
+                .contains("defaultValue=\"alerts\"");
 
         assertThat(xml)
                 .as("field names have to match wiser-logs-template.json")
@@ -72,6 +73,30 @@ class LogbackShippingTest {
                 .as("the console appender must survive: it is what Log Analytics captures, "
                         + "so losing it would mean losing logs entirely whenever Logstash is down")
                 .contains("<appender-ref ref=\"CONSOLE\"/>");
+    }
+
+    /**
+     * Two fields nobody meant to send, both found in production documents rather than in
+     * review - and neither produces an error, which is why they lasted.
+     *
+     * <p>origin is added by the tcp input in wiser.conf. Setting it here as well does not
+     * overwrite it, it appends: every Azure document arrived with origin
+     * ["azure","azure"], and a pipeline condition comparing origin to a string silently
+     * matched nothing. The context carries logstashHost and logstashPort, and
+     * LogstashEncoder copies the whole context onto every event, stamping the log server's
+     * own address on each line it receives.
+     */
+    @Test
+    void configSendsNothingTheEventShouldNotCarry() throws Exception {
+        String xml = Files.readString(CONFIG, StandardCharsets.UTF_8);
+
+        assertThat(xml)
+                .as("origin belongs to the Logstash input; a second writer makes it an array")
+                .doesNotContain("\"origin\":\"azure\"");
+
+        assertThat(xml)
+                .as("without this the connection settings ride along on every document")
+                .contains("<includeContext>false</includeContext>");
     }
 
     /** Unset host must leave the appender off, so Compose behaviour is untouched. */

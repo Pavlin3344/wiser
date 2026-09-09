@@ -1,65 +1,114 @@
-# Roads import (OSM -> pgRouting)
+# Roads import (OSM → pgRouting)
 
-Populates the `roads` table from real Bulgaria OpenStreetMap data, with routing
-topology (`source`/`target`/`cost`/`reverse_cost`) built by `osm2pgrouting`.
+Пълни таблицата `roads` с реалната пътна мрежа на България и routing топологията
+(`source`/`target`/`cost`/`reverse_cost`), която `pgr_dijkstra` изисква.
 
-This is a **documented manual pipeline**, not custom Java code, because
-`osm2pgrouting` is the standard, purpose-built tool for turning OSM ways into
-a routable network (splitting ways at intersections, assigning topology node
-IDs) - reimplementing that correctly in Java would be a lot of surface area
-for something a well-tested existing tool already solves.
+**Без този импорт евакуационните маршрути не работят.** `GET /api/evacuation/routes`
+проверява `SELECT COUNT(*) FROM roads WHERE source IS NOT NULL AND target IS NOT NULL`
+и при нула връща `409 routing_topology_missing`, а картата показва „Routing data not
+imported". Нищо не пълни `roads` автоматично — OSM importer-ът в `ingestion` пише само
+`critical_infrastructure`.
 
-## Why the extra filtering step
+Върши се с `osm2pgrouting`, а не със собствен Java код: това е стандартният инструмент
+за превръщане на OSM way-ове в routable мрежа (реже way-овете по кръстовищата и раздава
+topology node ID-та). При теста върху Лихтенщайн 5 931 way-а станаха **9 842 сегмента** —
+разликата е точно това рязане и точно затова `pgr_createTopology` върху цели way-ове не е
+заместител.
 
-A full-country `.osm.pbf` (~170MB for Bulgaria) converts to several GB of XML,
-and `osm2pgrouting`'s XML parser loads enough of that into memory that the
-container gets OOM-killed on a whole-country extract. Filtering down to just
-`highway=*` ways *before* converting to XML avoids this - and is also just a
-better-shaped dataset for a routing table (a full extract is mostly
-buildings/land-use/POIs, none of which belong in `roads` anyway).
-
-## Pipeline
-
-All steps run via Docker so nothing needs installing locally.
+## Как се пуска (Azure)
 
 ```bash
-# 1. Download the Bulgaria extract
-curl -L -o bulgaria-latest.osm.pbf https://download.geofabrik.de/europe/bulgaria-latest.osm.pbf
-
-# 2. Filter to just highway ways (also pulls in their referenced nodes)
-docker run --rm -v "$(pwd):/data" iboates/osmium:latest \
-  tags-filter /data/bulgaria-latest.osm.pbf w/highway -o /data/bulgaria-roads.pbf --overwrite
-
-# 3. Convert to XML (osm2pgrouting needs .osm, not .pbf)
-docker run --rm -v "$(pwd):/data" iboates/osmium:latest \
-  cat /data/bulgaria-roads.pbf -o /data/bulgaria-roads.osm -f osm --overwrite
-
-# 4. Create a staging schema (once)
-docker exec wiser-postgres psql -U wiser -d wiser -c "CREATE SCHEMA IF NOT EXISTS osm_staging;"
-
-# 5. Run osm2pgrouting into the staging schema
-#    (--network docker_default so the container can reach the postgres container by name)
-docker run --rm --network docker_default -v "$(pwd):/data" pgrouting/pgrouting-extra:latest \
-  osm2pgrouting -f /data/bulgaria-roads.osm \
-    -c /usr/local/share/osm2pgrouting/mapconfig_for_cars.xml \
-    -d wiser -U wiser -h postgres -p 5432 -W "$POSTGRES_PASSWORD" \
-    --schema osm_staging --clean
-
-# 6. Transform staging tables into the real `roads` table
-docker exec -i wiser-postgres psql -U wiser -d wiser < import_roads_from_osm.sql
+az containerapp job start -g rg-wiser-prod -n caj-wiser-prod-roads-import
 ```
 
-## Notes
+Job-ът върви **вътре във VNet-а**, тоест стига частния endpoint на базата директно — без
+tailnet, без одобрен маршрут, без нищо между него и Postgres. Свалянето, рязането,
+преобразуването и импортът са в един образ (`db/postgres/scripts/Dockerfile`), който CI
+качва в ACR като всеки друг.
 
-- `mapconfig_for_cars.xml` is one of three profiles `osm2pgrouting` ships with
-  (cars/bicycles/pedestrians) - it decides which `highway` tags count as
-  routable and their default cost/speed. Cars is the right profile for
-  evacuation routing.
-- `osm_staging.ways.tag_id` joins to `osm_staging.configuration.tag_id` to
-  recover the actual OSM `highway` tag value (e.g. `residential`, `primary`)
-  for the `roads.highway` column.
-- Re-running is safe: step 5 uses `--clean` (drops and recreates staging
-  tables), and `import_roads_from_osm.sql` truncates `roads` before
-  reinserting.
-- This is a one-off/occasional import (OSM road data doesn't change often
-  for Bulgaria), not something scheduled like the FIRMS ingestion.
+Проследяване:
+
+```bash
+az containerapp job execution list -g rg-wiser-prod -n caj-wiser-prod-roads-import \
+  --query "[0].{name:name,status:properties.status,start:properties.startTime}" -o table
+```
+
+Логовете влизат в Kibana като `service: roads-import` — контейнерът е shell скрипт и не
+може да праща сам, затова минава през `azure-log-bridge`.
+
+Отнема десетина до трийсетина минути. Накрая казва колко сегмента има топология и
+**се проваля**, ако са под 1000 — тиха празна таблица значи, че маршрутите пак ще връщат
+409, но без нищо в логовете, което да го обясни.
+
+## Какво прави, стъпка по стъпка
+
+1. Сваля `bulgaria-latest.osm.pbf` от Geofabrik (~170 MB).
+2. Реже с `osmium tags-filter` до **точно седемнайсетте** `highway` стойности, които
+   `mapconfig_for_cars.xml` приема.
+3. Преобразува в XML (`osm2pgrouting` не чете `.pbf`).
+4. Пуска `osm2pgrouting --clean` в схема `osm_staging`.
+5. Прехвърля staging таблиците в `roads` с `import_roads_from_osm.sql`.
+
+### Защо рязането е преди преобразуването, а не при импорта
+
+`osm2pgrouting` зарежда XML-а в паметта. Цялата страна дава няколко GB XML и процесът
+бива убит от OOM — това е причината филтърът да съществува изобщо.
+
+Филтърът обаче е стеснен още: не просто `w/highway`, а изброените седемнайсет класа.
+Пътеките, коловозите, стълбите и велоалеите са голяма част от `highway` way-овете в
+България и **без изключение** биват изхвърлени при импорта, защото car профилът не ги
+познава. Единственото, което правеха, беше да раздуят пиковата памет. Резултатът в базата
+е идентичен.
+
+### Идемпотентност
+
+Второ пускане дава същия резултат, не двойно повече редове: стъпка 4 е с `--clean`
+(пресъздава staging таблиците), а `import_roads_from_osm.sql` прави `TRUNCATE roads`
+преди `INSERT`.
+
+## Ръчно пускане (резервен вариант)
+
+Ако job-ът не може да се пусне — например докато образът още не е в ACR — същият контейнер
+върви отвсякъде, откъдето базата е достъпна. Това значи през tailnet-а, тоест маршрутът
+`10.60.0.0/21` трябва да е одобрен (виж `docs/team/connection-guide.md`):
+
+```bash
+docker build -t wiser-roads-import db/postgres/scripts
+
+docker run --rm \
+  -e POSTGRES_HOST=10.60.2.6 \
+  -e POSTGRES_USER=wiser \
+  -e POSTGRES_DB=wiser \
+  -e POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+  wiser-roads-import
+```
+
+Срещу локален Compose Postgres (без TLS) се добавя `-e PGSSLMODE=disable` и
+`--network docker_default`.
+
+> ⚠️ Тази страница описваше по-рано `docker exec wiser-postgres` и мрежа `docker_default`.
+> И двете изчезнаха с миграцията към Azure — контейнерът `wiser-postgres` е в профил
+> `full` и не се вдига. Инструкцията остана да сочи към машина, която вече не съществува,
+> и точно затова `roads` стоя празна.
+
+## Настройки
+
+| Променлива | По подразбиране | За какво е |
+|---|---|---|
+| `POSTGRES_HOST` | — | Задължителна. |
+| `POSTGRES_PORT` | `5432` | |
+| `POSTGRES_DB` / `POSTGRES_USER` | `wiser` | |
+| `POSTGRES_PASSWORD` | — | Задължителна. |
+| `PGSSLMODE` | `require` | Azure отказва връзка без TLS. `osm2pgrouting` няма собствен флаг за това, но libpq чете променливата — затова тя покрива и него, и `psql`. |
+| `OSM_EXTRACT_URL` | Geofabrik България | Сменя се за тест с малък extract. |
+| `STAGING_SCHEMA` | `osm_staging` | |
+
+## Бележки
+
+- `osm_staging.ways.tag_id` се свързва с `osm_staging.configuration.tag_id`, за да се
+  възстанови истинската стойност на `highway` тага (`residential`, `primary`…) за
+  колоната `roads.highway`.
+- Импортът е еднократен/рядък — OSM пътищата за България не се променят често — затова
+  job-ът е ръчен, а не по график.
+- Базовият образ е `pgrouting/pgrouting-extra:16-3.5-4.0`: същата версия като Postgres-а
+  в `docker-compose.yml`, само че вариантът `-extra` носи и `osm2pgrouting`.
