@@ -8,6 +8,25 @@ import { bulgariaMercatorCoordinates, bulgariaBBoxMercator } from "@/utils/geo"
 
 let protocolsRegistered = false
 
+const TRANSPARENT_PNG_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+const TRANSPARENT_PNG_BUFFER = Uint8Array.from(atob(TRANSPARENT_PNG_BASE64), (c) => c.charCodeAt(0)).buffer
+
+// Some of these WMS servers fail with an HTTP 200 whose body is an HTML error page
+// (JRC's MapServer does this), not a real error status - so res.ok alone misses it and
+// the tile silently renders as nothing. Warned once per protocol, not per tile, since a
+// dead server fails every tile in the viewport at once.
+const failedProtocols = new Set<string>()
+
+function reportUpstreamFailure(protocol: string, detail: string) {
+  if (failedProtocols.has(protocol)) return
+  failedProtocols.add(protocol)
+  console.warn(`[Wiser] ${protocol} tiles unavailable: ${detail}`)
+  toast.error("Map layer unavailable", {
+    description: `${protocol} could not be loaded (external server error). The layer will stay blank until it recovers.`,
+    duration: 10_000,
+  })
+}
+
 function registerCustomProtocols() {
   if (protocolsRegistered) return
   protocolsRegistered = true
@@ -24,7 +43,11 @@ function registerCustomProtocols() {
       const match = params.url.match(/[?&]BBOX=([^&]+)/i)
       if (!match) {
         const res = await fetch(fetchUrl, { signal: abortController.signal })
-        if (!res.ok) throw new Error(`Failed to load tile: ${res.status}`)
+        const contentType = res.headers.get("content-type")
+        if (!res.ok || !contentType?.startsWith("image/")) {
+          reportUpstreamFailure(protocol, `HTTP ${res.status}, content-type ${contentType ?? "unknown"}`)
+          return { data: TRANSPARENT_PNG_BUFFER }
+        }
         return { data: await res.arrayBuffer() }
       }
 
@@ -38,23 +61,25 @@ function registerCustomProtocols() {
         tMaxY < bbox.minY ||
         tMinY > bbox.maxY
       ) {
-        // Return 1x1 transparent PNG buffer
-        const transparentPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
-        const transparentPngBuffer = Uint8Array.from(atob(transparentPngBase64), (c) => c.charCodeAt(0)).buffer
-        return { data: transparentPngBuffer }
+        // Outside the viewport we care about - blank on purpose, not a failure.
+        return { data: TRANSPARENT_PNG_BUFFER }
       }
 
       // Fetch the original Copernicus tile
       const res = await fetch(fetchUrl, { signal: abortController.signal })
-      if (!res.ok) throw new Error(`Failed to load tile: ${res.status}`)
+      const contentType = res.headers.get("content-type")
+      if (!res.ok || !contentType?.startsWith("image/")) {
+        reportUpstreamFailure(protocol, `HTTP ${res.status}, content-type ${contentType ?? "unknown"}`)
+        return { data: TRANSPARENT_PNG_BUFFER }
+      }
       const blob = await res.blob()
 
       let img: ImageBitmap
       try {
         img = await createImageBitmap(blob)
       } catch {
-        // Fallback for empty or corrupted tiles
-        return { data: await blob.arrayBuffer() }
+        reportUpstreamFailure(protocol, "tile image could not be decoded")
+        return { data: TRANSPARENT_PNG_BUFFER }
       }
 
       // Create canvas to draw the clipped tile
