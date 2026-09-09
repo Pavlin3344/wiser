@@ -340,6 +340,23 @@ jobs:
             echo "logstash.yml unchanged; the pipeline reloads on its own"
           fi
 
+      # Grafana чете provisioning/datasources само при старт (таблата ги следи на живо,
+      # datasource-ите - не). Bind mount + `up -d` без промяна в дефиницията значи, че
+      # поправен datasource остава на диска, а работещият е старият - същият капан като
+      # logstash.yml по-горе, същото решение: маркер с хеша, рестарт само при промяна.
+      - name: Restart Grafana when its datasources changed
+        working-directory: /home/pavlin/wiser-repo/infra/docker
+        run: |
+          marker="$HOME/.wiser-grafana-datasources.sha"
+          current=$(cat grafana/provisioning/datasources/*.yml | sha256sum | cut -d' ' -f1)
+          if [ "$(cat "$marker" 2>/dev/null || true)" != "$current" ]; then
+            docker restart wiser-grafana
+            echo "$current" > "$marker"
+            echo "Grafana restarted: a datasource file changed"
+          else
+            echo "datasources unchanged; dashboards reload on their own"
+          fi
+
       - name: Verify container health
         working-directory: /home/pavlin/wiser-repo/infra/docker
         run: |

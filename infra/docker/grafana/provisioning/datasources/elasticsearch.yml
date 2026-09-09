@@ -20,9 +20,17 @@ datasources:
       index: "wiser-logs-*"
       timeField: "@timestamp"
       esVersion: "8.13.0"
-      # Съвпада с index.refresh_interval в wiser-logs-template.json - по-кратък интервал
-      # само би карал Grafana да пита за данни, които още не са търсими.
-      interval: Daily
+      # НЯМА `interval` тук, и това е нарочно. В този datasource `interval` не е честота,
+      # а шаблон за ротация на индекси: с `interval: Daily` Grafana чете името на индекса
+      # като формат за дата (w = седмица, s = секунди, e = ден от седмицата...) и пита
+      # за индекс, който не съществува. Всеки панел върху ES гърмеше с "No data" и
+      # червен триъгълник, докато Prometheus панелите до тях работеха - първото табло,
+      # което изобщо ползва този datasource (wiser-azure.json, 9 септември), го показа.
+      # Wildcard индексът върши цялата работа сам.
+      #
+      # timeInterval е минималната стъпка на заявката и съвпада с index.refresh_interval
+      # в wiser-logs-template.json - по-кратка само би карала Grafana да пита за данни,
+      # които още не са търсими.
       timeInterval: "10s"
       maxConcurrentShardRequests: 5
       logMessageField: message
