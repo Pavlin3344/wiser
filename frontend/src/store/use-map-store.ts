@@ -64,7 +64,7 @@ export const useMapStore = create<MapState>()(
         mapView: "2d",
         setMapView: (mapView) => set({ mapView }),
 
-        basemap: "topographic",
+        basemap: "satellite",
         setBasemap: (basemap) => set({ basemap }),
 
         scaleUnit: "metric",
@@ -81,6 +81,16 @@ export const useMapStore = create<MapState>()(
       }),
       {
         name: "wiser-system-storage",
+        // Introduced when the opening basemap became satellite. Every browser that had
+        // ever loaded the site held "topographic" here, so the new default alone would
+        // have reached nobody but a first-time visitor. migrate rather than a bare
+        // version bump: without one zustand discards the whole persisted object, and
+        // camera and scaleUnit are the visitor's own settings with no reason to reset.
+        version: 1,
+        migrate: (persisted) => ({
+          ...(persisted as Pick<MapState, "camera" | "mapView" | "basemap" | "scaleUnit">),
+          basemap: "satellite" as const,
+        }),
         // mapStatus, flyToTarget, userLocation and mapInstance are transient — never persist them
         partialize: (state) => ({
           camera: state.camera,

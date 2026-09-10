@@ -57,7 +57,7 @@ export const useLayerStore = create<LayerState>()(
       showLabels: false,
       setShowLabels: (showLabels) => set({ showLabels }),
 
-      showRiskGrid: true,
+      showRiskGrid: false,
       setShowRiskGrid: (showRiskGrid) => set({ showRiskGrid }),
 
       showRiskZones: false,
@@ -83,7 +83,12 @@ export const useLayerStore = create<LayerState>()(
       // Bumped when showThermal stopped being an inert placeholder and started drawing
       // the EFFIS raster. Browsers holding the old default of `true` would otherwise
       // switch that layer on by themselves on first load after the deploy.
-      version: 1,
+      //
+      // Bumped again with showRiskGrid: the map now opens with no overlay at all, and
+      // every browser that had loaded the site before held `true` for it. No migrate
+      // here, deliberately - discarding the persisted object is the point, since the
+      // whole intent is that nothing is switched on when the map opens.
+      version: 2,
     },
   ),
 )

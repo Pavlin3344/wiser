@@ -118,7 +118,7 @@ describe("Zustand global stores", () => {
         showFires: false,
         showTerrain: false,
         showLabels: false,
-        showRiskGrid: true,
+        showRiskGrid: false,
         showThermal: true,
         showWind: false,
         showEvac: false,
@@ -131,7 +131,7 @@ describe("Zustand global stores", () => {
       const state = useLayerStore.getState()
       expect(state.showFires).toBe(false)
       expect(state.showTerrain).toBe(false)
-      expect(state.showRiskGrid).toBe(true)
+      expect(state.showRiskGrid).toBe(false)
       expect(state.showThermal).toBe(true)
       expect(state.showWind).toBe(false)
       expect(state.showFuel).toBe(false)
@@ -143,7 +143,7 @@ describe("Zustand global stores", () => {
       store.setShowFires(true)
       store.setShowTerrain(true)
       store.setShowLabels(true)
-      store.setShowRiskGrid(false)
+      store.setShowRiskGrid(true)
       store.setShowThermal(false)
       store.setShowWind(true)
       store.setShowEvac(true)
@@ -154,7 +154,7 @@ describe("Zustand global stores", () => {
       expect(state.showFires).toBe(true)
       expect(state.showTerrain).toBe(true)
       expect(state.showLabels).toBe(true)
-      expect(state.showRiskGrid).toBe(false)
+      expect(state.showRiskGrid).toBe(true)
       expect(state.showThermal).toBe(false)
       expect(state.showWind).toBe(true)
       expect(state.showEvac).toBe(true)
@@ -169,7 +169,7 @@ describe("Zustand global stores", () => {
         camera: { lng: 25.5, lat: 42.0, zoom: 7, pitch: 0, bearing: 0 },
         flyToTarget: null,
         mapView: "2d",
-        basemap: "topographic",
+        basemap: "satellite",
         scaleUnit: "metric",
         mapStatus: { lat: 42.0, lng: 25.5, zoom: 7, elevation: 0, bearing: 0, cameraDistance: 0 },
         mapInstance: null,
@@ -182,7 +182,7 @@ describe("Zustand global stores", () => {
       expect(state.camera).toEqual({ lng: 25.5, lat: 42.0, zoom: 7, pitch: 0, bearing: 0 })
       expect(state.flyToTarget).toBeNull()
       expect(state.mapView).toBe("2d")
-      expect(state.basemap).toBe("topographic")
+      expect(state.basemap).toBe("satellite")
       expect(state.scaleUnit).toBe("metric")
       expect(state.mapInstance).toBeNull()
       expect(state.userLocation).toBeNull()
@@ -198,7 +198,7 @@ describe("Zustand global stores", () => {
       store.setCamera(newCamera)
       store.setFlyToTarget(newTarget)
       store.setMapView("3d")
-      store.setBasemap("satellite")
+      store.setBasemap("topographic")
       store.setMapInstance(mockMapInstance)
       store.setUserLocation(mockUserLocation)
 
@@ -206,7 +206,7 @@ describe("Zustand global stores", () => {
       expect(state.camera).toEqual(newCamera)
       expect(state.flyToTarget).toEqual(newTarget)
       expect(state.mapView).toBe("3d")
-      expect(state.basemap).toBe("satellite")
+      expect(state.basemap).toBe("topographic")
       expect(state.mapInstance).toBe(mockMapInstance)
       expect(state.userLocation).toEqual(mockUserLocation)
     })
